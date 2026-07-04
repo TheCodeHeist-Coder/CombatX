@@ -1,6 +1,9 @@
-import { PrismaClient, Difficulty, TestKind } from "../generated/client/index.js";
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient, Difficulty, TestKind } from "../generated/client/client.js";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 /**
  * Problems use a stdin -> stdout contract so the judge (Piston) can run any
