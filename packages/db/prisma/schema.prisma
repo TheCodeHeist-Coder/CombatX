@@ -1,0 +1,186 @@
+// CombateOne data model. Postgres + Prisma.
+// Ephemeral state (live snapshot, presence, rate limits, judge queue) lives in
+// Redis, NOT here. Postgres is the durable record of users, problems, battles,
+// submissions, and results.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Mode {
+  ONE_V_ONE
+  TWO_V_TWO
+  THREE_V_THREE
+  FOUR_V_FOUR
+}
+
+enum Side {
+  A
+  B
+}
+
+enum BattleStatus {
+  LOBBY
+  COUNTDOWN
+  IN_PROGRESS
+  FINISHED
+  ABANDONED
+}
+
+enum FinishReason {
+  ALL_PASSED
+  TIMEOUT
+  FORFEIT
+}
+
+enum TestKind {
+  SAMPLE
+  HIDDEN
+}
+
+enum SubmissionStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  ERROR
+}
+
+model User {
+  id          String   @id @default(cuid())
+  displayName String
+  email       String?  @unique
+  createdAt   DateTime @default(now())
+
+  // Phase 3 ranking fields (unused in MVP but modeled for forward-compat).
+  eloRating   Int      @default(1200)
+  wins        Int      @default(0)
+  losses      Int      @default(0)
+
+  hostedBattles Battle[]      @relation("HostedBattles")
+  memberships   TeamMember[]
+  submissions   Submission[]
+}
+
+model Problem {
+  id                 String     @id @default(cuid())
+  title              String
+  statementMarkdown  String
+  constraints        String
+  difficulty         Difficulty
+  allowedLanguages   String[]
+  // language -> starter snippet, e.g. { "PYTHON": "def solve(): ..." }
+  starterCode        Json
+  timeLimitDefaultSec Int       @default(600)
+  createdAt          DateTime   @default(now())
+
+  testCases TestCase[]
+  battles   Battle[]
+
+  @@index([difficulty])
+}
+
+model TestCase {
+  id             String   @id @default(cuid())
+  problemId      String
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  kind           TestKind
+  input          String
+  expectedOutput String
+  ordinal        Int
+  weight         Int      @default(1)
+
+  @@index([problemId, kind])
+}
+
+model Battle {
+  id                String        @id @default(cuid())
+  roomCode          String        @unique
+  mode              Mode
+  difficulty        Difficulty
+  timeLimitSec      Int
+  status            BattleStatus  @default(LOBBY)
+  seed              String
+  hostUserId        String
+  host              User          @relation("HostedBattles", fields: [hostUserId], references: [id])
+  assignedProblemId String?
+  problem           Problem?      @relation(fields: [assignedProblemId], references: [id])
+  serverStartAt     DateTime?
+  serverEndAt       DateTime?
+  winnerSide        Side?
+  finishReason      FinishReason?
+  createdAt         DateTime      @default(now())
+
+  teams       Team[]
+  submissions Submission[]
+  result      Result?
+
+  @@index([status])
+}
+
+model Team {
+  id       String @id @default(cuid())
+  battleId String
+  battle   Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  side     Side
+
+  members TeamMember[]
+
+  @@unique([battleId, side])
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  slot     Int
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, slot])
+}
+
+model Submission {
+  id             String           @id @default(cuid())
+  battleId       String
+  battle         Battle           @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id])
+  teamSide       Side
+  language       String
+  sourceCode     String
+  status         SubmissionStatus @default(QUEUED)
+  passedCount    Int              @default(0)
+  totalCount     Int              @default(0)
+  perTestResults Json?
+  runtimeMs      Int              @default(0)
+  errorMessage   String?
+  // Server-received time — the sole tie-break authority.
+  submittedAt    DateTime         @default(now())
+  judgedAt       DateTime?
+
+  @@index([battleId, submittedAt])
+}
+
+model Result {
+  id                   String       @id @default(cuid())
+  battleId             String       @unique
+  battle               Battle       @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  winnerSide           Side?
+  reason               FinishReason
+  decidingSubmissionId String?
+  standings            Json
+  createdAt            DateTime     @default(now())
+}
