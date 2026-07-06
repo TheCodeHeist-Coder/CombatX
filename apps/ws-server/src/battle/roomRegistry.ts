@@ -1,7 +1,7 @@
 import { prisma } from "@repo/db";
 import type { BattleConfig } from "@repo/protocol";
 import { BattleRoom } from "./battleRoom.js";
-import type { JudgePipeline } from "./judgeQueue.js";
+import type { JudgePipeline } from "../infra/judgeQueue.js";
 
 /**
  * Owns the set of live BattleRooms. Rooms are lazily hydrated from Postgres on

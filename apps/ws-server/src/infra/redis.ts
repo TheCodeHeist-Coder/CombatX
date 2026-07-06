@@ -1,5 +1,5 @@
 import { Redis } from "ioredis";
-import { env } from "./env.js";
+import { env } from "../config/env.js";
 
 /**
  * Redis connections. We keep them separate by role because a connection in

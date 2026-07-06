@@ -10,7 +10,7 @@ import type {
   SubmissionResultView,
 } from "@repo/protocol";
 import type { Problem, TestCase } from "@repo/db";
-import type { LobbySeat, RoomSubmission } from "./types.js";
+import type { LobbySeat, RoomSubmission } from "../types.js";
 
 /**
  * Build the client-safe projection of a Problem. Strips HIDDEN tests entirely —

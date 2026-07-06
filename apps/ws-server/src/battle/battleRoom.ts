@@ -2,7 +2,6 @@ import type { WebSocket } from "ws";
 import { prisma } from "@repo/db";
 import {
   MODE_TEAM_SIZE,
-  encode,
   type BattleConfig,
   type BattleStatus,
   type FinishReason,
@@ -23,11 +22,11 @@ import {
   type JudgedSubmission,
   type LobbyPlayer,
 } from "@repo/game";
-import { env } from "./env.js";
-import type { JudgePipeline } from "./judgeQueue.js";
-import type { Connection, LobbySeat, RoomSubmission } from "./types.js";
+import { env } from "../config/env.js";
+import type { JudgePipeline } from "../infra/judgeQueue.js";
+import type { Connection, LobbySeat, RoomSubmission } from "../types.js";
 import { buildSnapshot, toPublicProblem, toSideProgress } from "./projections.js";
-import { serverError } from "./send.js";
+import { Broadcaster } from "./broadcaster.js";
 
 /**
  * Authoritative, in-memory state and lifecycle for ONE battle. Everything the
@@ -44,8 +43,8 @@ export class BattleRoom {
   private status: BattleStatus;
   /** userId -> seat (roster). A user has a seat even before picking a side. */
   private readonly seats = new Map<string, LobbySeat>();
-  /** userId -> set of live sockets for that user (reconnect tolerant). */
-  private readonly sockets = new Map<string, Set<WebSocket>>();
+  /** Owns live sockets + all outbound framing (reconnect tolerant). */
+  private readonly wire = new Broadcaster();
   /** submissionId -> tracked submission (for progress + win resolution). */
   private readonly submissions = new Map<string, RoomSubmission>();
 
@@ -107,12 +106,7 @@ export class BattleRoom {
       seat.displayName = conn.displayName;
     }
 
-    let set = this.sockets.get(conn.userId);
-    if (!set) {
-      set = new Set();
-      this.sockets.set(conn.userId, set);
-    }
-    set.add(conn.ws);
+    this.wire.add(conn.userId, conn.ws);
 
     this.broadcastLobby();
     this.broadcastPresence(conn.userId, "ONLINE");
@@ -120,32 +114,28 @@ export class BattleRoom {
 
   /** Detach one socket. Marks the user disconnected when their last one closes. */
   detach(userId: string, ws: WebSocket): void {
-    const set = this.sockets.get(userId);
-    if (set) {
-      set.delete(ws);
-      if (set.size === 0) {
-        this.sockets.delete(userId);
-        const seat = this.seats.get(userId);
-        if (seat) {
-          seat.presence = "DISCONNECTED";
-          this.broadcastPresence(userId, "DISCONNECTED");
-        }
-        // In the lobby a fully-gone player frees their seat; mid-battle we keep
-        // the seat so their submissions still count on timeout resolution.
-        if (this.status === "LOBBY" || this.status === "COUNTDOWN") {
-          this.seats.delete(userId);
-          this.maybeCancelCountdown();
-        }
+    const wentOffline = this.wire.remove(userId, ws);
+    if (wentOffline) {
+      const seat = this.seats.get(userId);
+      if (seat) {
+        seat.presence = "DISCONNECTED";
+        this.broadcastPresence(userId, "DISCONNECTED");
+      }
+      // In the lobby a fully-gone player frees their seat; mid-battle we keep
+      // the seat so their submissions still count on timeout resolution.
+      if (this.status === "LOBBY" || this.status === "COUNTDOWN") {
+        this.seats.delete(userId);
+        this.maybeCancelCountdown();
       }
     }
     this.broadcastLobby();
 
     // If nobody is connected at all, ask the registry to evict us.
-    if (this.sockets.size === 0) this.onEmpty(this.battleId);
+    if (!this.wire.hasConnections()) this.onEmpty(this.battleId);
   }
 
   hasConnections(): boolean {
-    return this.sockets.size > 0;
+    return this.wire.hasConnections();
   }
 
   // --- lobby actions --------------------------------------------------------
@@ -505,21 +495,14 @@ export class BattleRoom {
     return MODE_TEAM_SIZE[this.config.mode];
   }
 
-  // --- broadcasting ---------------------------------------------------------
+  // --- broadcasting (delegated to the Broadcaster) --------------------------
 
   private broadcast(msg: ServerMessage): void {
-    const frame = encode(msg);
-    for (const set of this.sockets.values()) {
-      for (const ws of set) {
-        if (ws.readyState === ws.OPEN) ws.send(frame);
-      }
-    }
+    this.wire.broadcast(msg);
   }
 
   private broadcastError(code: string, message: string): void {
-    for (const set of this.sockets.values()) {
-      for (const ws of set) serverError(ws, code, message);
-    }
+    this.wire.broadcastError(code, message);
   }
 
   private broadcastLobby(): void {

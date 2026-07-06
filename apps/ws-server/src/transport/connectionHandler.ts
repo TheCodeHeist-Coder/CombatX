@@ -1,10 +1,10 @@
 import type { WebSocket } from "ws";
 import { verifyGuestToken } from "@repo/auth";
 import { parseClientMessage, type ClientMessage } from "@repo/protocol";
-import { env } from "./env.js";
-import type { RoomRegistry } from "./roomRegistry.js";
-import type { BattleRoom } from "./battleRoom.js";
-import type { Connection } from "./types.js";
+import { env } from "../config/env.js";
+import type { RoomRegistry } from "../battle/roomRegistry.js";
+import type { BattleRoom } from "../battle/battleRoom.js";
+import type { Connection } from "../types.js";
 import { ack, ackError, send, serverError } from "./send.js";
 
 /**
