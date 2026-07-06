@@ -173,9 +173,9 @@ importers:
 
   apps/web:
     dependencies:
-      '@repo/ui':
+      '@repo/protocol':
         specifier: workspace:*
-        version: link:../../packages/ui
+        version: link:../../packages/protocol
       geist:
         specifier: ^1.7.1
         version: 1.7.1(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
@@ -188,6 +188,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.0(react@19.2.0)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@next/eslint-plugin-next':
         specifier: ^16.2.0
@@ -195,9 +198,6 @@ importers:
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@repo/tailwind-config':
-        specifier: workspace:*
-        version: link:../../packages/tailwind-config
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

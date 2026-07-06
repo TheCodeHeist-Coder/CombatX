@@ -1,26 +1,244 @@
 @import "tailwindcss";
-@import "@repo/tailwind-config";
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* ---------------------------------------------------------------------------
+ * CombatX design system.
+ *
+ * A restrained, modern dark theme. Near-black base, warm off-white ink, a
+ * single cool accent used sparingly. No glow, no gloss — surfaces are
+ * differentiated by hairline borders and small elevation, not shine.
+ * ------------------------------------------------------------------------- */
+
+@theme {
+  /* Base surfaces: layered near-blacks with a faint warm cast. */
+  --color-void: #0a0a0b; /* page background */
+  --color-surface: #101012; /* cards, panels */
+  --color-surface-2: #17171a; /* raised / hovered */
+  --color-surface-3: #202024; /* inputs, wells */
+
+  /* Hairlines. */
+  --color-line: #26262b;
+  --color-line-strong: #33333a;
+
+  /* Ink: warm off-whites, never pure #fff. */
+  --color-ink: #ededef; /* primary text */
+  --color-ink-dim: #a4a4ac; /* secondary text */
+  --color-ink-faint: #6d6d76; /* tertiary / labels */
+
+  /* Accent: a single cool blue. Used for focus, the primary action, "you". */
+  --color-accent: #6ea8fe;
+  --color-accent-dim: #3f6dc4;
+
+  /* Sides + semantic. */
+  --color-side-a: #6ea8fe; /* team A — blue */
+  --color-side-b: #e0a37a; /* team B — warm sand */
+  --color-good: #7bd88f; /* passed */
+  --color-bad: #e07a7a; /* error / lost */
+  --color-warn: #e0c97a;
+
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 7px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    font-feature-settings: "cv01", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* A single, subtle atmospheric wash — not a gradient party. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        60rem 40rem at 50% -10%,
+        rgba(110, 168, 254, 0.05),
+        transparent 70%
+      ),
+      radial-gradient(
+        50rem 40rem at 100% 110%,
+        rgba(224, 163, 122, 0.03),
+        transparent 70%
+      );
+  }
+
+  ::selection {
+    background: rgba(110, 168, 254, 0.25);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border-radius: 999px;
+    border: 3px solid var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #45454e;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+/* ---------------------------------------------------------------------------
+ * Component primitives — small, composable, applied via @apply-free classes.
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .panel {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+
+  .field {
+    width: 100%;
+    background-color: var(--color-surface-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    padding: 0.7rem 0.9rem;
+    color: var(--color-ink);
+    font-size: 0.95rem;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .field::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-accent-dim);
+    background-color: var(--color-surface-2);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-md);
+    padding: 0.7rem 1.1rem;
+    font-size: 0.92rem;
+    font-weight: 500;
+    line-height: 1;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.15s ease,
+      transform 0.06s ease;
+    user-select: none;
+  }
+  .btn:active {
+    transform: translateY(0.5px);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--color-ink);
+    color: var(--color-void);
+    font-weight: 560;
+  }
+  .btn-primary:not(:disabled):hover {
+    background-color: #fff;
+  }
+
+  .btn-ghost {
+    background-color: var(--color-surface-2);
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .btn-ghost:not(:disabled):hover {
+    background-color: var(--color-surface-3);
+    border-color: var(--color-line-strong);
+  }
+
+  .btn-accent {
+    background-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+    color: var(--color-accent);
+  }
+  .btn-accent:not(:disabled):hover {
+    background-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
+  }
+
+  .label {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    font-weight: 500;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface-2);
+    color: var(--color-ink-dim);
+  }
+}
+
+/* Subtle entrance for mounted views. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
 }
