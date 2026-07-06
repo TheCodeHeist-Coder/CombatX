@@ -1,0 +1,578 @@
+import type { WebSocket } from "ws";
+import { prisma } from "@repo/db";
+import {
+  MODE_TEAM_SIZE,
+  encode,
+  type BattleConfig,
+  type BattleStatus,
+  type FinishReason,
+  type Language,
+  type PublicProblem,
+  type ServerMessage,
+  type Side,
+  type SubmissionStatus,
+} from "@repo/protocol";
+import {
+  buildStandings,
+  canStart,
+  checkInstantWin,
+  isSlotAvailable,
+  resolveOnTimeout,
+  seededPick,
+  startBlockedReason,
+  type JudgedSubmission,
+  type LobbyPlayer,
+} from "@repo/game";
+import { env } from "./env.js";
+import type { JudgePipeline } from "./judgeQueue.js";
+import type { Connection, LobbySeat, RoomSubmission } from "./types.js";
+import { buildSnapshot, toPublicProblem, toSideProgress } from "./projections.js";
+import { serverError } from "./send.js";
+
+/**
+ * Authoritative, in-memory state and lifecycle for ONE battle. Everything the
+ * game needs to make decisions lives here; Postgres is written through as the
+ * durable record. Wall-clock time is the server's — client timers are cosmetic.
+ */
+export class BattleRoom {
+  readonly battleId: string;
+  readonly roomCode: string;
+  readonly hostUserId: string;
+  readonly config: BattleConfig;
+  private readonly seed: string;
+
+  private status: BattleStatus;
+  /** userId -> seat (roster). A user has a seat even before picking a side. */
+  private readonly seats = new Map<string, LobbySeat>();
+  /** userId -> set of live sockets for that user (reconnect tolerant). */
+  private readonly sockets = new Map<string, Set<WebSocket>>();
+  /** submissionId -> tracked submission (for progress + win resolution). */
+  private readonly submissions = new Map<string, RoomSubmission>();
+
+  private problem: PublicProblem | null = null;
+  private serverStartAt: number | null = null;
+  private serverEndAt: number | null = null;
+  private winnerSide: Side | null = null;
+  private finishReason: FinishReason | null = null;
+
+  private countdownTimer: NodeJS.Timeout | null = null;
+  private tickTimer: NodeJS.Timeout | null = null;
+  private endTimer: NodeJS.Timeout | null = null;
+
+  constructor(args: {
+    battleId: string;
+    roomCode: string;
+    hostUserId: string;
+    config: BattleConfig;
+    seed: string;
+    status: BattleStatus;
+    onEmpty: (battleId: string) => void;
+    judge: JudgePipeline;
+  }) {
+    this.battleId = args.battleId;
+    this.roomCode = args.roomCode;
+    this.hostUserId = args.hostUserId;
+    this.config = args.config;
+    this.seed = args.seed;
+    this.status = args.status;
+    this.onEmpty = args.onEmpty;
+    this.judge = args.judge;
+  }
+
+  private readonly onEmpty: (battleId: string) => void;
+  private readonly judge: JudgePipeline;
+
+  // --- clock ----------------------------------------------------------------
+  private now(): number {
+    return Date.now();
+  }
+
+  // --- roster / connections -------------------------------------------------
+
+  /** Attach a socket for a user, creating a seat on first join. */
+  attach(conn: Connection): void {
+    let seat = this.seats.get(conn.userId);
+    if (!seat) {
+      seat = {
+        userId: conn.userId,
+        displayName: conn.displayName,
+        side: null,
+        slot: null,
+        ready: false,
+        presence: "ONLINE",
+      };
+      this.seats.set(conn.userId, seat);
+    } else {
+      seat.presence = "ONLINE";
+      seat.displayName = conn.displayName;
+    }
+
+    let set = this.sockets.get(conn.userId);
+    if (!set) {
+      set = new Set();
+      this.sockets.set(conn.userId, set);
+    }
+    set.add(conn.ws);
+
+    this.broadcastLobby();
+    this.broadcastPresence(conn.userId, "ONLINE");
+  }
+
+  /** Detach one socket. Marks the user disconnected when their last one closes. */
+  detach(userId: string, ws: WebSocket): void {
+    const set = this.sockets.get(userId);
+    if (set) {
+      set.delete(ws);
+      if (set.size === 0) {
+        this.sockets.delete(userId);
+        const seat = this.seats.get(userId);
+        if (seat) {
+          seat.presence = "DISCONNECTED";
+          this.broadcastPresence(userId, "DISCONNECTED");
+        }
+        // In the lobby a fully-gone player frees their seat; mid-battle we keep
+        // the seat so their submissions still count on timeout resolution.
+        if (this.status === "LOBBY" || this.status === "COUNTDOWN") {
+          this.seats.delete(userId);
+          this.maybeCancelCountdown();
+        }
+      }
+    }
+    this.broadcastLobby();
+
+    // If nobody is connected at all, ask the registry to evict us.
+    if (this.sockets.size === 0) this.onEmpty(this.battleId);
+  }
+
+  hasConnections(): boolean {
+    return this.sockets.size > 0;
+  }
+
+  // --- lobby actions --------------------------------------------------------
+
+  /** Pick a seat (side + slot). Returns an error message, or null on success. */
+  selectSeat(userId: string, side: Side, slot: number): string | null {
+    if (this.status !== "LOBBY" && this.status !== "COUNTDOWN") {
+      return "Battle already started.";
+    }
+    const seat = this.seats.get(userId);
+    if (!seat) return "You are not in this room.";
+
+    if (!isSlotAvailable(this.lobbyPlayers(), this.config.mode, side, slot, userId)) {
+      return "That seat is taken.";
+    }
+    seat.side = side;
+    seat.slot = slot;
+    seat.ready = false; // changing seats clears readiness
+    // Selecting a seat while a countdown is running cancels it (roster changed).
+    this.maybeCancelCountdown();
+    this.broadcastLobby();
+    return null;
+  }
+
+  setReady(userId: string, ready: boolean): string | null {
+    if (this.status !== "LOBBY" && this.status !== "COUNTDOWN") {
+      return "Battle already started.";
+    }
+    const seat = this.seats.get(userId);
+    if (!seat) return "You are not in this room.";
+    if (seat.side === null || seat.slot === null) {
+      return "Pick a seat before readying up.";
+    }
+    seat.ready = ready;
+    if (!ready) this.maybeCancelCountdown();
+    this.broadcastLobby();
+    return null;
+  }
+
+  /** Host-only: begin the countdown if the lobby is startable. */
+  async start(userId: string): Promise<string | null> {
+    if (userId !== this.hostUserId) return "Only the host can start.";
+    if (this.status !== "LOBBY") return "Battle is not in the lobby.";
+    const blocked = startBlockedReason(this.lobbyPlayers());
+    if (blocked) return blocked;
+    if (!canStart(this.lobbyPlayers())) return "Lobby is not ready.";
+
+    this.status = "COUNTDOWN";
+    await prisma.battle.update({
+      where: { id: this.battleId },
+      data: { status: "COUNTDOWN" },
+    });
+
+    this.broadcast({ t: "battle:countdown", startsInMs: env.countdownMs });
+    this.countdownTimer = setTimeout(() => {
+      void this.beginBattle();
+    }, env.countdownMs);
+    return null;
+  }
+
+  /** Cancel an in-flight countdown and fall back to LOBBY. */
+  private maybeCancelCountdown(): void {
+    if (this.status !== "COUNTDOWN") return;
+    if (this.countdownTimer) {
+      clearTimeout(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+    this.status = "LOBBY";
+    void prisma.battle
+      .update({ where: { id: this.battleId }, data: { status: "LOBBY" } })
+      .catch(() => {});
+  }
+
+  // --- battle lifecycle -----------------------------------------------------
+
+  /** Reveal the problem, stamp the clock, and go IN_PROGRESS. */
+  private async beginBattle(): Promise<void> {
+    this.countdownTimer = null;
+    if (this.status !== "COUNTDOWN") return; // cancelled meanwhile
+
+    // Deterministically pick a problem of the room's difficulty (seed=battleId).
+    const candidates = await prisma.problem.findMany({
+      where: { difficulty: this.config.difficulty },
+      select: { id: true },
+    });
+    const picked = seededPick(candidates, this.seed);
+    if (!picked) {
+      this.status = "LOBBY";
+      this.broadcastError(
+        "NO_PROBLEM",
+        `No ${this.config.difficulty} problems are available.`,
+      );
+      await prisma.battle
+        .update({ where: { id: this.battleId }, data: { status: "LOBBY" } })
+        .catch(() => {});
+      return;
+    }
+
+    const problemRow = await prisma.problem.findUniqueOrThrow({
+      where: { id: picked.id },
+      include: { testCases: true },
+    });
+    this.problem = toPublicProblem(problemRow, problemRow.testCases);
+
+    const start = this.now();
+    const end = start + this.config.timeLimitSec * 1000;
+    this.serverStartAt = start;
+    this.serverEndAt = end;
+    this.status = "IN_PROGRESS";
+
+    await prisma.battle.update({
+      where: { id: this.battleId },
+      data: {
+        status: "IN_PROGRESS",
+        assignedProblemId: picked.id,
+        serverStartAt: new Date(start),
+        serverEndAt: new Date(end),
+      },
+    });
+
+    this.broadcast({
+      t: "battle:start",
+      problem: this.problem,
+      serverStartAt: start,
+      serverEndAt: end,
+      serverNowMs: start,
+    });
+
+    // Authoritative timer corrections + the end-of-battle trigger.
+    this.tickTimer = setInterval(() => this.tick(), env.timerTickMs);
+    this.endTimer = setTimeout(
+      () => void this.finishOnTimeout(),
+      Math.max(0, end - start),
+    );
+  }
+
+  private tick(): void {
+    if (this.status !== "IN_PROGRESS" || this.serverEndAt === null) return;
+    this.broadcast({
+      t: "timer:tick",
+      serverNowMs: this.now(),
+      endAtMs: this.serverEndAt,
+    });
+  }
+
+  // --- submissions ----------------------------------------------------------
+
+  /**
+   * A player submitted code. Persist it, enqueue the judge job, and broadcast
+   * that it's queued. Returns the submissionId, or an error message.
+   */
+  async submit(
+    userId: string,
+    language: Language,
+    source: string,
+  ): Promise<{ submissionId: string } | { error: string }> {
+    if (this.status !== "IN_PROGRESS") return { error: "Battle is not live." };
+    const seat = this.seats.get(userId);
+    if (!seat || seat.side === null) return { error: "You are not competing." };
+    if (this.problem === null) return { error: "No problem assigned." };
+    if (!this.problem.allowedLanguages.includes(language)) {
+      return { error: `${language} is not allowed for this problem.` };
+    }
+
+    // Throttle: cap in-flight submissions per user.
+    const pending = [...this.submissions.values()].filter(
+      (s) =>
+        s.userId === userId &&
+        (s.status === "QUEUED" || s.status === "RUNNING"),
+    ).length;
+    if (pending >= env.maxPendingSubmissionsPerUser) {
+      return { error: "You have too many submissions in flight." };
+    }
+
+    const submittedAt = this.now();
+    const row = await prisma.submission.create({
+      data: {
+        battleId: this.battleId,
+        userId,
+        teamSide: seat.side,
+        language,
+        sourceCode: source,
+        status: "QUEUED",
+        totalCount: this.problem.totalTests,
+        submittedAt: new Date(submittedAt),
+      },
+    });
+
+    const tracked: RoomSubmission = {
+      submissionId: row.id,
+      userId,
+      side: seat.side,
+      language,
+      status: "QUEUED",
+      passed: 0,
+      total: this.problem.totalTests,
+      timeMs: 0,
+      errorMessage: null,
+      submittedAt,
+    };
+    this.submissions.set(row.id, tracked);
+
+    await this.judge.enqueue({
+      submissionId: row.id,
+      battleId: this.battleId,
+      problemId: this.problem.id,
+      userId,
+      side: seat.side,
+      language,
+      source,
+    });
+
+    this.broadcast({
+      t: "submission:queued",
+      submissionId: row.id,
+      userId,
+      side: seat.side,
+    });
+
+    return { submissionId: row.id };
+  }
+
+  /**
+   * A judge result arrived from the worker. Update state, broadcast the result
+   * (opponent-safe) + progress, then check for an instant win.
+   */
+  async applyJudgeResult(result: {
+    submissionId: string;
+    passed: number;
+    total: number;
+    timeMs: number;
+    allPassed: boolean;
+    errorMessage: string | null;
+  }): Promise<void> {
+    const tracked = this.submissions.get(result.submissionId);
+    if (!tracked) return; // not ours, or already resolved battle
+
+    const status: SubmissionStatus =
+      result.errorMessage !== null ? "ERROR" : "COMPLETED";
+    tracked.status = status;
+    tracked.passed = result.passed;
+    tracked.total = result.total;
+    tracked.timeMs = result.timeMs;
+    tracked.errorMessage = result.errorMessage;
+
+    await prisma.submission
+      .update({
+        where: { id: result.submissionId },
+        data: {
+          status,
+          passedCount: result.passed,
+          totalCount: result.total,
+          runtimeMs: Math.round(result.timeMs),
+          errorMessage: result.errorMessage,
+          judgedAt: new Date(),
+        },
+      })
+      .catch((err) => console.error("[room] submission update failed:", err));
+
+    this.broadcast({
+      t: "submission:result",
+      result: {
+        submissionId: tracked.submissionId,
+        userId: tracked.userId,
+        side: tracked.side,
+        status: tracked.status,
+        passed: tracked.passed,
+        total: tracked.total,
+        timeMs: tracked.timeMs,
+        errorMessage: tracked.errorMessage,
+      },
+    });
+    this.broadcast({
+      t: "opponent:progress",
+      progress: toSideProgress([...this.submissions.values()]),
+    });
+
+    // Instant-win check across all judged submissions.
+    const outcome = checkInstantWin(this.judgedSubmissions());
+    if (outcome) {
+      await this.finish(outcome.winnerSide, outcome.reason, outcome.decidingSubmissionId);
+    }
+  }
+
+  private async finishOnTimeout(): Promise<void> {
+    if (this.status !== "IN_PROGRESS") return;
+    const outcome = resolveOnTimeout(this.judgedSubmissions());
+    await this.finish(outcome.winnerSide, outcome.reason, outcome.decidingSubmissionId);
+  }
+
+  /** Terminal transition: persist the result and broadcast the finish. */
+  private async finish(
+    winnerSide: Side | null,
+    reason: FinishReason,
+    decidingSubmissionId: string | null,
+  ): Promise<void> {
+    if (this.status === "FINISHED") return;
+    this.status = "FINISHED";
+    this.winnerSide = winnerSide;
+    this.finishReason = reason;
+    this.clearTimers();
+
+    const standings = buildStandings(this.judgedSubmissions());
+
+    await prisma.$transaction([
+      prisma.battle.update({
+        where: { id: this.battleId },
+        data: { status: "FINISHED", winnerSide, finishReason: reason },
+      }),
+      prisma.result.upsert({
+        where: { battleId: this.battleId },
+        create: {
+          battleId: this.battleId,
+          winnerSide,
+          reason,
+          decidingSubmissionId,
+          standings,
+        },
+        update: { winnerSide, reason, decidingSubmissionId, standings },
+      }),
+    ]).catch((err) => console.error("[room] finish persistence failed:", err));
+
+    this.broadcast({
+      t: "battle:finished",
+      winnerSide,
+      reason,
+      standings,
+      decidingSubmissionId,
+    });
+  }
+
+  // --- helpers --------------------------------------------------------------
+
+  private lobbyPlayers(): LobbyPlayer[] {
+    return [...this.seats.values()].map((s) => ({
+      userId: s.userId,
+      side: s.side,
+      slot: s.slot,
+      ready: s.ready,
+    }));
+  }
+
+  private judgedSubmissions(): JudgedSubmission[] {
+    return [...this.submissions.values()]
+      .filter((s) => s.status === "COMPLETED" || s.status === "ERROR")
+      .map((s) => ({
+        submissionId: s.submissionId,
+        side: s.side,
+        passed: s.passed,
+        total: s.total,
+        submittedAt: s.submittedAt,
+      }));
+  }
+
+  /** Seats per side for this room's mode. */
+  seatCapacity(): number {
+    return MODE_TEAM_SIZE[this.config.mode];
+  }
+
+  // --- broadcasting ---------------------------------------------------------
+
+  private broadcast(msg: ServerMessage): void {
+    const frame = encode(msg);
+    for (const set of this.sockets.values()) {
+      for (const ws of set) {
+        if (ws.readyState === ws.OPEN) ws.send(frame);
+      }
+    }
+  }
+
+  private broadcastError(code: string, message: string): void {
+    for (const set of this.sockets.values()) {
+      for (const ws of set) serverError(ws, code, message);
+    }
+  }
+
+  private broadcastLobby(): void {
+    const players = [...this.seats.values()].map((s) => ({
+      userId: s.userId,
+      displayName: s.displayName,
+      side: s.side,
+      slot: s.slot,
+      ready: s.ready,
+      presence: s.presence,
+      isHost: s.userId === this.hostUserId,
+    }));
+    this.broadcast({ t: "lobby:update", players, config: this.config });
+  }
+
+  private broadcastPresence(
+    userId: string,
+    status: LobbySeat["presence"],
+  ): void {
+    this.broadcast({ t: "presence:update", userId, status });
+  }
+
+  /** Build the full snapshot for one caller (their own submissions included). */
+  snapshotFor(userId: string) {
+    return buildSnapshot({
+      battleId: this.battleId,
+      roomCode: this.roomCode,
+      status: this.status,
+      config: this.config,
+      seats: [...this.seats.values()],
+      hostUserId: this.hostUserId,
+      problem: this.problem,
+      serverStartAt: this.serverStartAt,
+      serverEndAt: this.serverEndAt,
+      serverNowMs: this.now(),
+      submissions: [...this.submissions.values()],
+      forUserId: userId,
+      winnerSide: this.winnerSide,
+      finishReason: this.finishReason,
+    });
+  }
+
+  private clearTimers(): void {
+    if (this.countdownTimer) clearTimeout(this.countdownTimer);
+    if (this.tickTimer) clearInterval(this.tickTimer);
+    if (this.endTimer) clearTimeout(this.endTimer);
+    this.countdownTimer = null;
+    this.tickTimer = null;
+    this.endTimer = null;
+  }
+
+  /** Tear down (server shutdown / eviction). */
+  dispose(): void {
+    this.clearTimers();
+  }
+}

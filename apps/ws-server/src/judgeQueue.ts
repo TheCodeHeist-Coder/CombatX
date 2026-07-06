@@ -6,7 +6,7 @@ import {
   parseJudgeResult,
   type JudgeJob,
 } from "@repo/protocol";
-import type IORedis from "ioredis";
+import type { Redis } from "ioredis";
 import { makeRedis, makeSubscriber } from "./redis.js";
 
 /**
@@ -16,8 +16,8 @@ import { makeRedis, makeSubscriber } from "./redis.js";
  */
 export class JudgePipeline {
   private readonly queue: Queue<JudgeJob>;
-  private readonly connection: IORedis;
-  private readonly subscriber: IORedis;
+  private readonly connection: Redis;
+  private readonly subscriber: Redis;
 
   constructor() {
     this.connection = makeRedis();
@@ -45,7 +45,7 @@ export class JudgePipeline {
    */
   async onResult(handler: (result: JudgeResult) => void): Promise<void> {
     await this.subscriber.subscribe(RESULT_CHANNEL);
-    this.subscriber.on("message", (channel, raw) => {
+    this.subscriber.on("message", (channel: string, raw: string) => {
       if (channel !== RESULT_CHANNEL) return;
       try {
         handler(parseJudgeResult(raw));

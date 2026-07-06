@@ -1,4 +1,4 @@
-import IORedis from "ioredis";
+import { Redis } from "ioredis";
 import { env } from "./env.js";
 
 /**
@@ -8,16 +8,16 @@ import { env } from "./env.js";
  */
 
 /** General-purpose connection (BullMQ-compatible). */
-export function makeRedis(): IORedis {
-  return new IORedis(env.redisUrl, {
+export function makeRedis(): Redis {
+  return new Redis(env.redisUrl, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   });
 }
 
 /** A dedicated connection for pub/sub subscribing. */
-export function makeSubscriber(): IORedis {
-  return new IORedis(env.redisUrl, {
+export function makeSubscriber(): Redis {
+  return new Redis(env.redisUrl, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   });
