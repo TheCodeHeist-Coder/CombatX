@@ -11,6 +11,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@repo/game": "workspace:*",
     "@repo/protocol": "workspace:*",
     "geist": "^1.7.1",
     "next": "16.2.0",

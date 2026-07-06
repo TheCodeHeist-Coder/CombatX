@@ -1,6 +1,6 @@
 "use client";
 
-import type { ConnStatus } from "../lib/useBattleConnection.js";
+import type { ConnStatus } from "../lib/useBattleConnection";
 
 const META: Record<ConnStatus, { label: string; color: string }> = {
   connecting: { label: "Connecting", color: "var(--color-warn)" },

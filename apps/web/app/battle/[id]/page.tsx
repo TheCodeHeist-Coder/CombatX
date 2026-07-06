@@ -2,10 +2,10 @@
 
 import { use } from "react";
 import { useRouter } from "next/navigation";
-import { BattleRoom } from "../../../components/BattleRoom.js";
-import { Shell, Centered, Spinner } from "../../../components/atoms.js";
-import { TopBar } from "../../../components/TopBar.js";
-import { useSession } from "../../../lib/useSession.js";
+import { BattleRoom } from "../../../components/BattleRoom";
+import { Shell, Centered, Spinner } from "../../../components/atoms";
+import { TopBar } from "../../../components/TopBar";
+import { useSession } from "../../../lib/useSession";
 
 /**
  * The battle route. All it does is gate on a session and mount the room; the

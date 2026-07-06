@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "./Logo.js";
-import type { Session } from "../lib/session.js";
+import { Logo } from "./Logo";
+import type { Session } from "../lib/session";
 
 /** Slim app header: wordmark on the left, guest identity on the right. */
 export function TopBar({

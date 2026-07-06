@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createGuest, ApiCallError } from "../lib/api.js";
-import { saveSession } from "../lib/session.js";
-import { ErrorBanner, Spinner } from "./atoms.js";
+import { createGuest, ApiCallError } from "../lib/api";
+import { saveSession } from "../lib/session";
+import { ErrorBanner, Spinner } from "./atoms";
 
 /**
  * The one-field guest sign-in. No accounts, no passwords — pick a name and

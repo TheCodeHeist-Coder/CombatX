@@ -1,13 +1,13 @@
 "use client";
 
-import { Shell, Centered, Spinner } from "./atoms.js";
-import { TopBar } from "./TopBar.js";
-import { ConnBadge } from "./ConnBadge.js";
-import { Lobby } from "./lobby/Lobby.js";
-import { Arena } from "./battle/Arena.js";
-import { Results } from "./results/Results.js";
-import { useBattleConnection } from "../lib/useBattleConnection.js";
-import type { Session } from "../lib/session.js";
+import { Shell, Centered, Spinner } from "./atoms";
+import { TopBar } from "./TopBar";
+import { ConnBadge } from "./ConnBadge";
+import { Lobby } from "./lobby/Lobby";
+import { Arena } from "./battle/Arena";
+import { Results } from "./results/Results";
+import { useBattleConnection } from "../lib/useBattleConnection";
+import type { Session } from "../lib/session";
 
 /**
  * Owns the live connection for one battle and renders the phase that matches

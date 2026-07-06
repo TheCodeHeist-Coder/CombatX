@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { loadSession, type Session } from "./session.js";
+import { loadSession, type Session } from "./session";
 
 /**
  * React access to the persisted guest session. Reads localStorage on mount

@@ -7,7 +7,7 @@ import {
   type Difficulty,
   type Mode,
 } from "@repo/protocol";
-import { API_URL } from "./config.js";
+import { API_URL } from "./config";
 
 /** A failed REST call, carrying the server's error code where available. */
 export class ApiCallError extends Error {

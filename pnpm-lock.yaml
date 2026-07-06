@@ -173,6 +173,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@repo/game':
+        specifier: workspace:*
+        version: link:../../packages/game
       '@repo/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol

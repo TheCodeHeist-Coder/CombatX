@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import type { Difficulty, Mode } from "@repo/protocol";
-import { createBattle, joinBattle, ApiCallError } from "../lib/api.js";
-import type { Session } from "../lib/session.js";
-import { modeLabel } from "../lib/format.js";
-import { ErrorBanner, Spinner } from "./atoms.js";
+import { createBattle, joinBattle, ApiCallError } from "../lib/api";
+import type { Session } from "../lib/session";
+import { modeLabel } from "../lib/format";
+import { ErrorBanner, Spinner } from "./atoms";
 
 type Tab = "create" | "join";
 

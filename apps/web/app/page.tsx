@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Shell } from "../components/atoms.js";
-import { TopBar } from "../components/TopBar.js";
-import { GuestGate } from "../components/GuestGate.js";
-import { Launcher } from "../components/Launcher.js";
-import { useSession } from "../lib/useSession.js";
-import { clearSession } from "../lib/session.js";
+import { Shell } from "../components/atoms";
+import { TopBar } from "../components/TopBar";
+import { GuestGate } from "../components/GuestGate";
+import { Launcher } from "../components/Launcher";
+import { useSession } from "../lib/useSession";
+import { clearSession } from "../lib/session";
 
 export default function HomePage() {
   const { session, loaded, refresh } = useSession();

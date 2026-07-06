@@ -10,12 +10,12 @@ import {
   type ServerMessage,
   type Side,
 } from "@repo/protocol";
-import { WS_URL } from "./config.js";
+import { WS_URL } from "./config";
 import {
   initialBattleState,
   reduceBattle,
   type BattleState,
-} from "./battleState.js";
+} from "./battleState";
 
 export type ConnStatus =
   | "connecting"
