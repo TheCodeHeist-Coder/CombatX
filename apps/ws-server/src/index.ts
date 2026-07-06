@@ -1,3 +1,4 @@
+import "./loadEnv.js"; // must be first — loads .env before @repo/db reads it
 import { createServer } from "node:http";
 import express from "express";
 import cors from "cors";

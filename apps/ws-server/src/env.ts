@@ -1,9 +1,3 @@
-import { config as loadDotenv } from "dotenv";
-
-// Load local .env, then fall back to a repo-root .env for shared vars.
-loadDotenv();
-loadDotenv({ path: "../../.env" });
-
 /** Environment configuration for ws-server. Fails fast if required vars missing. */
 function required(name: string): string {
   const v = process.env[name];

@@ -1,6 +1,21 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "CORS_ORIGINS",
+    "HTTP_API_PORT",
+    "HTTP_API_HOST",
+    "WS_SERVER_PORT",
+    "WS_SERVER_HOST",
+    "COUNTDOWN_MS",
+    "TIMER_TICK_MS",
+    "HEARTBEAT_TIMEOUT_MS",
+    "MAX_PENDING_SUBMISSIONS_PER_USER"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
