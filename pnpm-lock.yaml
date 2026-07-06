@@ -128,6 +128,49 @@ importers:
         specifier: 5.9.2
         version: 5.9.2
 
+  apps/judge-worker:
+    dependencies:
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@repo/game':
+        specifier: workspace:*
+        version: link:../../packages/game
+      '@repo/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      bullmq:
+        specifier: ^5.79.2
+        version: 5.79.2
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
+      ioredis:
+        specifier: 5.10.1
+        version: 5.10.1
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.18.12
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.6.1)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.0
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   apps/web:
     dependencies:
       '@repo/ui':
