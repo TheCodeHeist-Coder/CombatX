@@ -1,5 +1,5 @@
 import { Redis } from "ioredis";
-import { env } from "./env.js";
+import { env } from "../config/env.js";
 
 /** BullMQ-compatible connection (requires maxRetriesPerRequest: null). */
 export function makeRedis(): Redis {

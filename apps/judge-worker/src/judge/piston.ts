@@ -1,5 +1,5 @@
 import { PISTON_RUNTIME, type Language } from "@repo/protocol";
-import { env } from "./env.js";
+import { env } from "../config/env.js";
 
 /**
  * Thin client over the Piston execution API. One request runs a program once
