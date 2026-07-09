@@ -1,0 +1,26 @@
+# Never ship install output or build artifacts into the build context — they
+# bloat the context, invalidate caches, and can leak host-arch native modules.
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/generated
+
+# Secrets: compose injects env at runtime, images never bake them.
+.env
+.env.*
+!.env.example
+
+# VCS / editor / OS noise
+.git
+.gitignore
+.vscode
+.idea
+**/.DS_Store
+
+# Local-only
+**/*.log
+docker-compose*.yml
+**/Dockerfile*
+.dockerignore
+README.md

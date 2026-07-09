@@ -1,0 +1,77 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# http-api — production image.
+#
+# Multi-stage: pruned workspace -> cached install -> build -> slim runtime.
+# Built from the MONOREPO ROOT as context:
+#   docker build -f apps/http-api/Dockerfile.prod .
+###############################################################################
+
+ARG NODE_VERSION=22-alpine
+
+# ---------------------------------------------------------------------------
+# base — pnpm via corepack, shared by every later stage.
+# ---------------------------------------------------------------------------
+FROM node:${NODE_VERSION} AS base
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# pruner — turbo prune keeps only this app and its workspace deps, so a change
+# to an unrelated app doesn't bust this image's install cache.
+# ---------------------------------------------------------------------------
+FROM base AS pruner
+RUN pnpm add -g turbo@^2
+COPY . .
+RUN turbo prune http-api --docker
+
+# ---------------------------------------------------------------------------
+# deps — install against the pruned lockfile. Cached until manifests change.
+# ---------------------------------------------------------------------------
+FROM base AS deps
+COPY --from=pruner /app/out/json/ ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ---------------------------------------------------------------------------
+# build — prisma generate (emits packages/db/generated) then tsc across the
+# workspace. @repo/db's own `build` script runs generate, so `turbo build`
+# handles ordering for us.
+# ---------------------------------------------------------------------------
+FROM base AS build
+COPY --from=deps /app/ ./
+COPY --from=pruner /app/out/full/ ./
+RUN pnpm turbo run build --filter=http-api
+
+# Drop dev dependencies so only runtime modules are carried forward.
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm prune --prod --no-optional
+
+# ---------------------------------------------------------------------------
+# runner — non-root, production-only modules, compiled JS.
+# ---------------------------------------------------------------------------
+FROM base AS runner
+ENV NODE_ENV=production
+
+RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 -G nodejs appuser
+
+# Workspace layout must be preserved: the app resolves @repo/* through symlinks
+# that point at packages/*, so we copy the whole pruned tree, not just the app.
+COPY --from=build --chown=appuser:nodejs /app/node_modules ./node_modules
+COPY --from=build --chown=appuser:nodejs /app/packages ./packages
+COPY --from=build --chown=appuser:nodejs /app/apps/http-api ./apps/http-api
+
+USER appuser
+WORKDIR /app/apps/http-api
+
+ENV HTTP_API_HOST=0.0.0.0
+ENV HTTP_API_PORT=4001
+EXPOSE 4001
+
+# Fails the container healthcheck until the HTTP server actually answers.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.HTTP_API_PORT||4001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/index.js"]
