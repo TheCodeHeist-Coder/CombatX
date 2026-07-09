@@ -33,8 +33,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: combateone
+    # Bound to loopback, and overridable: a Postgres already running on the
+    # host would otherwise make `compose up` fail with "address already in use".
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -48,7 +50,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -63,12 +65,19 @@ services:
     restart: unless-stopped
     privileged: true
     ports:
-      - "2000:2000"
+      - "${PISTON_PORT:-2000}:2000"
     volumes:
       - pistondata:/piston
     healthcheck:
+      # This image ships Node 15 — no global fetch, no curl, no wget. http.get
+      # is the only probe available to us here.
       test:
-        ["CMD", "node", "-e", "fetch('http://127.0.0.1:2000/api/v2/runtimes').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:2000/api/v2/runtimes',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20
