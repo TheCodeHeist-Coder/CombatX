@@ -1,0 +1,87 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# web (Next.js) — production image.
+#
+# Stages: base -> pruner -> deps -> build -> runner
+# Uses Next's `output: "standalone"` bundle, so the runtime layer carries no
+# node_modules and no pnpm store — just a traced server + static assets.
+#
+# NOTE: NEXT_PUBLIC_* values are inlined into the client bundle at BUILD time,
+# so the API/WS URLs are build args, not runtime env.
+#
+# Built from the MONOREPO ROOT as context:
+#   docker build -f apps/web/Dockerfile.prod .
+###############################################################################
+
+ARG NODE_VERSION=22-alpine
+# Keep in lockstep with the root package.json "packageManager" field.
+ARG PNPM_VERSION=10.19.0
+
+# ---------------------------------------------------------------------------
+# base — the exact pinned pnpm, shared by every later stage.
+# ---------------------------------------------------------------------------
+FROM node:${NODE_VERSION} AS base
+ARG PNPM_VERSION
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# pruner — keep only web and its workspace deps.
+# ---------------------------------------------------------------------------
+FROM base AS pruner
+COPY . .
+RUN pnpm dlx turbo@^2 prune web --docker
+
+# ---------------------------------------------------------------------------
+# deps — install against the pruned lockfile.
+# ---------------------------------------------------------------------------
+FROM base AS deps
+COPY --from=pruner /app/out/json/ ./
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ---------------------------------------------------------------------------
+# build — compile workspace deps, then `next build` into .next/standalone.
+# ---------------------------------------------------------------------------
+FROM base AS build
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Baked into the client bundle. Override for non-localhost deployments.
+ARG NEXT_PUBLIC_API_URL=http://localhost:4001
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:4002/ws
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
+COPY --from=deps /app/ ./
+COPY --from=pruner /app/out/full/ ./
+RUN pnpm dlx turbo@^2 run build --filter=web
+
+# ---------------------------------------------------------------------------
+# runner — non-root, standalone server only.
+# ---------------------------------------------------------------------------
+FROM base AS runner
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 -G nodejs nextjs
+
+# Because outputFileTracingRoot is the monorepo root, the standalone tree keeps
+# the workspace layout: server.js lands at apps/web/server.js with a hoisted
+# node_modules at the root. Copy the tree as-is, then slot static assets back in
+# (Next deliberately omits .next/static and public/ from the traced output).
+COPY --from=build --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+
+USER nextjs
+
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3001
+EXPOSE 3001
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "apps/web/server.js"]

@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1.7
+###############################################################################
+# web (Next.js) — development image.
+#
+# Multi-stage: pinned pnpm base -> full workspace install -> `next dev` runner.
+# Compose bind-mounts the repo over /app so edits hot-reload. NEXT_PUBLIC_* are
+# read from the runtime env here (dev server reads them on each start).
+#
+# Built from the MONOREPO ROOT as context:
+#   docker build -f apps/web/Dockerfile.dev .
+###############################################################################
+
+ARG NODE_VERSION=22-alpine
+ARG PNPM_VERSION=10.19.0
+
+FROM node:${NODE_VERSION} AS base
+ARG PNPM_VERSION
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME/bin:$PNPM_HOME:$PATH
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# deps — manifests only, so the install layer caches until a package.json moves.
+# ---------------------------------------------------------------------------
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/game/package.json ./packages/game/
+COPY packages/protocol/package.json ./packages/protocol/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ---------------------------------------------------------------------------
+# dev — the workspace packages web imports must be compiled to dist/ first.
+# ---------------------------------------------------------------------------
+FROM base AS dev
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=deps /app ./
+COPY . .
+
+RUN pnpm dlx turbo@^2 run build --filter=@repo/protocol --filter=@repo/game
+
+WORKDIR /app/apps/web
+
+ENV PORT=3001
+EXPOSE 3001
+
+# --hostname 0.0.0.0 so the dev server is reachable from outside the container.
+CMD ["pnpm", "exec", "next", "dev", "--port", "3001", "--hostname", "0.0.0.0"]

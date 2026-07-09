@@ -1,22 +1,18 @@
 # syntax=docker/dockerfile:1.7
 ###############################################################################
-# http-api — development image.
+# ws-server — development image.
 #
 # Multi-stage: pinned pnpm base -> full workspace install -> hot-reload runner.
-# Unlike the prod image this keeps devDependencies (tsx, typescript) and does
-# NOT bake sources — compose bind-mounts the repo over /app so edits hot-reload.
+# Keeps devDependencies (tsx, typescript). Compose bind-mounts the repo over
+# /app so source edits hot-reload via `tsx watch`.
 #
 # Built from the MONOREPO ROOT as context:
-#   docker build -f apps/http-api/Dockerfile.dev .
+#   docker build -f apps/ws-server/Dockerfile.dev .
 ###############################################################################
 
 ARG NODE_VERSION=22-alpine
-# Keep in lockstep with the root package.json "packageManager" field.
 ARG PNPM_VERSION=10.19.0
 
-# ---------------------------------------------------------------------------
-# base — the exact pinned pnpm.
-# ---------------------------------------------------------------------------
 FROM node:${NODE_VERSION} AS base
 ARG PNPM_VERSION
 ENV PNPM_HOME=/pnpm
@@ -25,12 +21,11 @@ RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
-# deps — install the full workspace (dev deps included). Only manifests are
-# copied first so this layer caches until a package.json or the lockfile moves.
+# deps — manifests only, so the install layer caches until a package.json moves.
 # ---------------------------------------------------------------------------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc* ./
-COPY apps/http-api/package.json ./apps/http-api/
+COPY apps/ws-server/package.json ./apps/ws-server/
 COPY packages/auth/package.json ./packages/auth/
 COPY packages/db/package.json ./packages/db/
 COPY packages/game/package.json ./packages/game/
@@ -41,8 +36,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
-# dev — sources arrive via bind mount; we only need the Prisma client generated
-# and the workspace packages built so `tsx` can resolve @repo/* at runtime.
+# dev — the Prisma client and the workspace packages' dist/ must exist before
+# boot; the app's own source is what compose bind-mounts and tsx watches.
 # ---------------------------------------------------------------------------
 FROM base AS dev
 ENV NODE_ENV=development
@@ -50,18 +45,14 @@ ENV NODE_ENV=development
 COPY --from=deps /app ./
 COPY . .
 
-# Prisma's generated client lives outside src/ and the workspace packages
-# compile to dist/ — both must exist before the app can boot. @repo/db's own
-# build script runs `prisma generate` first.
 RUN pnpm dlx turbo@^2 run build \
       --filter=@repo/protocol --filter=@repo/game \
       --filter=@repo/auth --filter=@repo/db
 
-WORKDIR /app/apps/http-api
+WORKDIR /app/apps/ws-server
 
-ENV HTTP_API_HOST=0.0.0.0
-ENV HTTP_API_PORT=4001
-EXPOSE 4001
+ENV WS_SERVER_HOST=0.0.0.0
+ENV WS_SERVER_PORT=4002
+EXPOSE 4002
 
-# tsx watch restarts on any change under the bind-mounted source tree.
 CMD ["pnpm", "dev"]

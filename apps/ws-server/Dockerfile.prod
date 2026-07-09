@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1.7
 ###############################################################################
-# http-api — production image.
+# ws-server — production image.
 #
 # Stages: base -> pruner -> deps (full) -> build -> prod-deps -> runner
 # The runner takes compiled JS from `build` and a production-only module tree
 # from `prod-deps`, so devDependencies and sources never reach the final image.
 #
 # Built from the MONOREPO ROOT as context:
-#   docker build -f apps/http-api/Dockerfile.prod .
+#   docker build -f apps/ws-server/Dockerfile.prod .
 ###############################################################################
 
 ARG NODE_VERSION=22-alpine
@@ -25,15 +25,14 @@ RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /app
 
 # ---------------------------------------------------------------------------
-# pruner — turbo prune keeps only this app and its workspace deps, so a change
-# to an unrelated app doesn't bust this image's install cache.
+# pruner — keep only this app and its workspace deps.
 # ---------------------------------------------------------------------------
 FROM base AS pruner
 COPY . .
-RUN pnpm dlx turbo@^2 prune http-api --docker
+RUN pnpm dlx turbo@^2 prune ws-server --docker
 
 # ---------------------------------------------------------------------------
-# deps — full install (dev deps included) for the build. Cached on manifests.
+# deps — full install (dev deps included) for the build.
 # ---------------------------------------------------------------------------
 FROM base AS deps
 COPY --from=pruner /app/out/json/ ./
@@ -41,17 +40,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
-# build — `turbo build` runs @repo/db's `prisma generate && tsc` first (it is a
-# dependency), then compiles the app. Emits dist/ per package.
+# build — prisma generate (via @repo/db) then tsc.
 # ---------------------------------------------------------------------------
 FROM base AS build
 COPY --from=deps /app/ ./
 COPY --from=pruner /app/out/full/ ./
-RUN pnpm dlx turbo@^2 run build --filter=http-api
+RUN pnpm dlx turbo@^2 run build --filter=ws-server
 
 # ---------------------------------------------------------------------------
-# prod-deps — a clean install of runtime modules only. Separate from `build` so
-# the devDependency tree is never carried into the runtime layer.
+# prod-deps — runtime modules only.
 # ---------------------------------------------------------------------------
 FROM base AS prod-deps
 COPY --from=pruner /app/out/json/ ./
@@ -66,28 +63,24 @@ ENV NODE_ENV=production
 
 RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 -G nodejs appuser
 
-# Production module tree (preserves pnpm's nested @repo/* symlinks).
 COPY --from=prod-deps --chown=appuser:nodejs /app ./
 
-# Compiled output for the app and each workspace package it imports.
-COPY --from=build --chown=appuser:nodejs /app/apps/http-api/dist ./apps/http-api/dist
+COPY --from=build --chown=appuser:nodejs /app/apps/ws-server/dist ./apps/ws-server/dist
 COPY --from=build --chown=appuser:nodejs /app/packages/protocol/dist ./packages/protocol/dist
 COPY --from=build --chown=appuser:nodejs /app/packages/game/dist ./packages/game/dist
 COPY --from=build --chown=appuser:nodejs /app/packages/auth/dist ./packages/auth/dist
 COPY --from=build --chown=appuser:nodejs /app/packages/db/dist ./packages/db/dist
-# The Prisma client is generated code, not compiled by tsc into dist/.
 COPY --from=build --chown=appuser:nodejs /app/packages/db/generated ./packages/db/generated
 
 USER appuser
-WORKDIR /app/apps/http-api
+WORKDIR /app/apps/ws-server
 
-ENV HTTP_API_HOST=0.0.0.0
-ENV HTTP_API_PORT=4001
-EXPOSE 4001
+ENV WS_SERVER_HOST=0.0.0.0
+ENV WS_SERVER_PORT=4002
+EXPOSE 4002
 
-# Marks the container unhealthy until the HTTP server actually answers, so
-# compose's `depends_on: service_healthy` gates dependents correctly.
+# The ws-server also serves a plain HTTP /health on the same port.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.HTTP_API_PORT||4001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.WS_SERVER_PORT||4002)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/index.js"]
