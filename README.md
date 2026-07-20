@@ -36,6 +36,17 @@ docker compose -f docker-compose.dev.yml up --build
 
 Full instructions, including running without Docker, are in **[SETUP.md](SETUP.md)**.
 
+### Documentation
+
+| Document | For |
+| -------- | --- |
+| **[Technical Approach & Architecture](docs/01-technical-approach.pdf)** (PDF) | System design, protocol, judging pipeline, data model |
+| **[Why, What & How](docs/02-why-what-how.pdf)** (PDF) | The problem, the audience, and why the design follows |
+| **[User Guide](docs/03-user-guide.pdf)** (PDF) | Running it, hosting a battle, playing, troubleshooting |
+
+Or read **[all three combined](docs/combatx-documentation.pdf)**. Sources live in
+[`docs-src/`](docs-src/); regenerate with `python3 scripts/make-docs-pdf.py --combined`.
+
 ---
 
 ## Why CombatX exists

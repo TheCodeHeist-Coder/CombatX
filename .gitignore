@@ -37,3 +37,7 @@ yarn-error.log*
 dist/
 
 /generated
+
+# Python
+__pycache__/
+*.pyc
