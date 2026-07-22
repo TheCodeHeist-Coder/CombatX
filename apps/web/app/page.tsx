@@ -73,7 +73,7 @@ export default function HomePage() {
         }
       />
 
-      <div className="flex flex-1 flex-col justify-center py-10 sm:py-14">
+      <div className="flex flex-1 flex-col justify-center py-6">
         <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           {/* Hero copy */}
           <section className="rise">
@@ -153,6 +153,48 @@ export default function HomePage() {
             </div>
           </section>
         </div>
+
+        {/* How a battle runs — three beats, so a first-timer knows the shape. */}
+        <ol className="rise rise-3 mt-12 grid gap-3 sm:grid-cols-3 lg:mt-16">
+          {(
+            [
+              [
+                "01",
+                "Share a code",
+                "Create a room, send the six-character code. No signup.",
+                "var(--color-side-a)",
+              ],
+              [
+                "02",
+                "Seat up & ready",
+                "Both sides pick a team and ready up. The host starts it.",
+                "var(--color-accent-hot)",
+              ],
+              [
+                "03",
+                "Race the clock",
+                "Same problem, hidden tests. First to pass them all wins.",
+                "var(--color-side-b)",
+              ],
+            ] as const
+          ).map(([n, title, body, color]) => (
+            <li key={n} className="panel step-card p-4 sm:p-5">
+              <span
+                className="font-mono text-[0.7rem] font-semibold tracking-widest"
+                style={{ color }}
+              >
+                {n}
+              </span>
+              <h3 className="mt-2 text-[0.95rem] font-semibold">{title}</h3>
+              <p
+                className="mt-1.5 text-[0.85rem] leading-relaxed"
+                style={{ color: "var(--color-ink-faint)" }}
+              >
+                {body}
+              </p>
+            </li>
+          ))}
+        </ol>
       </div>
 
       <footer

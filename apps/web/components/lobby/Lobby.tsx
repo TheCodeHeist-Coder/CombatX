@@ -63,7 +63,7 @@ export function Lobby({
     <Shell>
       <TopBar session={session} right={<ConnBadge status={status} />} />
 
-      <div className="rise flex flex-1 flex-col gap-6">
+      <div className="rise mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-6 py-4">
         {/* Header row: config + room code */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -89,20 +89,33 @@ export function Lobby({
             onTake={(slot) => takeSeat("A", slot)}
             disabled={busy || counting}
           />
-          <div
-            className="hidden w-px self-stretch sm:block"
-            style={{ background: "var(--color-line)" }}
-          />
-          <div
-            className="flex items-center justify-center py-2 text-sm font-semibold sm:px-2"
-            style={{ color: "var(--color-ink-faint)" }}
-          >
-            VS
+          <div className="flex items-center justify-center sm:flex-col sm:px-1">
+            <span
+              className="hidden w-px flex-1 sm:block"
+              style={{
+                background:
+                  "linear-gradient(180deg, transparent, var(--color-line-strong), transparent)",
+              }}
+            />
+            <span
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full font-mono text-[0.7rem] font-bold tracking-wider sm:my-2"
+              style={{
+                color: "var(--color-ink-dim)",
+                background: "var(--color-surface-3)",
+                border: "1px solid var(--color-line-strong)",
+                boxShadow: "0 6px 18px -8px rgba(0,0,0,0.9)",
+              }}
+            >
+              VS
+            </span>
+            <span
+              className="hidden w-px flex-1 sm:block"
+              style={{
+                background:
+                  "linear-gradient(180deg, transparent, var(--color-line-strong), transparent)",
+              }}
+            />
           </div>
-          <div
-            className="hidden w-px self-stretch sm:block"
-            style={{ background: "var(--color-line)" }}
-          />
           <TeamPanel
             side="B"
             players={snap.players}

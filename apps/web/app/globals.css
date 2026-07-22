@@ -290,6 +290,17 @@
     color: var(--color-ink-dim);
   }
 
+  /* "How it works" card — lifts slightly on hover. */
+  .step-card {
+    transition:
+      transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.2s ease;
+  }
+  .step-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--color-line-strong);
+  }
+
   /* Empty lobby seat — lights up in its team colour on hover. */
   .seat-empty:not(:disabled):hover {
     border-style: solid;
