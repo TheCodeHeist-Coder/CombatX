@@ -4,8 +4,8 @@ import { useState } from "react";
 import { canStart, startBlockedReason, teamSize } from "@repo/game";
 import type { LobbyPlayer } from "@repo/game";
 import type { Side } from "@repo/protocol";
-import { Shell, ErrorBanner, Spinner } from "../atoms";
-import { TopBar } from "../TopBar";
+import { ErrorBanner, Spinner } from "../atoms";
+import { AppShell } from "../AppShell";
 import { ConnBadge } from "../ConnBadge";
 import { RoomCode } from "./RoomCode";
 import { TeamPanel } from "./TeamPanel";
@@ -60,14 +60,23 @@ export function Lobby({
     withBusy(() => selectSeat(side, slot));
 
   return (
-    <Shell>
-      <TopBar session={session} right={<ConnBadge status={status} />} />
-
-      <div className="rise mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-6 py-4">
+    <AppShell
+      session={session}
+      rail
+      right={
+        <div className="flex items-center gap-2.5">
+          <span className="chip">Code: {snap.roomCode}</span>
+          <ConnBadge status={status} />
+        </div>
+      }
+    >
+      <div className="rise mx-auto flex w-full max-w-4xl flex-col gap-5 px-5 py-6 sm:px-7">
         {/* Header row: config + room code */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
+            <h1 className="font-mono text-xl font-bold uppercase tracking-tight">
+              Mission_lobby
+            </h1>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="chip">{modeLabel(snap.config.mode)}</span>
               <span className="chip">{titleCase(snap.config.difficulty)}</span>
@@ -134,7 +143,7 @@ export function Lobby({
             <div className="flex items-center gap-3">
               <Spinner />
               <span className="text-sm font-medium">
-                Battle starting — get ready…
+                Deployment imminent — stand by…
               </span>
             </div>
           ) : (
@@ -145,15 +154,15 @@ export function Lobby({
                   disabled={!seated || busy}
                   onClick={() => withBusy(() => setReady(!me?.ready))}
                 >
-                  {me?.ready ? "Unready" : "I'm ready"}
+                  {me?.ready ? "Stand_down" : "Ready_up"}
                 </button>
                 <span
-                  className="text-sm"
+                  className="font-mono text-[0.72rem]"
                   style={{ color: "var(--color-ink-faint)" }}
                 >
                   {!seated
-                    ? "Pick a seat to ready up."
-                    : blockedReason ?? "Everyone's ready."}
+                    ? "Select a slot to ready up."
+                    : blockedReason ?? "All operatives ready."}
                 </span>
               </div>
 
@@ -164,7 +173,7 @@ export function Lobby({
                   onClick={() => withBusy(start)}
                   title={blockedReason ?? undefined}
                 >
-                  {busy ? <Spinner /> : "Start battle"}
+                  {busy ? <Spinner /> : "Deploy"}
                 </button>
               )}
             </>
@@ -173,13 +182,13 @@ export function Lobby({
 
         {!me?.isHost && !counting && (
           <p
-            className="text-center text-sm"
+            className="text-center font-mono text-[0.7rem] uppercase tracking-wider"
             style={{ color: "var(--color-ink-faint)" }}
           >
-            Waiting for the host to start.
+            * All operatives must acknowledge mission protocols before deployment *
           </p>
         )}
       </div>
-    </Shell>
+    </AppShell>
   );
 }

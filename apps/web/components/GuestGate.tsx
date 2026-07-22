@@ -63,7 +63,6 @@ export function GuestGate({
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={24}
-          autoFocus
           autoComplete="off"
           style={
             onDark

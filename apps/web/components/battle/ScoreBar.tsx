@@ -24,39 +24,44 @@ export function ScoreBar({
   const complete = total > 0 && bestPassed === total;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-2">
-          <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ background: color }}
-          />
-          <span className="font-medium">{label}</span>
-          {isMine && (
-            <span className="text-xs" style={{ color: "var(--color-ink-faint)" }}>
-              you
-            </span>
-          )}
+    <div
+      className="border p-3"
+      style={{
+        borderColor: isMine ? color : "var(--color-line)",
+        background: isMine ? "var(--color-blush)" : "var(--color-surface)",
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          className="truncate font-mono text-[0.72rem] font-bold uppercase tracking-wider"
+          style={{ color: isMine ? color : "var(--color-ink-dim)" }}
+        >
+          {label}
         </span>
         <span
-          className="font-mono text-sm tabular-nums"
-          style={{ color: complete ? "var(--color-good)" : "var(--color-ink-dim)" }}
+          className="shrink-0 font-mono text-[0.9rem] font-bold tabular-nums"
+          style={{
+            color: complete ? "var(--color-good)" : "var(--color-ink)",
+          }}
         >
           {bestPassed}/{total || "—"}
         </span>
       </div>
+
       <div
-        className="h-2 w-full overflow-hidden rounded-full"
-        style={{ background: "var(--color-surface-3)" }}
+        className="mt-2.5 h-2 w-full overflow-hidden"
+        style={{ background: "var(--color-surface-2)" }}
       >
         <div
-          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          className="h-full transition-[width] duration-500 ease-out"
           style={{
             width: `${pct}%`,
             background: complete ? "var(--color-good)" : color,
           }}
         />
       </div>
+
+      {isMine && <p className="label mt-1.5">Your squad</p>}
     </div>
   );
 }

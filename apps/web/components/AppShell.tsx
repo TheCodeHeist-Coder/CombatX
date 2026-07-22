@@ -12,9 +12,9 @@ import type { Session } from "../lib/session";
  * The persistent application chrome: a top command bar plus an optional left
  * rail. Screens render inside it.
  *
- * Some destinations are not built yet (Intel, Archive, Armory, …). Rather than
- * hide them, they render as visibly locked with a `SOON` tag — a nav item that
- * silently does nothing is worse than one that says so.
+ * Every destination routes. The ones that are not built yet land on a page
+ * that says so plainly and lists what it will hold, rather than pretending to
+ * work or silently doing nothing.
  */
 
 interface NavItem {
@@ -25,17 +25,17 @@ interface NavItem {
 
 const TOP_NAV: NavItem[] = [
   { label: "Lobby", href: "/", ready: true },
-  { label: "Arena", href: "/arena", ready: false },
-  { label: "Intel", href: "/intel", ready: false },
-  { label: "Archive", href: "/archive", ready: false },
+  { label: "Arena", href: "/arena", ready: true },
+  { label: "Intel", href: "/intel", ready: true },
+  { label: "Archive", href: "/archive", ready: true },
 ];
 
 const RAIL_NAV: (NavItem & { icon: ReactNode })[] = [
   { label: "Mission Control", href: "/", ready: true, icon: <IconTerminal /> },
-  { label: "Tactical Feed", href: "/feed", ready: false, icon: <IconChart /> },
-  { label: "Armory", href: "/armory", ready: false, icon: <IconShield /> },
-  { label: "Rankings", href: "/rankings", ready: false, icon: <IconMedal /> },
-  { label: "Settings", href: "/settings", ready: false, icon: <IconGear /> },
+  { label: "Tactical Feed", href: "/feed", ready: true, icon: <IconChart /> },
+  { label: "Armory", href: "/armory", ready: true, icon: <IconShield /> },
+  { label: "Rankings", href: "/rankings", ready: true, icon: <IconMedal /> },
+  { label: "Settings", href: "/settings", ready: true, icon: <IconGear /> },
 ];
 
 export function AppShell({

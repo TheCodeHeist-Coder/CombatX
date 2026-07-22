@@ -1,4 +1,5 @@
 import type {
+  ProgressionAward,
   BattleSnapshot,
   PublicProblem,
   ServerMessage,
@@ -44,6 +45,8 @@ export interface BattleState {
   countdownMs: number | null;
   /** transient out-of-band error banners. */
   lastError: string | null;
+  /** XP/streak awarded when the battle finished; empty until then. */
+  awards: ProgressionAward[];
 }
 
 export const initialBattleState: BattleState = {
@@ -56,6 +59,7 @@ export const initialBattleState: BattleState = {
   ownSubmissions: [],
   countdownMs: null,
   lastError: null,
+  awards: [],
 };
 
 /** Merge a fresh snapshot into local state. */
@@ -167,6 +171,7 @@ export function reduceBattle(
               finishReason: msg.reason,
             }
           : state.snapshot,
+        awards: msg.awards ?? [],
       };
 
     case "error":

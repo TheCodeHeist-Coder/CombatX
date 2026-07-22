@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Language, Side } from "@repo/protocol";
-import { Shell, ErrorBanner, Spinner, Centered } from "../atoms";
-import { TopBar } from "../TopBar";
+import { ErrorBanner, Spinner, Centered } from "../atoms";
+import { AppShell } from "../AppShell";
 import { ConnBadge } from "../ConnBadge";
 import { Markdown } from "./Markdown";
 import { Samples } from "./Samples";
@@ -11,6 +11,7 @@ import { CodeEditor } from "./CodeEditor";
 import { BattleTimer } from "./BattleTimer";
 import { ScoreBar } from "./ScoreBar";
 import { SubmissionList } from "./SubmissionList";
+import { JudgeFeed } from "./JudgeFeed";
 import { CountdownOverlay } from "./CountdownOverlay";
 import { selectMe, selectSideProgress } from "../../lib/battleState";
 import { useCosmeticClock } from "../../lib/useCosmeticClock";
@@ -76,8 +77,7 @@ export function Arena({
 
   if (!problem) {
     return (
-      <Shell>
-        <TopBar session={session} right={<ConnBadge status={status} />} />
+      <AppShell session={session} right={<ConnBadge status={status} />}>
         {counting && state.countdownMs != null && (
           <CountdownOverlay startsInMs={state.countdownMs} />
         )}
@@ -87,7 +87,7 @@ export function Arena({
             Revealing the problem…
           </p>
         </Centered>
-      </Shell>
+      </AppShell>
     );
   }
 
@@ -95,29 +95,67 @@ export function Arena({
   const oppSide: Side = mySide === "A" ? "B" : "A";
 
   return (
-    <Shell>
+    <AppShell
+      session={session}
+      right={
+        <div className="flex items-center gap-2.5">
+          <BattleTimer remainingMs={remainingMs} />
+          <ConnBadge status={status} />
+        </div>
+      }
+    >
       {counting && state.countdownMs != null && (
         <CountdownOverlay startsInMs={state.countdownMs} />
       )}
 
-      <TopBar session={session} right={<ConnBadge status={status} />} />
-
-      <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-        {/* Left: problem */}
-        <section className="panel flex min-h-0 flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--color-line)" }}>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">
-                {problem.title}
-              </h1>
-              <span className="chip mt-1.5">
-                {problem.difficulty.charAt(0) +
-                  problem.difficulty.slice(1).toLowerCase()}
-              </span>
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+        {/* Left: live scoreboard + problem */}
+        <section
+          className="flex min-h-0 flex-col overflow-hidden border-r"
+          style={{ borderColor: "var(--color-line)" }}
+        >
+          {/* Live scoreboard */}
+          <div
+            className="border-b px-5 py-4"
+            style={{ borderColor: "var(--color-line)" }}
+          >
+            <span className="label">Live scoreboard</span>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {myProgress && (
+                <ScoreBar
+                  side={mySide!}
+                  label={`Team ${mySide === "A" ? "Alpha" : "Bravo"}`}
+                  bestPassed={myProgress.bestPassed}
+                  total={myProgress.total || problem.totalTests}
+                  isMine
+                />
+              )}
+              <ScoreBar
+                side={oppSide}
+                label={`Team ${oppSide === "A" ? "Alpha" : "Bravo"}`}
+                bestPassed={selectSideProgress(state, oppSide).bestPassed}
+                total={
+                  selectSideProgress(state, oppSide).total || problem.totalTests
+                }
+                isMine={false}
+              />
             </div>
-            <span className="text-sm" style={{ color: "var(--color-ink-faint)" }}>
-              {problem.totalTests} tests
-            </span>
+          </div>
+
+          <div
+            className="border-b px-5 py-4"
+            style={{ borderColor: "var(--color-line)" }}
+          >
+            <div className="flex flex-wrap gap-2">
+              <span className="chip">
+                Difficulty: {problem.difficulty}
+              </span>
+              <span className="chip">Verification: protocol-7</span>
+            </div>
+            <h1 className="mt-4 text-2xl font-semibold leading-tight">
+              {problem.title}
+            </h1>
+            <p className="label mt-2">{problem.totalTests} hidden tests</p>
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -137,37 +175,23 @@ export function Arena({
         </section>
 
         {/* Right: editor + controls + scores */}
-        <section className="flex min-h-0 flex-col gap-4">
-          {/* Clock + scores */}
-          <div className="panel flex flex-col gap-4 p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-3">
-                {myProgress && (
-                  <ScoreBar
-                    side={mySide!}
-                    label={`Team ${mySide}`}
-                    bestPassed={myProgress.bestPassed}
-                    total={myProgress.total || problem.totalTests}
-                    isMine
-                  />
-                )}
-                <ScoreBar
-                  side={oppSide}
-                  label={`Team ${oppSide}`}
-                  bestPassed={selectSideProgress(state, oppSide).bestPassed}
-                  total={
-                    selectSideProgress(state, oppSide).total || problem.totalTests
-                  }
-                  isMine={false}
-                />
-              </div>
-              <BattleTimer remainingMs={remainingMs} />
-            </div>
-          </div>
-
+        <section className="flex min-h-0 flex-col">
           {/* Editor */}
-          <div className="panel flex min-h-0 flex-1 flex-col gap-3 p-4">
-            <div className="flex items-center justify-between">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className="flex flex-wrap items-center gap-3 border-b px-4 py-2.5"
+              style={{
+                borderColor: "var(--color-line)",
+                background: "var(--color-surface-2)",
+              }}
+            >
+              <span className="font-mono text-[0.8rem] font-semibold">
+                ▤ solution.{extensionFor(language)}
+              </span>
+              <span
+                className="h-4 w-px"
+                style={{ background: "var(--color-line-strong)" }}
+              />
               <div className="flex gap-1.5">
                 {languages.map((l) => (
                   <button
@@ -193,17 +217,29 @@ export function Arena({
                   </button>
                 ))}
               </div>
+              <span
+                className="chip ml-auto"
+                style={{
+                  background: "var(--color-primary)",
+                  borderColor: "var(--color-primary)",
+                  color: "var(--color-sand)",
+                }}
+              >
+                Active combat
+              </span>
               <button
-                className="text-xs transition-colors hover:opacity-80"
+                className="font-mono text-[0.66rem] uppercase tracking-wider transition-colors hover:opacity-70"
                 style={{ color: "var(--color-ink-faint)" }}
                 onClick={() => {
                   setTouched(false);
                   setSource(problem.starterCode[language] ?? "");
                 }}
               >
-                Reset to starter
+                Reset_starter
               </button>
             </div>
+
+            <div className="min-h-0 flex-1 overflow-hidden p-4">
 
             <CodeEditor
               value={source}
@@ -214,24 +250,67 @@ export function Arena({
               disabled={busy || remainingMs <= 0}
             />
 
-            {error && <ErrorBanner message={error} />}
+              {error && (
+                <div className="mt-3">
+                  <ErrorBanner message={error} />
+                </div>
+              )}
+            </div>
 
-            <button
-              className="btn btn-primary"
-              onClick={onSubmit}
-              disabled={busy || !source.trim() || remainingMs <= 0}
+            <div
+              className="flex flex-wrap items-center gap-3 border-t px-4 py-3"
+              style={{
+                borderColor: "var(--color-line)",
+                background: "var(--color-surface-2)",
+              }}
             >
-              {busy ? <Spinner /> : "Submit solution"}
-            </button>
+              <SubmissionList submissions={state.ownSubmissions} />
+              <button
+                className="btn btn-ghost ml-auto"
+                onClick={() => {
+                  setTouched(false);
+                  setSource(problem.starterCode[language] ?? "");
+                }}
+                disabled={busy}
+              >
+                ▷ Run_local
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={onSubmit}
+                disabled={busy || !source.trim() || remainingMs <= 0}
+              >
+                {busy ? <Spinner /> : "⇧ Submit_intel"}
+              </button>
+            </div>
           </div>
 
-          {/* Own submissions */}
-          <div className="panel flex flex-col gap-3 p-4">
-            <span className="label">Your submissions</span>
-            <SubmissionList submissions={state.ownSubmissions} />
+          {/* Judge feed */}
+          <div
+            className="h-56 shrink-0 border-t"
+            style={{ borderColor: "var(--color-line)" }}
+          >
+            <JudgeFeed
+              submissions={state.ownSubmissions}
+              totalTests={problem.totalTests}
+            />
           </div>
         </section>
       </div>
-    </Shell>
+    </AppShell>
   );
+}
+
+/** File extension for the editor tab label. */
+function extensionFor(language: Language): string {
+  switch (language) {
+    case "PYTHON":
+      return "py";
+    case "JAVASCRIPT":
+      return "js";
+    case "CPP":
+      return "cpp";
+    case "JAVA":
+      return "java";
+  }
 }
