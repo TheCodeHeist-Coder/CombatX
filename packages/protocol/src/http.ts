@@ -20,6 +20,20 @@ export const GuestAuthResponse = z.object({
 });
 export type GuestAuthResponse = z.infer<typeof GuestAuthResponse>;
 
+// GET /me — the caller's profile and progression. (Auth required.)
+// Separate from auth because progression changes after every battle, so the
+// client needs to be able to refetch it without re-authenticating.
+export const ProfileResponse = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  xp: z.number().int().min(0),
+  wins: z.number().int().min(0),
+  losses: z.number().int().min(0),
+  winStreak: z.number().int().min(0),
+  bestStreak: z.number().int().min(0),
+});
+export type ProfileResponse = z.infer<typeof ProfileResponse>;
+
 // POST /battles — create a battleground. (Auth required.)
 export const CreateBattleRequest = z.object({
   mode: Mode,

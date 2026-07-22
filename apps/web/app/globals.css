@@ -1,52 +1,59 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
- * CombatX design system.
+ * CombatX design system — "tactical dossier".
  *
- * A restrained, modern dark theme. Near-black base, warm off-white ink, a
- * single cool accent used sparingly. No glow, no gloss — surfaces are
- * differentiated by hairline borders and small elevation, not shine.
+ * A light, warm, print-inspired theme: cream paper, deep maroon ink, tan
+ * hairlines. Structure comes from sharp rectangles and monospace labels rather
+ * than shadow and gloss. Radii are near-zero on purpose — this should read as
+ * a briefing document, not a consumer app.
  * ------------------------------------------------------------------------- */
 
 @theme {
-  /* Base surfaces: layered near-blacks with a cool indigo cast. */
-  --color-void: #08080c; /* page background */
-  --color-surface: #101017; /* cards, panels */
-  --color-surface-2: #17171f; /* raised / hovered */
-  --color-surface-3: #1e1e28; /* inputs, wells */
+  /* Paper. */
+  --color-void: #faf6ee; /* page background — cream */
+  --color-surface: #fffdf8; /* cards — near-white cream */
+  --color-surface-2: #f0e3cf; /* raised / active — light cream */
+  --color-surface-3: #f5ecd9; /* wells, inputs */
+  --color-blush: #f7e7e1; /* soft blush surface */
+  --color-sand: #f6e7c9; /* primary foreground / on-maroon text */
 
-  /* Hairlines. */
-  --color-line: #26262f;
-  --color-line-strong: #363642;
+  /* Hairlines — tan, never grey. */
+  --color-line: #e4d2af;
+  --color-line-strong: #a98a5f;
 
-  /* Ink: warm off-whites, never pure #fff. */
-  --color-ink: #f0f0f4; /* primary text */
-  --color-ink-dim: #a8a8b6; /* secondary text */
-  --color-ink-faint: #70707f; /* tertiary / labels */
+  /* Ink. */
+  --color-ink: #3b2415; /* dark espresso */
+  --color-ink-dim: #6b4a2b; /* secondary brown */
+  --color-ink-faint: #8a6a45; /* muted mid-brown */
+  --color-ink-ghost: #a98a5f; /* muted tan — placeholders, disabled */
 
-  /* Accent: electric indigo — focus, primary action, "you". */
-  --color-accent: #7c7cff;
-  --color-accent-dim: #4a4ac4;
-  --color-accent-hot: #a78bfa;
+  /* Command colours. */
+  --color-primary: #5a1a1a; /* deep maroon */
+  --color-primary-hover: #731f1f;
+  --color-accent: #a23b2e; /* terracotta */
+  --color-amber: #d99743;
+  --color-amber-deep: #c2761c;
+  --color-olive: #5f6e46;
 
-  /* Sides + semantic. Team colours are deliberately opposed. */
-  --color-side-a: #4dc4ff; /* team A — cyan */
-  --color-side-b: #ff8a5c; /* team B — ember */
-  --color-good: #4ade80; /* passed */
-  --color-bad: #ff6b6b; /* error / lost */
-  --color-warn: #fbbf24;
+  /* Sides. Alpha = maroon authority, Bravo = espresso. */
+  --color-side-a: #a23b2e;
+  --color-side-b: #6b4a2b;
+
+  /* Semantic. */
+  --color-good: #5f6e46; /* olive — passed */
+  --color-bad: #a23b2e; /* terracotta — failed */
+  --color-warn: #c2761c;
 
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-lg: 16px;
-  --radius-md: 11px;
-  --radius-sm: 7px;
+  /* Sharp by default — this is a dossier, not a card UI. */
+  --radius-lg: 3px;
+  --radius-md: 2px;
+  --radius-sm: 2px;
 
-  /* Elevation — depth comes from shadow + a top highlight, not gloss. */
-  --shadow-panel:
-    0 1px 0 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -12px rgba(0, 0, 0, 0.8);
-  --shadow-lift:
-    0 1px 0 0 rgba(255, 255, 255, 0.06) inset, 0 20px 48px -16px rgba(0, 0, 0, 0.9);
+  --shadow-panel: 0 1px 2px rgba(59, 36, 21, 0.04);
+  --shadow-lift: 0 4px 14px -6px rgba(59, 36, 21, 0.18);
 }
 
 @layer base {
@@ -55,44 +62,18 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     background-color: var(--color-void);
     color: var(--color-ink);
-    font-feature-settings: "cv01", "ss01";
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* Atmosphere: opposing team-coloured auras, as if two sides lit the room. */
+  /* Faint paper tooth — texture without a background image. */
   body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    pointer-events: none;
-    background:
-      radial-gradient(
-        44rem 30rem at 12% -6%,
-        rgba(77, 196, 255, 0.13),
-        transparent 68%
-      ),
-      radial-gradient(
-        40rem 30rem at 92% 8%,
-        rgba(255, 138, 92, 0.1),
-        transparent 66%
-      ),
-      radial-gradient(
-        56rem 40rem at 50% 108%,
-        rgba(124, 124, 255, 0.12),
-        transparent 70%
-      );
-  }
-
-  /* A faint grid — texture at the edge of perception, fading toward centre. */
-  body::after {
     content: "";
     position: fixed;
     inset: 0;
@@ -100,100 +81,83 @@
     pointer-events: none;
     opacity: 0.5;
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(
-      70rem 50rem at 50% 40%,
-      transparent 8%,
-      #000 78%
-    );
+      linear-gradient(rgba(169, 138, 95, 0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(169, 138, 95, 0.055) 1px, transparent 1px);
+    background-size: 4px 4px;
   }
 
   ::selection {
-    background: rgba(110, 168, 254, 0.25);
+    background: var(--color-primary);
+    color: var(--color-sand);
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
   }
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--color-surface-3);
   }
   ::-webkit-scrollbar-thumb {
     background: var(--color-line-strong);
-    border-radius: 999px;
-    border: 3px solid var(--color-void);
+    border: 3px solid var(--color-surface-3);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #45454e;
+    background: var(--color-ink-faint);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-primary);
     outline-offset: 2px;
-    border-radius: var(--radius-sm);
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Component primitives — small, composable, applied via @apply-free classes.
+ * Primitives.
  * ------------------------------------------------------------------------- */
 @layer components {
   .panel {
-    position: relative;
-    background-image: linear-gradient(
-      168deg,
-      var(--color-surface-2) 0%,
-      var(--color-surface) 62%
-    );
+    background-color: var(--color-surface);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-panel);
   }
 
-  /* Hero panel: same shape, but lit from above by the accent. */
-  .panel-lift {
-    box-shadow: var(--shadow-lift);
-    border-color: var(--color-line-strong);
+  /* Emphasis panel — a heavy ink rule, as if stamped. */
+  .panel-strong {
+    border: 2px solid var(--color-primary);
+    background-color: var(--color-blush);
   }
-  .panel-lift::before {
-    content: "";
-    position: absolute;
-    inset-inline: 12%;
-    top: -1px;
-    height: 1px;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--color-accent) 70%, transparent),
-      transparent
-    );
+
+  /* Monospace all-caps micro-label. The workhorse of this aesthetic. */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    font-weight: 500;
   }
 
   .field {
     width: 100%;
-    background-color: var(--color-surface-3);
-    border: 1px solid var(--color-line);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
-    padding: 0.78rem 0.95rem;
+    padding: 0.7rem 0.85rem;
     color: var(--color-ink);
-    font-size: 0.95rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
     transition:
-      border-color 0.16s ease,
-      background-color 0.16s ease,
-      box-shadow 0.16s ease;
+      border-color 0.14s ease,
+      box-shadow 0.14s ease;
   }
   .field::placeholder {
-    color: var(--color-ink-faint);
+    color: var(--color-ink-ghost);
   }
   .field:focus {
     outline: none;
-    border-color: color-mix(in srgb, var(--color-accent) 65%, transparent);
-    background-color: var(--color-surface-2);
-    box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent) 16%, transparent);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(90, 26, 26, 0.1);
   }
 
   .btn {
@@ -202,122 +166,133 @@
     justify-content: center;
     gap: 0.5rem;
     border-radius: var(--radius-md);
-    padding: 0.7rem 1.1rem;
-    font-size: 0.92rem;
-    font-weight: 500;
+    padding: 0.68rem 1.15rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     line-height: 1;
     border: 1px solid transparent;
     cursor: pointer;
     transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease,
-      opacity 0.15s ease,
+      background-color 0.14s ease,
+      border-color 0.14s ease,
+      color 0.14s ease,
       transform 0.06s ease;
     user-select: none;
   }
   .btn:active {
     transform: translateY(1px);
   }
-  /* Disabled stays readable — a dead-looking primary CTA reads as broken. */
   .btn:disabled {
-    opacity: 0.62;
+    opacity: 0.45;
     cursor: not-allowed;
-    filter: saturate(0.7);
   }
 
-  /* Primary: the accent, with a lift on hover. This is the "go" button. */
   .btn-primary {
-    background-image: linear-gradient(
-      180deg,
-      var(--color-accent-hot),
-      var(--color-accent)
-    );
-    color: #0b0b12;
-    font-weight: 620;
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.25) inset,
-      0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+    background-color: var(--color-primary);
+    color: var(--color-sand);
   }
   .btn-primary:not(:disabled):hover {
-    filter: brightness(1.09);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
-      0 10px 26px -6px color-mix(in srgb, var(--color-accent) 85%, transparent);
-    transform: translateY(-1px);
-  }
-  .btn-primary:not(:disabled):active {
-    transform: translateY(0);
+    background-color: var(--color-primary-hover);
   }
 
   .btn-ghost {
-    background-color: var(--color-surface-2);
-    border-color: var(--color-line);
+    background-color: transparent;
+    border-color: var(--color-ink);
     color: var(--color-ink);
   }
   .btn-ghost:not(:disabled):hover {
-    background-color: var(--color-surface-3);
-    border-color: var(--color-line-strong);
+    background-color: var(--color-surface-2);
   }
 
   .btn-accent {
-    background-color: color-mix(in srgb, var(--color-accent) 16%, transparent);
-    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+    background-color: transparent;
+    border-color: var(--color-accent);
     color: var(--color-accent);
   }
   .btn-accent:not(:disabled):hover {
-    background-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
-  }
-
-  .label {
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-ink-faint);
-    font-weight: 500;
+    background-color: var(--color-blush);
   }
 
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.03em;
-    padding: 0.28rem 0.7rem;
-    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--color-line);
-    background-color: var(--color-surface-2);
+    background-color: var(--color-surface);
     color: var(--color-ink-dim);
   }
 
-  /* "How it works" card — lifts slightly on hover. */
-  .step-card {
-    transition:
-      transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-      border-color 0.2s ease;
-  }
-  .step-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--color-line-strong);
+  .chip-live {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background-color: var(--color-blush);
   }
 
-  /* Empty lobby seat — lights up in its team colour on hover. */
+  .chip-good {
+    border-color: var(--color-good);
+    color: var(--color-good);
+    background-color: rgba(95, 110, 70, 0.08);
+  }
+
+  /* Section eyebrow: "PROTOCOL 01" */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    font-weight: 500;
+  }
+
+  /* Empty lobby seat. */
   .seat-empty:not(:disabled):hover {
     border-style: solid;
-    border-color: color-mix(in srgb, var(--seat-color) 55%, transparent) !important;
-    background-color: color-mix(in srgb, var(--seat-color) 9%, transparent);
+    border-color: var(--seat-color) !important;
+    background-color: var(--color-blush);
     color: var(--seat-color) !important;
   }
 
-  /* "Live" pill — tinted toward the success colour. */
-  .chip-live {
-    border-color: color-mix(in srgb, var(--color-good) 30%, transparent);
-    background-color: color-mix(in srgb, var(--color-good) 9%, transparent);
-    color: color-mix(in srgb, var(--color-good) 78%, var(--color-ink));
+  .step-card {
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease;
+  }
+  .step-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--color-line-strong);
+  }
+
+  /* Terminal block — dark inversion, used sparingly for log output. */
+  .terminal {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.75;
+  }
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+    background-color: var(--color-surface-3);
   }
 }
 
-/* Subtle entrance for mounted views. */
+/* ---------------------------------------------------------------------------
+ * Motion. Restrained — this is a professional tool.
+ * ------------------------------------------------------------------------- */
 @keyframes rise {
   from {
     opacity: 0;
@@ -329,7 +304,16 @@
   }
 }
 .rise {
-  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rise-1 {
+  animation-delay: 0.05s;
+}
+.rise-2 {
+  animation-delay: 0.1s;
+}
+.rise-3 {
+  animation-delay: 0.15s;
 }
 
 @keyframes pulse-soft {
@@ -338,36 +322,21 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.4;
+    opacity: 0.35;
   }
 }
 .pulse-soft {
   animation: pulse-soft 1.6s ease-in-out infinite;
 }
 
-/* A slow drift, for decorative background objects. */
-@keyframes float-slow {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-9px) rotate(1.4deg);
-  }
-}
-.float-slow {
-  animation: float-slow 7s ease-in-out infinite;
-}
-
-/* Live status dot — a radar ping. */
 @keyframes ping-ring {
   0% {
     transform: scale(0.7);
-    opacity: 0.75;
+    opacity: 0.7;
   }
   75%,
   100% {
-    transform: scale(2.4);
+    transform: scale(2.3);
     opacity: 0;
   }
 }
@@ -377,43 +346,22 @@
   inset: 0;
   border-radius: 999px;
   background: currentColor;
-  animation: ping-ring 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  animation: ping-ring 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* Sweeping sheen, used on the versus divider. */
-@keyframes sheen {
-  0% {
-    background-position: -140% 0;
+/* Blinking terminal caret. */
+@keyframes caret {
+  0%,
+  49% {
+    opacity: 1;
   }
+  50%,
   100% {
-    background-position: 240% 0;
+    opacity: 0;
   }
 }
-
-/* Gradient text that slowly shifts hue across the accent range. */
-.text-gradient {
-  background-image: linear-gradient(
-    100deg,
-    var(--color-side-a),
-    var(--color-accent-hot) 45%,
-    var(--color-side-b)
-  );
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: sheen 9s linear infinite;
-}
-
-/* Staggered entrance helper. */
-.rise-1 {
-  animation-delay: 0.06s;
-}
-.rise-2 {
-  animation-delay: 0.12s;
-}
-.rise-3 {
-  animation-delay: 0.18s;
+.caret {
+  animation: caret 1.05s step-end infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
