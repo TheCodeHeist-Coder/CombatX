@@ -83,11 +83,14 @@ function SeatRow({
       <button
         onClick={onTake}
         disabled={disabled}
-        className="flex h-14 items-center justify-center rounded-[10px] border border-dashed text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-        style={{
-          borderColor: "var(--color-line-strong)",
-          color: "var(--color-ink-faint)",
-        }}
+        className="seat-empty flex h-14 items-center justify-center rounded-[10px] border border-dashed text-sm transition-all disabled:cursor-not-allowed disabled:opacity-40"
+        style={
+          {
+            borderColor: "var(--color-line-strong)",
+            color: "var(--color-ink-faint)",
+            "--seat-color": color,
+          } as React.CSSProperties
+        }
       >
         + Take seat {slot + 1}
       </button>
@@ -98,14 +101,15 @@ function SeatRow({
 
   return (
     <div
-      className="flex h-14 items-center justify-between rounded-[10px] border px-3.5"
+      className="flex h-14 items-center justify-between rounded-[10px] border px-3.5 transition-all"
       style={{
         borderColor: isMe
-          ? `color-mix(in srgb, ${color} 45%, transparent)`
+          ? `color-mix(in srgb, ${color} 55%, transparent)`
           : "var(--color-line)",
         background: isMe
-          ? `color-mix(in srgb, ${color} 10%, transparent)`
+          ? `color-mix(in srgb, ${color} 12%, var(--color-surface))`
           : "var(--color-surface-2)",
+        boxShadow: isMe ? `0 8px 26px -14px ${color}` : undefined,
       }}
     >
       <div className="flex items-center gap-2.5 min-w-0">

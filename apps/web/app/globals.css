@@ -9,37 +9,44 @@
  * ------------------------------------------------------------------------- */
 
 @theme {
-  /* Base surfaces: layered near-blacks with a faint warm cast. */
-  --color-void: #0a0a0b; /* page background */
-  --color-surface: #101012; /* cards, panels */
-  --color-surface-2: #17171a; /* raised / hovered */
-  --color-surface-3: #202024; /* inputs, wells */
+  /* Base surfaces: layered near-blacks with a cool indigo cast. */
+  --color-void: #08080c; /* page background */
+  --color-surface: #101017; /* cards, panels */
+  --color-surface-2: #17171f; /* raised / hovered */
+  --color-surface-3: #1e1e28; /* inputs, wells */
 
   /* Hairlines. */
-  --color-line: #26262b;
-  --color-line-strong: #33333a;
+  --color-line: #26262f;
+  --color-line-strong: #363642;
 
   /* Ink: warm off-whites, never pure #fff. */
-  --color-ink: #ededef; /* primary text */
-  --color-ink-dim: #a4a4ac; /* secondary text */
-  --color-ink-faint: #6d6d76; /* tertiary / labels */
+  --color-ink: #f0f0f4; /* primary text */
+  --color-ink-dim: #a8a8b6; /* secondary text */
+  --color-ink-faint: #70707f; /* tertiary / labels */
 
-  /* Accent: a single cool blue. Used for focus, the primary action, "you". */
-  --color-accent: #6ea8fe;
-  --color-accent-dim: #3f6dc4;
+  /* Accent: electric indigo — focus, primary action, "you". */
+  --color-accent: #7c7cff;
+  --color-accent-dim: #4a4ac4;
+  --color-accent-hot: #a78bfa;
 
-  /* Sides + semantic. */
-  --color-side-a: #6ea8fe; /* team A — blue */
-  --color-side-b: #e0a37a; /* team B — warm sand */
-  --color-good: #7bd88f; /* passed */
-  --color-bad: #e07a7a; /* error / lost */
-  --color-warn: #e0c97a;
+  /* Sides + semantic. Team colours are deliberately opposed. */
+  --color-side-a: #4dc4ff; /* team A — cyan */
+  --color-side-b: #ff8a5c; /* team B — ember */
+  --color-good: #4ade80; /* passed */
+  --color-bad: #ff6b6b; /* error / lost */
+  --color-warn: #fbbf24;
 
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-lg: 14px;
-  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-md: 11px;
   --radius-sm: 7px;
+
+  /* Elevation — depth comes from shadow + a top highlight, not gloss. */
+  --shadow-panel:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -12px rgba(0, 0, 0, 0.8);
+  --shadow-lift:
+    0 1px 0 0 rgba(255, 255, 255, 0.06) inset, 0 20px 48px -16px rgba(0, 0, 0, 0.9);
 }
 
 @layer base {
@@ -59,24 +66,48 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* A single, subtle atmospheric wash — not a gradient party. */
+  /* Atmosphere: opposing team-coloured auras, as if two sides lit the room. */
   body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        44rem 30rem at 12% -6%,
+        rgba(77, 196, 255, 0.13),
+        transparent 68%
+      ),
+      radial-gradient(
+        40rem 30rem at 92% 8%,
+        rgba(255, 138, 92, 0.1),
+        transparent 66%
+      ),
+      radial-gradient(
+        56rem 40rem at 50% 108%,
+        rgba(124, 124, 255, 0.12),
+        transparent 70%
+      );
+  }
+
+  /* A faint grid — texture at the edge of perception, fading toward centre. */
+  body::after {
     content: "";
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background:
-      radial-gradient(
-        60rem 40rem at 50% -10%,
-        rgba(110, 168, 254, 0.05),
-        transparent 70%
-      ),
-      radial-gradient(
-        50rem 40rem at 100% 110%,
-        rgba(224, 163, 122, 0.03),
-        transparent 70%
-      );
+    opacity: 0.5;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(
+      70rem 50rem at 50% 40%,
+      transparent 8%,
+      #000 78%
+    );
   }
 
   ::selection {
@@ -111,9 +142,35 @@
  * ------------------------------------------------------------------------- */
 @layer components {
   .panel {
-    background-color: var(--color-surface);
+    position: relative;
+    background-image: linear-gradient(
+      168deg,
+      var(--color-surface-2) 0%,
+      var(--color-surface) 62%
+    );
     border: 1px solid var(--color-line);
     border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* Hero panel: same shape, but lit from above by the accent. */
+  .panel-lift {
+    box-shadow: var(--shadow-lift);
+    border-color: var(--color-line-strong);
+  }
+  .panel-lift::before {
+    content: "";
+    position: absolute;
+    inset-inline: 12%;
+    top: -1px;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-accent) 70%, transparent),
+      transparent
+    );
   }
 
   .field {
@@ -121,20 +178,22 @@
     background-color: var(--color-surface-3);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
-    padding: 0.7rem 0.9rem;
+    padding: 0.78rem 0.95rem;
     color: var(--color-ink);
     font-size: 0.95rem;
     transition:
-      border-color 0.15s ease,
-      background-color 0.15s ease;
+      border-color 0.16s ease,
+      background-color 0.16s ease,
+      box-shadow 0.16s ease;
   }
   .field::placeholder {
     color: var(--color-ink-faint);
   }
   .field:focus {
     outline: none;
-    border-color: var(--color-accent-dim);
+    border-color: color-mix(in srgb, var(--color-accent) 65%, transparent);
     background-color: var(--color-surface-2);
+    box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--color-accent) 16%, transparent);
   }
 
   .btn {
@@ -158,20 +217,37 @@
     user-select: none;
   }
   .btn:active {
-    transform: translateY(0.5px);
+    transform: translateY(1px);
   }
+  /* Disabled stays readable — a dead-looking primary CTA reads as broken. */
   .btn:disabled {
-    opacity: 0.45;
+    opacity: 0.62;
     cursor: not-allowed;
+    filter: saturate(0.7);
   }
 
+  /* Primary: the accent, with a lift on hover. This is the "go" button. */
   .btn-primary {
-    background-color: var(--color-ink);
-    color: var(--color-void);
-    font-weight: 560;
+    background-image: linear-gradient(
+      180deg,
+      var(--color-accent-hot),
+      var(--color-accent)
+    );
+    color: #0b0b12;
+    font-weight: 620;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.25) inset,
+      0 6px 18px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
   }
   .btn-primary:not(:disabled):hover {
-    background-color: #fff;
+    filter: brightness(1.09);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.3) inset,
+      0 10px 26px -6px color-mix(in srgb, var(--color-accent) 85%, transparent);
+    transform: translateY(-1px);
+  }
+  .btn-primary:not(:disabled):active {
+    transform: translateY(0);
   }
 
   .btn-ghost {
@@ -204,14 +280,29 @@
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
     font-size: 0.72rem;
     letter-spacing: 0.03em;
-    padding: 0.2rem 0.55rem;
+    padding: 0.28rem 0.7rem;
     border-radius: 999px;
     border: 1px solid var(--color-line);
     background-color: var(--color-surface-2);
     color: var(--color-ink-dim);
+  }
+
+  /* Empty lobby seat — lights up in its team colour on hover. */
+  .seat-empty:not(:disabled):hover {
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--seat-color) 55%, transparent) !important;
+    background-color: color-mix(in srgb, var(--seat-color) 9%, transparent);
+    color: var(--seat-color) !important;
+  }
+
+  /* "Live" pill — tinted toward the success colour. */
+  .chip-live {
+    border-color: color-mix(in srgb, var(--color-good) 30%, transparent);
+    background-color: color-mix(in srgb, var(--color-good) 9%, transparent);
+    color: color-mix(in srgb, var(--color-good) 78%, var(--color-ink));
   }
 }
 
@@ -241,4 +332,85 @@
 }
 .pulse-soft {
   animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+/* A slow drift, for decorative background objects. */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(1.4deg);
+  }
+}
+.float-slow {
+  animation: float-slow 7s ease-in-out infinite;
+}
+
+/* Live status dot — a radar ping. */
+@keyframes ping-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.75;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.ping-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: currentColor;
+  animation: ping-ring 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Sweeping sheen, used on the versus divider. */
+@keyframes sheen {
+  0% {
+    background-position: -140% 0;
+  }
+  100% {
+    background-position: 240% 0;
+  }
+}
+
+/* Gradient text that slowly shifts hue across the accent range. */
+.text-gradient {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-side-a),
+    var(--color-accent-hot) 45%,
+    var(--color-side-b)
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 9s linear infinite;
+}
+
+/* Staggered entrance helper. */
+.rise-1 {
+  animation-delay: 0.06s;
+}
+.rise-2 {
+  animation-delay: 0.12s;
+}
+.rise-3 {
+  animation-delay: 0.18s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

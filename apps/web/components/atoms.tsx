@@ -4,7 +4,7 @@ import type { Side } from "@repo/protocol";
 /** A hairline-bordered content shell used as the page container. */
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-5 py-6 sm:px-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-5 py-5 sm:px-8 sm:py-6">
       {children}
     </main>
   );

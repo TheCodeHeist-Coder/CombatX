@@ -1,12 +1,54 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Shell } from "../components/atoms";
+import { Shell, Spinner } from "../components/atoms";
 import { TopBar } from "../components/TopBar";
 import { GuestGate } from "../components/GuestGate";
 import { Launcher } from "../components/Launcher";
 import { useSession } from "../lib/useSession";
 import { clearSession } from "../lib/session";
+
+/**
+ * Decorative "A vs B" mark floating above the action panel. Purely ornamental —
+ * it carries the two team colours into the hero so the page reads as a contest.
+ */
+function VersusGlyph() {
+  return (
+    <div
+      aria-hidden
+      className="float-slow pointer-events-none absolute -top-5 right-4 z-10 hidden select-none items-center gap-2 sm:flex"
+    >
+      {(
+        [
+          ["A", "var(--color-side-a)"],
+          ["B", "var(--color-side-b)"],
+        ] as const
+      ).map(([letter, color], i) => (
+        <span key={letter} className="flex items-center gap-2">
+          {i === 1 && (
+            <span
+              className="font-mono text-[0.65rem] font-semibold"
+              style={{ color: "var(--color-ink-faint)" }}
+            >
+              VS
+            </span>
+          )}
+          <span
+            className="grid h-8 w-8 place-items-center rounded-lg text-sm font-bold"
+            style={{
+              color,
+              background: `color-mix(in srgb, ${color} 15%, var(--color-surface))`,
+              border: `1px solid color-mix(in srgb, ${color} 45%, transparent)`,
+              boxShadow: `0 8px 22px -10px ${color}`,
+            }}
+          >
+            {letter}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { session, loaded, refresh } = useSession();
@@ -31,82 +73,97 @@ export default function HomePage() {
         }
       />
 
-      <div className="flex flex-1 flex-col items-center justify-center">
-        <div className="grid w-full items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="flex flex-1 flex-col justify-center py-10 sm:py-14">
+        <div className="grid w-full items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           {/* Hero copy */}
           <section className="rise">
-            <p
-              className="mb-4 text-xs font-medium uppercase tracking-[0.18em]"
-              style={{ color: "var(--color-accent)" }}
-            >
-              Real-time coding battles
-            </p>
+            <span className="chip chip-live mb-5">
+              <span
+                className="ping-ring relative inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: "var(--color-good)", color: "var(--color-good)" }}
+              />
+              Live · real-time coding battles
+            </span>
+
             <h1
-              className="text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl"
-              style={{ letterSpacing: "-0.03em" }}
+              className="text-[2.6rem] font-semibold leading-[1.04] sm:text-6xl"
+              style={{ letterSpacing: "-0.035em" }}
             >
               Same problem.
               <br />
-              <span style={{ color: "var(--color-ink-dim)" }}>
-                First to pass
-              </span>{" "}
-              wins.
+              <span className="text-gradient">First to pass</span> wins.
             </h1>
+
             <p
-              className="mt-5 max-w-md text-[0.98rem] leading-relaxed"
+              className="mt-6 max-w-md text-[1.02rem] leading-relaxed"
               style={{ color: "var(--color-ink-dim)" }}
             >
               Face off against an opponent on the same challenge. Solve every
               hidden test first for an instant win — or hold the highest score
-              when the clock runs out. You never see their code; they never see
-              yours.
+              when the clock runs out.{" "}
+              <span style={{ color: "var(--color-ink)" }}>
+                You never see their code; they never see yours.
+              </span>
             </p>
-            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+
+            <ul className="mt-8 grid gap-2.5 text-sm sm:grid-cols-2">
               {[
-                "Server-authoritative judging",
-                "Hidden tests never leak",
-                "1v1 today · up to 4v4 soon",
-              ].map((f) => (
+                ["⚔️", "Head-to-head, one clock"],
+                ["🔒", "Hidden tests never leak"],
+                ["⚡", "Instant win on all-pass"],
+                ["🎯", "1v1 today · 4v4 soon"],
+              ].map(([icon, text]) => (
                 <li
-                  key={f}
-                  className="flex items-center gap-2"
-                  style={{ color: "var(--color-ink-faint)" }}
+                  key={text}
+                  className="flex items-center gap-2.5"
+                  style={{ color: "var(--color-ink-dim)" }}
                 >
                   <span
-                    className="h-1 w-1 rounded-full"
-                    style={{ background: "var(--color-accent)" }}
-                  />
-                  {f}
+                    aria-hidden
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[0.72rem]"
+                    style={{
+                      background: "var(--color-surface-2)",
+                      border: "1px solid var(--color-line)",
+                    }}
+                  >
+                    {icon}
+                  </span>
+                  {text}
                 </li>
               ))}
             </ul>
           </section>
 
           {/* Action panel */}
-          <section
-            className="panel rise p-6 sm:p-7"
-            style={{ animationDelay: "0.08s" }}
-          >
-            {!loaded ? (
-              <div className="h-40" />
-            ) : session ? (
-              <Launcher
-                session={session}
-                onEnterBattle={(id) => router.push(`/battle/${id}`)}
-              />
-            ) : (
-              <GuestGate onReady={refresh} />
-            )}
+          <section className="relative">
+            <VersusGlyph />
+            <div className="panel panel-lift rise rise-2 p-6 sm:p-7">
+              {!loaded ? (
+                <div className="flex h-44 items-center justify-center">
+                  <Spinner />
+                </div>
+              ) : session ? (
+                <Launcher
+                  session={session}
+                  onEnterBattle={(id) => router.push(`/battle/${id}`)}
+                />
+              ) : (
+                <GuestGate onReady={refresh} />
+              )}
+            </div>
           </section>
         </div>
       </div>
 
       <footer
-        className="mt-10 flex items-center justify-between text-xs"
-        style={{ color: "var(--color-ink-faint)" }}
+        className="mt-8 flex items-center justify-between border-t pt-5 text-xs"
+        style={{
+          color: "var(--color-ink-faint)",
+          borderColor: "var(--color-line)",
+        }}
       >
         <span>CombatX</span>
-        <span>Solve fast. Solve first.</span>
+        <span className="font-mono tracking-tight">Solve fast. Solve first.</span>
       </footer>
     </Shell>
   );
