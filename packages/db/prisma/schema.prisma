@@ -62,10 +62,17 @@ model User {
   email       String?  @unique
   createdAt   DateTime @default(now())
 
-  // Phase 3 ranking fields (unused in MVP but modeled for forward-compat).
+  // Progression. Awarded by ws-server when a battle finishes; see
+  // packages/game/src/progression.ts for the (pure, tested) award rules.
   eloRating   Int      @default(1200)
   wins        Int      @default(0)
   losses      Int      @default(0)
+  xp          Int      @default(0)
+  /** Consecutive wins. Reset to 0 on a loss; drives the streak multiplier. */
+  winStreak   Int      @default(0)
+  /** Highest winStreak ever reached, for display. */
+  bestStreak  Int      @default(0)
+  lastBattleAt DateTime?
 
   hostedBattles Battle[]      @relation("HostedBattles")
   memberships   TeamMember[]
