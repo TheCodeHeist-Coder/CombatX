@@ -2,6 +2,7 @@ import {
   BattleResultResponse,
   CreateBattleResponse,
   GuestAuthResponse,
+  ProfileResponse,
   JoinBattleResponse,
   type CreateBattleRequest,
   type Difficulty,
@@ -93,6 +94,13 @@ export function joinBattle(
       body: JSON.stringify({ roomCode }),
     },
     (d) => JoinBattleResponse.parse(d),
+  );
+}
+
+/** GET /me — the caller's profile and progression. */
+export function fetchProfile(token: string): Promise<ProfileResponse> {
+  return request("/me", { method: "GET", headers: auth(token) }, (d) =>
+    ProfileResponse.parse(d),
   );
 }
 

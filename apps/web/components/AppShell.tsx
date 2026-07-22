@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { rankFor } from "@repo/game";
+import type { ProfileResponse } from "@repo/protocol";
+import { rankFor, rankProgress } from "@repo/game";
 import { Logo } from "./Logo";
 import type { Session } from "../lib/session";
 
@@ -39,11 +40,14 @@ const RAIL_NAV: (NavItem & { icon: ReactNode })[] = [
 
 export function AppShell({
   session,
+  profile,
   children,
   rail = false,
   right,
 }: {
   session?: Session | null;
+  /** Live progression, when the caller has fetched it. */
+  profile?: ProfileResponse | null;
   children: ReactNode;
   /** Show the left navigation rail (dashboard-style screens). */
   rail?: boolean;
@@ -53,7 +57,7 @@ export function AppShell({
     <div className="flex min-h-dvh flex-col">
       <CommandBar session={session} right={right} />
       <div className="flex flex-1">
-        {rail && <NavRail session={session} />}
+        {rail && <NavRail session={session} profile={profile} />}
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <SiteFooter />
@@ -148,7 +152,13 @@ function IdentityChip({ session }: { session: Session }) {
   );
 }
 
-function NavRail({ session }: { session?: Session | null }) {
+function NavRail({
+  session,
+  profile,
+}: {
+  session?: Session | null;
+  profile?: ProfileResponse | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -156,7 +166,7 @@ function NavRail({ session }: { session?: Session | null }) {
       className="hidden w-60 shrink-0 flex-col border-r lg:flex"
       style={{ borderColor: "var(--color-line)" }}
     >
-      {session && <OperativeCard session={session} />}
+      {session && <OperativeCard session={session} profile={profile} />}
 
       <nav className="flex flex-col gap-0.5 p-3">
         {RAIL_NAV.map((item) => {
@@ -221,36 +231,72 @@ function NavRail({ session }: { session?: Session | null }) {
   );
 }
 
-/** Identity block at the top of the rail: name, rank, XP. */
-function OperativeCard({ session }: { session: Session }) {
-  const xp = session.xp ?? 0;
+/**
+ * Identity block at the top of the rail: callsign, rank, and progress to the
+ * next tier. Rank is derived from real XP via the same pure function the
+ * server uses, so the badge can never disagree with the award.
+ */
+function OperativeCard({
+  session,
+  profile,
+}: {
+  session: Session;
+  profile?: ProfileResponse | null;
+}) {
+  const xp = profile?.xp ?? 0;
   const rank = rankFor(xp);
+  const progress = rankProgress(xp);
 
   return (
     <div
-      className="m-3 flex items-center gap-3 border p-3"
+      className="m-3 border p-3"
       style={{
         borderColor: "var(--color-line)",
         background: "var(--color-blush)",
       }}
     >
-      <span
-        className="grid h-10 w-10 shrink-0 place-items-center font-mono text-sm font-bold"
-        style={{
-          background: "var(--color-primary)",
-          color: "var(--color-sand)",
-        }}
-      >
-        {session.displayName.charAt(0).toUpperCase()}
-      </span>
-      <div className="min-w-0">
-        <div className="truncate font-mono text-[0.78rem] font-semibold uppercase tracking-wide">
-          {session.displayName}
-        </div>
-        <div className="label mt-0.5" style={{ color: "var(--color-accent)" }}>
-          {rank.label}
+      <div className="flex items-center gap-3">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center font-mono text-sm font-bold"
+          style={{
+            background: "var(--color-primary)",
+            color: "var(--color-sand)",
+          }}
+        >
+          {session.displayName.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate font-mono text-[0.78rem] font-semibold uppercase tracking-wide">
+            {session.displayName}
+          </div>
+          <div className="label mt-0.5" style={{ color: "var(--color-accent)" }}>
+            Rank: {rank.label}
+          </div>
         </div>
       </div>
+
+      {profile && (
+        <div className="mt-3">
+          <div
+            className="h-1.5 w-full overflow-hidden"
+            style={{ background: "var(--color-surface-2)" }}
+          >
+            <div
+              className="h-full transition-all"
+              style={{
+                width: `${Math.round(progress * 100)}%`,
+                background: "var(--color-accent)",
+              }}
+            />
+          </div>
+          <div className="mt-1.5 flex justify-between">
+            <span className="label">{profile.xp} XP</span>
+            <span className="label">
+              {profile.wins}W / {profile.losses}L
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

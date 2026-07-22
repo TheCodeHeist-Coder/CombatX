@@ -8,8 +8,17 @@ import { ErrorBanner, Spinner } from "./atoms";
 /**
  * The one-field guest sign-in. No accounts, no passwords — pick a name and
  * you're in. On success it persists the session and calls onReady.
+ *
+ * `onDark` re-tints it for the maroon deploy panel, where the normal ink
+ * colours would be unreadable.
  */
-export function GuestGate({ onReady }: { onReady: () => void }) {
+export function GuestGate({
+  onReady,
+  onDark = false,
+}: {
+  onReady: () => void;
+  onDark?: boolean;
+}) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,11 +43,18 @@ export function GuestGate({ onReady }: { onReady: () => void }) {
     }
   }
 
+  const sand = "var(--color-sand)";
+  const dimOnDark = "color-mix(in srgb, var(--color-sand) 62%, transparent)";
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <label htmlFor="name" className="label">
-          Choose a display name
+        <label
+          htmlFor="name"
+          className="label"
+          style={onDark ? { color: dimOnDark } : undefined}
+        >
+          Operative callsign
         </label>
         <input
           id="name"
@@ -49,8 +65,21 @@ export function GuestGate({ onReady }: { onReady: () => void }) {
           maxLength={24}
           autoFocus
           autoComplete="off"
+          style={
+            onDark
+              ? {
+                  background: "color-mix(in srgb, #000 22%, transparent)",
+                  borderColor:
+                    "color-mix(in srgb, var(--color-sand) 35%, transparent)",
+                  color: sand,
+                }
+              : undefined
+          }
         />
-        <p className="text-xs" style={{ color: "var(--color-ink-faint)" }}>
+        <p
+          className="font-mono text-[0.68rem]"
+          style={{ color: onDark ? dimOnDark : "var(--color-ink-faint)" }}
+        >
           No account needed — this is how opponents will see you.
         </p>
       </div>
@@ -61,8 +90,13 @@ export function GuestGate({ onReady }: { onReady: () => void }) {
         type="submit"
         className="btn btn-primary"
         disabled={!valid || busy}
+        style={
+          onDark
+            ? { background: sand, color: "var(--color-primary)" }
+            : undefined
+        }
       >
-        {busy ? <Spinner /> : "Enter"}
+        {busy ? <Spinner /> : "Request_deployment"}
       </button>
     </form>
   );
