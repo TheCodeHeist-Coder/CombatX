@@ -3,6 +3,9 @@ import {
   CreateBattleResponse,
   GuestAuthResponse,
   ProfileResponse,
+  LeaderboardResponse,
+  BattleHistoryResponse,
+  UpdateProfileResponse,
   JoinBattleResponse,
   type CreateBattleRequest,
   type Difficulty,
@@ -101,6 +104,38 @@ export function joinBattle(
 export function fetchProfile(token: string): Promise<ProfileResponse> {
   return request("/me", { method: "GET", headers: auth(token) }, (d) =>
     ProfileResponse.parse(d),
+  );
+}
+
+/** PATCH /me — rename. Returns a FRESH token (JWTs embed the display name). */
+export function updateProfile(
+  token: string,
+  displayName: string,
+): Promise<UpdateProfileResponse> {
+  return request(
+    "/me",
+    {
+      method: "PATCH",
+      headers: auth(token),
+      body: JSON.stringify({ displayName }),
+    },
+    (d) => UpdateProfileResponse.parse(d),
+  );
+}
+
+/** GET /leaderboard — top operatives. Auth optional (locates your own row). */
+export function fetchLeaderboard(token?: string): Promise<LeaderboardResponse> {
+  return request(
+    "/leaderboard",
+    { method: "GET", headers: token ? auth(token) : undefined },
+    (d) => LeaderboardResponse.parse(d),
+  );
+}
+
+/** GET /me/battles — the caller's battle history. */
+export function fetchMyBattles(token: string): Promise<BattleHistoryResponse> {
+  return request("/me/battles", { method: "GET", headers: auth(token) }, (d) =>
+    BattleHistoryResponse.parse(d),
   );
 }
 

@@ -113,7 +113,6 @@ export function Launcher({
               options={MODES.map((m) => ({
                 value: m,
                 label: modeLabel(m),
-                disabled: m !== "ONE_V_ONE",
               }))}
               value={mode}
               onChange={(v) => setMode(v as Mode)}
@@ -123,7 +122,7 @@ export function Launcher({
               className="mt-1.5 font-mono text-[0.66rem]"
               style={{ color: onDark ? dimOnDark : "var(--color-ink-faint)" }}
             >
-              Team modes are modelled but gated — 1v1 is live.
+              All operatives must fill their slots before deployment.
             </p>
           </Field>
 
