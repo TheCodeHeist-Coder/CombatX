@@ -3,6 +3,7 @@ import {
   BattleConfig,
   BattleSnapshot,
   PlayerView,
+  ProgressionAward,
   PublicProblem,
   SideProgress,
   StandingRow,
@@ -179,6 +180,11 @@ export const BattleFinishedEvent = z.object({
   reason: FinishReason,
   standings: z.array(StandingRow),
   decidingSubmissionId: z.string().nullable(),
+  /**
+   * What each seated player earned. Safe to broadcast: XP totals are not
+   * secret, and no source code or test data is carried here.
+   */
+  awards: z.array(ProgressionAward).default([]),
 });
 
 /** Out-of-band error not tied to a specific request. */

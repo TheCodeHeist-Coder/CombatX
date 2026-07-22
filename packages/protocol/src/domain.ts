@@ -90,6 +90,25 @@ export const StandingRow = z.object({
 export type StandingRow = z.infer<typeof StandingRow>;
 
 /**
+ * What one player earned from a finished battle. Computed server-side by the
+ * pure rules in `@repo/game` — the client renders these, it never derives them.
+ */
+export const ProgressionAward = z.object({
+  userId: z.string(),
+  /** XP granted, streak multiplier already applied. */
+  xp: z.number().int().nonnegative(),
+  /** XP before the multiplier, so the UI can show the breakdown. */
+  baseXp: z.number().int().nonnegative(),
+  multiplier: z.number().positive(),
+  /** The player's win streak after this battle. */
+  newStreak: z.number().int().nonnegative(),
+  perfect: z.boolean(),
+  /** Career XP total after this award. */
+  totalXp: z.number().int().nonnegative(),
+});
+export type ProgressionAward = z.infer<typeof ProgressionAward>;
+
+/**
  * Full server snapshot of a battle. Sent on join and reconnect so a client
  * can rehydrate its entire view from a single message.
  */

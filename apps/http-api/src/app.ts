@@ -10,6 +10,7 @@ import { notFound, sendError } from "./http/errors.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { battlesRoutes } from "./modules/battles/battles.routes.js";
+import { profileRoutes } from "./modules/profile/profile.routes.js";
 
 /**
  * Assemble the Express application: global middleware, feature routers, and the
@@ -26,6 +27,7 @@ export function createApp(): Express {
   app.use(healthRoutes);
   app.use(authRoutes);
   app.use(battlesRoutes);
+  app.use(profileRoutes);
 
   // Unmatched routes → uniform 404.
   app.use((_req, res) => {
