@@ -259,6 +259,11 @@ export class BattleRoom {
       },
     });
 
+    // Persist the seat assignments now that they are locked. Until this point
+    // seats live only in memory; without them a reconnecting player would
+    // rejoin unseated and be told "you are not competing". See resumeInProgress.
+    await this.persistSeats();
+
     this.broadcast({
       t: "battle:start",
       problem: this.problem,
@@ -273,6 +278,109 @@ export class BattleRoom {
       () => void this.finishOnTimeout(),
       Math.max(0, end - start),
     );
+  }
+
+  /**
+   * Re-hydrate a battle that was already IN_PROGRESS when this room was
+   * reconstructed from the database (e.g. every socket dropped and someone
+   * reconnected, or ws-server restarted).
+   *
+   * The live problem and clock only ever existed in the memory of the room
+   * that ran `start()`. Without this, a resumed room reports IN_PROGRESS with
+   * a null problem, and the arena is stuck on "Revealing the problem…" forever.
+   * If the clock has already expired, finish immediately instead of resuming.
+   */
+  async resumeInProgress(persisted: {
+    assignedProblemId: string | null;
+    serverStartAt: Date | null;
+    serverEndAt: Date | null;
+  }): Promise<void> {
+    if (this.status !== "IN_PROGRESS") return;
+    if (this.problem !== null) return; // already hydrated
+    if (!persisted.assignedProblemId || !persisted.serverEndAt) return;
+
+    const problemRow = await prisma.problem.findUnique({
+      where: { id: persisted.assignedProblemId },
+      include: { testCases: true },
+    });
+    if (!problemRow) return;
+
+    this.problem = toPublicProblem(problemRow, problemRow.testCases);
+    this.serverStartAt = persisted.serverStartAt?.getTime() ?? this.now();
+    this.serverEndAt = persisted.serverEndAt.getTime();
+
+    // Restore the seat assignments persisted at start(), so a reconnecting
+    // player is recognised as a competitor and may submit. They arrive
+    // DISCONNECTED and flip to ONLINE when their socket attaches.
+    await this.restoreSeats();
+
+    const remaining = this.serverEndAt - this.now();
+    if (remaining <= 0) {
+      // The clock ran out while nobody was connected — settle it now, using
+      // the same timeout resolution the live end-timer would have.
+      await this.finishOnTimeout();
+      return;
+    }
+
+    // Re-arm the authoritative timer + end trigger for the remaining window.
+    this.clearTimers();
+    this.tickTimer = setInterval(() => this.tick(), env.timerTickMs);
+    this.endTimer = setTimeout(() => void this.finishOnTimeout(), remaining);
+  }
+
+  /**
+   * Write the current seated players to Team / TeamMember. Called once at
+   * start(), when seats are locked. Idempotent: recreates the rows so a
+   * re-run reflects the final seating exactly.
+   */
+  private async persistSeats(): Promise<void> {
+    const seated = [...this.seats.values()].filter(
+      (s) => s.side !== null && s.slot !== null,
+    );
+    if (seated.length === 0) return;
+
+    const sides = [...new Set(seated.map((s) => s.side))] as Side[];
+
+    await prisma.$transaction(async (tx) => {
+      // Clear any prior rows for this battle, then rewrite from memory.
+      await tx.team.deleteMany({ where: { battleId: this.battleId } });
+      for (const side of sides) {
+        await tx.team.create({
+          data: {
+            battleId: this.battleId,
+            side,
+            members: {
+              create: seated
+                .filter((s) => s.side === side)
+                .map((s) => ({ userId: s.userId, slot: s.slot as number })),
+            },
+          },
+        });
+      }
+    });
+  }
+
+  /** Load persisted seats into memory (used only on cold hydration). */
+  private async restoreSeats(): Promise<void> {
+    if (this.seats.size > 0) return; // live seats win
+
+    const teams = await prisma.team.findMany({
+      where: { battleId: this.battleId },
+      include: { members: { include: { user: true } } },
+    });
+
+    for (const team of teams) {
+      for (const m of team.members) {
+        this.seats.set(m.userId, {
+          userId: m.userId,
+          displayName: m.user.displayName,
+          side: team.side,
+          slot: m.slot,
+          ready: true, // the battle already started — they were ready
+          presence: "DISCONNECTED",
+        });
+      }
+    }
   }
 
   private tick(): void {

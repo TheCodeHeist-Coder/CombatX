@@ -66,6 +66,18 @@ export class RoomRegistry {
       onEmpty: (id) => this.evict(id),
     });
     this.rooms.set(battle.id, room);
+
+    // A battle that was mid-fight when its room fell out of memory keeps its
+    // problem and clock only in the DB. Restore them so a reconnecting player
+    // lands in a live arena rather than a permanent "revealing the problem".
+    if (battle.status === "IN_PROGRESS") {
+      await room.resumeInProgress({
+        assignedProblemId: battle.assignedProblemId,
+        serverStartAt: battle.serverStartAt,
+        serverEndAt: battle.serverEndAt,
+      });
+    }
+
     return room;
   }
 
