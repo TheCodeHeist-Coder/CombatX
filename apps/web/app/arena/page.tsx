@@ -45,7 +45,7 @@ export default function ArenaPage() {
   return (
     <AppShell session={session} profile={profile} rail>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
-        <p className="eyebrow">Sector // arena</p>
+        <p className="eyebrow">Sector arena</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
           Arena
         </h1>
