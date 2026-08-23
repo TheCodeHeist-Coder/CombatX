@@ -11,6 +11,7 @@ import { updateProfile, ApiCallError } from "../../lib/api";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import { clearSession, saveSession } from "../../lib/session";
+import { SignInGate } from "../../components/SignInGate";
 
 /** Account settings: character, callsign, and clearing the local session. */
 export default function SettingsPage() {
@@ -83,12 +84,7 @@ export default function SettingsPage() {
         <h1 className="mt-2 text-2xl font-bold">Settings</h1>
 
         {loaded && !session ? (
-          <p
-            className="panel mt-6 p-5 font-mono text-[0.8rem]"
-            style={{ color: "var(--color-ink-faint)" }}
-          >
-            Sign in from the lobby to manage your identity.
-          </p>
+          <SignInGate what="manage your character and callsign" onReady={refresh} />
         ) : (
           <>
             <section className="panel mt-6 p-5">

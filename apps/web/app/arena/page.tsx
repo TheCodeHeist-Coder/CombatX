@@ -11,6 +11,7 @@ import { fetchMyBattles } from "../../lib/api";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import { modeLabel, titleCase } from "../../lib/format";
+import { SignInGate } from "../../components/SignInGate";
 
 /** Battle phases that are still joinable / in-flight. */
 const LIVE_STATUSES = new Set(["LOBBY", "COUNTDOWN", "IN_PROGRESS"]);
@@ -23,7 +24,7 @@ const LIVE_STATUSES = new Set(["LOBBY", "COUNTDOWN", "IN_PROGRESS"]);
  * any battle of yours that is still live, or launch a fresh one.
  */
 export default function ArenaPage() {
-  const { session, loaded } = useSession();
+  const { session, loaded, refresh } = useSession();
   const { profile } = useProfile(session);
   const router = useRouter();
 
@@ -58,12 +59,7 @@ export default function ArenaPage() {
         </p>
 
         {loaded && !session ? (
-          <p
-            className="panel mt-6 p-5 font-mono text-[0.8rem]"
-            style={{ color: "var(--color-ink-faint)" }}
-          >
-            Sign in from the Lobby to deploy.
-          </p>
+          <SignInGate what="deploy into a battle" onReady={refresh} />
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
             {/* Resume live battles */}

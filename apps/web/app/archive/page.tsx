@@ -9,10 +9,11 @@ import { fetchMyBattles } from "../../lib/api";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import { modeLabel, titleCase } from "../../lib/format";
+import { SignInGate } from "../../components/SignInGate";
 
 /** The caller's battle history, newest first. */
 export default function ArchivePage() {
-  const { session, loaded } = useSession();
+  const { session, loaded, refresh } = useSession();
   const { profile } = useProfile(session);
 
   const [entries, setEntries] = useState<BattleHistoryEntry[] | null>(null);
@@ -45,7 +46,7 @@ export default function ArchivePage() {
         </p>
 
         {loaded && !session ? (
-          <Empty>Sign in from Mission Control to see your history.</Empty>
+          <SignInGate what="see your battle history" onReady={refresh} />
         ) : failed ? (
           <p
             className="panel mt-6 p-5 font-mono text-[0.8rem]"

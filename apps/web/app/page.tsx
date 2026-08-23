@@ -40,7 +40,12 @@ export default function HomePage() {
         ) : null
       }
     >
-      <Hero />
+      <Hero
+        loaded={loaded}
+        session={session}
+        refresh={refresh}
+        onEnterBattle={(id) => router.push(`/battle/${id}`)}
+      />
       <HowItWorks />
       <StatsAndLanguages />
       <Inception />
@@ -56,7 +61,17 @@ export default function HomePage() {
 
 /* --- 1. Hero -------------------------------------------------------------- */
 
-function Hero() {
+function Hero({
+  loaded,
+  session,
+  refresh,
+  onEnterBattle,
+}: {
+  loaded: boolean;
+  session: ReturnType<typeof useSession>["session"];
+  refresh: () => void;
+  onEnterBattle: (id: string) => void;
+}) {
   return (
     <section className="arena-glow relative overflow-hidden">
       <div className="relative mx-auto w-full max-w-6xl px-5 pb-0 pt-16 sm:px-7 sm:pt-20">
@@ -74,37 +89,48 @@ function Hero() {
           fellow developers, all while tackling unique AI-generated challenges
         </p>
 
-        <div className="rise rise-2 mt-8 flex justify-center">
-          <a href="#deploy" className="btn btn-primary px-9! py-4! text-[0.86rem]!">
-            Go to lobby
-          </a>
-        </div>
+        {/* The launcher sits centre stage with a fighter flanking each side.
+            Below xl the figures drop away and the launcher stands alone. */}
+        <div className="relative mt-10 min-h-72">
+          <HeroFighter
+            side="left"
+            className="float-y pointer-events-none absolute bottom-0 left-0 hidden h-72 w-52 xl:block"
+          />
+          <HeroFighter
+            side="right"
+            className="float-y-slow pointer-events-none absolute bottom-0 right-0 hidden h-72 w-52 xl:block"
+          />
 
-        {/* Fighters occupy the band above the panels, one lit from each
-            side. Below xl there is no room beside the copy, so they drop. */}
-        <div className="relative mt-8 hidden h-64 xl:block">
-          <div className="absolute bottom-0 left-0 flex items-end gap-4">
-            <HeroFighter side="left" className="float-y h-60 w-36" />
-            <Annotation className="mb-14" flip>
-              It&apos;s you
-            </Annotation>
-          </div>
+          <Annotation className="absolute bottom-16 left-52 hidden 2xl:block" flip>
+            It&apos;s you
+          </Annotation>
+          <Annotation className="absolute bottom-12 right-52 hidden text-right 2xl:block">
+            The computer science teacher
+            <br />
+            who doubted me
+            <br />
+            <span style={{ opacity: 0.7 }}>if you send him the link</span>
+          </Annotation>
 
-          <div className="absolute bottom-0 right-0 flex items-end gap-4">
-            <Annotation className="mb-10 text-right">
-              The computer science teacher
-              <br />
-              who doubted me
-              <br />
-              <span style={{ opacity: 0.7 }}>if you send him the link</span>
-            </Annotation>
-            <HeroFighter side="right" className="float-y-slow h-60 w-36" />
+          {/* Create or join a battle without leaving the hero. */}
+          <div className="rise rise-2 relative mx-auto w-full max-w-md">
+            <div className="panel p-6 text-left" style={{ boxShadow: "var(--shadow-lift)" }}>
+              {!loaded ? (
+                <div className="flex h-36 items-center justify-center">
+                  <Spinner />
+                </div>
+              ) : session ? (
+                <Launcher session={session} onEnterBattle={onEnterBattle} />
+              ) : (
+                <GuestGate onReady={refresh} />
+              )}
+            </div>
           </div>
         </div>
 
         <div className="relative">
           {/* The duelling panels. */}
-          <div className="rise rise-3 mx-auto -mt-8 grid max-w-6xl gap-5 pb-16 max-xl:mt-10 lg:grid-cols-2">
+          <div className="rise rise-3 mx-auto mt-10 grid max-w-6xl gap-5 pb-16 lg:grid-cols-2">
             <CodePanel
               side="A"
               playerName="Mysterious Fox"
