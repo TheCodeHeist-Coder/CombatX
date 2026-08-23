@@ -79,7 +79,7 @@ function CommandBar({
 
   return (
     <header
-      className="sticky top-0 z-30 border-b"
+      className="sticky top-0 z-30 "
       style={{
         borderColor: "var(--color-line)",
         background: "color-mix(in srgb, var(--color-void) 85%, transparent)",
@@ -133,7 +133,7 @@ function CommandBar({
               key={item.label}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="rounded-[6px] px-3 py-2.5 text-[0.9rem]"
+              className="nav-link rounded-[6px] px-3 py-2.5 text-[0.9rem]"
               style={{
                 color:
                   pathname === item.href
@@ -158,7 +158,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
-      className="relative px-2.5 py-1.5 text-[0.85rem] font-medium transition-colors"
+      className="nav-link relative px-2.5 py-1.5 text-[0.85rem] transition-colors"
       style={{ color: active ? "var(--color-accent)" : "var(--color-ink-dim)" }}
     >
       {item.label}

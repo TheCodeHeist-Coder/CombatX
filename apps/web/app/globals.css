@@ -190,10 +190,13 @@
     gap: 0.5rem;
     border-radius: var(--radius-md);
     padding: 0.72rem 1.3rem;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
+    /* Finger Paint is hand-painted and carries no bold weight — faux-bolding
+       it clogs the brush strokes, so weight stays 400 and the emphasis comes
+       from size and tracking instead. */
+    font-family: var(--font-button), var(--font-mono), sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     line-height: 1;
     border: 1px solid transparent;
@@ -252,6 +255,14 @@
   .btn-side-a:not(:disabled):hover {
     background-color: #4f90ff;
     box-shadow: 0 0 26px -4px rgba(59, 130, 246, 0.7);
+  }
+
+  /* Navigation links share the button face so the chrome reads as one set.
+     The wordmark is deliberately excluded — it has its own Lacquer treatment. */
+  .nav-link {
+    font-family: var(--font-button), var(--font-mono), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
   }
 
   .chip {
@@ -383,14 +394,6 @@
     background:
       radial-gradient(60% 55% at 8% 92%, rgba(37, 99, 235, 0.34), transparent 70%),
       radial-gradient(60% 55% at 92% 92%, rgba(242, 98, 46, 0.32), transparent 70%);
-  }
-
-  /* Faint grid, for section backgrounds that need texture. */
-  .grid-tex {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-    background-size: 42px 42px;
   }
 }
 
