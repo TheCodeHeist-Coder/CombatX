@@ -253,6 +253,7 @@ export function Results({
           <aside className="flex flex-col gap-4">
             <RewardsPanel
               award={myAward}
+              seated={mySide != null}
               totalXp={profile?.xp ?? myAward?.totalXp ?? 0}
               wins={profile?.wins}
               losses={profile?.losses}
@@ -295,11 +296,17 @@ function Metric({
 /**
  * Real progression, or an honest empty state.
  *
- * If the server sent no award for this user (they spectated, or the award
- * write failed), this says so rather than showing a fabricated number.
+ * Awards arrive on the `battle:end` socket event, so a client that connects
+ * AFTER the battle finished (a reload, or opening the shared result link) has
+ * no award to show even though one was granted. That is why the empty state
+ * branches on `seated`: a seated player is told their career totals below are
+ * already up to date, and only a genuine spectator is told they earned
+ * nothing. Showing "not seated on a team" to someone who just played — while
+ * their own W/L sits right underneath — reads as a bug.
  */
 function RewardsPanel({
   award,
+  seated,
   totalXp,
   wins,
   losses,
@@ -311,6 +318,8 @@ function RewardsPanel({
     newStreak: number;
     perfect: boolean;
   } | null;
+  /** Did this player hold a seat? Distinguishes "no award" from "spectated". */
+  seated: boolean;
   totalXp: number;
   wins?: number;
   losses?: number;
@@ -362,8 +371,9 @@ function RewardsPanel({
             className="font-mono text-[0.75rem] leading-relaxed"
             style={{ color: "var(--color-ink-faint)" }}
           >
-            No progression recorded for this battle — you were not seated on a
-            team.
+            {seated
+              ? "The live award breakdown is only sent as the battle ends. Your career totals below already include this battle."
+              : "No progression recorded for this battle — you were not seated on a team."}
           </p>
         )}
 
