@@ -1,5 +1,6 @@
 import {
   BattleResultResponse,
+  BattleSolutionsResponse,
   CreateBattleResponse,
   GuestAuthResponse,
   ProfileResponse,
@@ -145,6 +146,20 @@ export function fetchLeaderboard(token?: string): Promise<LeaderboardResponse> {
 export function fetchMyBattles(token: string): Promise<BattleHistoryResponse> {
   return request("/me/battles", { method: "GET", headers: auth(token) }, (d) =>
     BattleHistoryResponse.parse(d),
+  );
+}
+
+/**
+ * GET /battles/:id/solutions — every player's source code.
+ *
+ * Rejects with a 409 NOT_FINISHED while the battle is still running; the code
+ * is only readable once it is over.
+ */
+export function getBattleSolutions(
+  battleId: string,
+): Promise<BattleSolutionsResponse> {
+  return request(`/battles/${battleId}/solutions`, { method: "GET" }, (d) =>
+    BattleSolutionsResponse.parse(d),
   );
 }
 

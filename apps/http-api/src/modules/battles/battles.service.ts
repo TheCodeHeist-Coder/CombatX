@@ -1,10 +1,14 @@
 import { prisma } from "@repo/db";
-import type {
-  BattleResultResponse,
-  CreateBattleRequest,
-  CreateBattleResponse,
-  JoinBattleResponse,
-  StandingRow,
+import {
+  normalizeAvatar,
+  type BattleResultResponse,
+  type BattleSolutionsResponse,
+  type CreateBattleRequest,
+  type CreateBattleResponse,
+  type JoinBattleResponse,
+  type Language,
+  type SolutionEntry,
+  type StandingRow,
 } from "@repo/protocol";
 import { conflict, notFound } from "../../http/errors.js";
 import { generateRoomCode } from "../../roomCode.js";
@@ -89,4 +93,84 @@ export async function getBattleResult(
     standings,
     decidingSubmissionId: battle.result?.decidingSubmissionId ?? null,
   };
+}
+
+/**
+ * Read every player's source code for a FINISHED battle.
+ *
+ * The status check is the whole security boundary of this endpoint. While a
+ * battle is live the arena deliberately never reveals opponent source — only a
+ * pass-count — because it would be trivially copyable. Once the battle is over
+ * that risk is gone, and reading how the other side solved it is the point of
+ * the debrief, so the full room becomes readable.
+ *
+ * Returns each player's BEST submission (highest pass-count, earliest on a tie
+ * — the same rule that decides the battle) rather than every attempt: the
+ * debrief is for comparing finished solutions, not scrolling failed drafts.
+ */
+export async function getBattleSolutions(
+  battleId: string,
+): Promise<BattleSolutionsResponse> {
+  const battle = await prisma.battle.findUnique({
+    where: { id: battleId },
+    include: { result: true },
+  });
+  if (!battle) {
+    throw notFound("Battle not found");
+  }
+  if (battle.status !== "FINISHED") {
+    throw conflict(
+      "NOT_FINISHED",
+      "Solutions are revealed once the battle is over.",
+    );
+  }
+
+  const submissions = await prisma.submission.findMany({
+    where: { battleId, status: "COMPLETED" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarId: true,
+          avatarColor: true,
+        },
+      },
+    },
+    // Best first, then earliest — so the first row per user is their best.
+    orderBy: [{ passedCount: "desc" }, { submittedAt: "asc" }],
+  });
+
+  const decidingId = battle.result?.decidingSubmissionId ?? null;
+
+  const bestByUser = new Map<string, SolutionEntry>();
+  for (const sub of submissions) {
+    if (bestByUser.has(sub.userId)) continue;
+    const avatar = normalizeAvatar(
+      sub.user.avatarId,
+      sub.user.avatarColor,
+      sub.userId,
+    );
+    bestByUser.set(sub.userId, {
+      submissionId: sub.id,
+      userId: sub.userId,
+      displayName: sub.user.displayName,
+      avatarId: avatar.avatarId,
+      avatarColor: avatar.avatarColor,
+      side: sub.teamSide,
+      language: sub.language as Language,
+      sourceCode: sub.sourceCode,
+      passed: sub.passedCount,
+      total: sub.totalCount,
+      timeMs: sub.runtimeMs,
+      submittedAt: sub.submittedAt.toISOString(),
+      isDeciding: sub.id === decidingId,
+    });
+  }
+
+  const entries = [...bestByUser.values()].sort(
+    (a, b) => b.passed - a.passed || a.submittedAt.localeCompare(b.submittedAt),
+  );
+
+  return { battleId, entries };
 }

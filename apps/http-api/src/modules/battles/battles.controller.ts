@@ -5,6 +5,7 @@ import type { AuthedRequest } from "../../middleware/auth.js";
 import {
   createBattle,
   getBattleResult,
+  getBattleSolutions,
   joinBattle,
 } from "./battles.service.js";
 
@@ -35,5 +36,19 @@ export async function getResult(
   res: Response,
 ): Promise<void> {
   const result = await getBattleResult(req.params.id);
+  res.send(result);
+}
+
+/**
+ * GET /battles/:id/solutions — everyone's source, once the battle is over.
+ *
+ * The service refuses this with 409 NOT_FINISHED while a battle is still
+ * running, so a live opponent can never pull your code from here.
+ */
+export async function getSolutions(
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> {
+  const result = await getBattleSolutions(req.params.id);
   res.send(result);
 }

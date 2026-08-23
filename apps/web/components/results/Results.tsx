@@ -7,6 +7,7 @@ import { rankFor, nextRank, rankProgress } from "@repo/game";
 import { Centered, Spinner } from "../atoms";
 import { AppShell } from "../AppShell";
 import { getBattleResult } from "../../lib/api";
+import { SolutionsPanel } from "./SolutionsPanel";
 import { selectMe } from "../../lib/battleState";
 import { titleCase } from "../../lib/format";
 import { useProfile } from "../../lib/useProfile";
@@ -228,6 +229,15 @@ export function Results({
                 />
               </div>
             </section>
+
+            {/* Everyone's code — withheld during the match, revealed here. */}
+            <div className="rise rise-3">
+              <SolutionsPanel
+                battleId={snap.battleId}
+                myUserId={session.userId}
+                mySide={mySide}
+              />
+            </div>
 
             <div className="flex flex-wrap gap-3">
               <button

@@ -5,6 +5,7 @@ import {
   BattleStatus,
   Difficulty,
   FinishReason,
+  Language,
   Mode,
   Side,
 } from "./enums.js";
@@ -148,6 +149,38 @@ export const BattleResultResponse = z.object({
   decidingSubmissionId: z.string().nullable(),
 });
 export type BattleResultResponse = z.infer<typeof BattleResultResponse>;
+
+// GET /battles/:id/solutions — every side's source code, AFTER the battle.
+//
+// Source is withheld entirely while a battle is live (see the arena: you only
+// ever see an opponent's pass-count). Once it is FINISHED the code is no longer
+// worth copying, and reading how your opponent solved it is the point of the
+// debrief — so the whole room's submissions become readable here.
+export const SolutionEntry = z.object({
+  submissionId: z.string(),
+  userId: z.string(),
+  displayName: z.string(),
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
+  side: Side,
+  language: Language,
+  sourceCode: z.string(),
+  passed: z.number().int().min(0),
+  total: z.number().int().min(0),
+  timeMs: z.number().min(0),
+  /** ISO timestamp the server received it — the tie-break authority. */
+  submittedAt: z.string(),
+  /** True for the submission that decided the battle. */
+  isDeciding: z.boolean(),
+});
+export type SolutionEntry = z.infer<typeof SolutionEntry>;
+
+export const BattleSolutionsResponse = z.object({
+  battleId: z.string(),
+  /** Best (or only) submission per player, newest-scoring first. */
+  entries: z.array(SolutionEntry),
+});
+export type BattleSolutionsResponse = z.infer<typeof BattleSolutionsResponse>;
 
 export const ApiError = z.object({
   code: z.string(),

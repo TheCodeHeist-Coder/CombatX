@@ -324,10 +324,10 @@ function Tab({
 /**
  * The opponent's side of the arena.
  *
- * The reference shows the rival's live source here. This build does not stream
- * opponent code — the protocol deliberately never sends it, since that would
- * be trivially copyable — so the panel shows who you're facing and how far
- * they've got, which is the signal the server actually provides.
+ * Opponent source is never streamed while the battle runs — it would be
+ * trivially copyable — so this shows who you're facing and how far they
+ * have got, which is the signal the server actually provides. Both sides'
+ * code is revealed on the results screen once the battle is FINISHED.
  */
 function OpponentPanel({
   side,
@@ -407,8 +407,9 @@ function OpponentPanel({
           className="max-w-xs font-mono text-[0.7rem] leading-relaxed"
           style={{ color: "var(--color-ink-ghost)" }}
         >
-          Their source stays hidden — you only ever see how many tests they
-          have passed.
+          Their code is sealed until the battle ends — for now you only see how
+          many tests they have cleared. Both solutions are revealed in the
+          debrief.
         </p>
       </div>
 
