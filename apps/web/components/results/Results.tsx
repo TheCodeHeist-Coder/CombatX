@@ -125,7 +125,7 @@ export function Results({
                 style={{
                   background: "var(--color-primary)",
                   borderColor: "var(--color-primary)",
-                  color: "var(--color-sand)",
+                  color: "#ffffff",
                 }}
               >
                 Outcome: {outcome === "win" ? "Victory" : outcome === "loss" ? "Defeat" : titleCase(outcome)}
@@ -315,10 +315,10 @@ function RewardsPanel({
         className="px-4 py-2.5"
         style={{
           background: "var(--color-primary)",
-          color: "var(--color-sand)",
+          color: "#ffffff",
         }}
       >
-        <span className="label" style={{ color: "var(--color-sand)" }}>
+        <span className="label" style={{ color: "#ffffff" }}>
           Rewards_disbursed
         </span>
       </div>

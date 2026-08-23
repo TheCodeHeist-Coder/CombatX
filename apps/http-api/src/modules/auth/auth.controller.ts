@@ -7,8 +7,9 @@ import { createGuest } from "./auth.service.js";
 export async function postGuest(req: Request, res: Response): Promise<void> {
   const parsed = GuestAuthRequest.safeParse(req.body);
   if (!parsed.success) {
-    throw badRequest("Invalid display name");
+    throw badRequest("Invalid display name or avatar");
   }
-  const result = await createGuest(parsed.data.displayName);
+  const { displayName, avatarId, avatarColor } = parsed.data;
+  const result = await createGuest(displayName, { avatarId, avatarColor });
   res.send(result);
 }

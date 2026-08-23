@@ -2,40 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { ProfileResponse } from "@repo/protocol";
 import { rankFor, rankProgress } from "@repo/game";
 import { Logo } from "./Logo";
+import { Avatar } from "./avatar/Avatar";
 import type { Session } from "../lib/session";
 
 /**
  * The persistent application chrome: a top command bar plus an optional left
  * rail. Screens render inside it.
  *
- * Every destination routes. The ones that are not built yet land on a page
- * that says so plainly and lists what it will hold, rather than pretending to
- * work or silently doing nothing.
+ * Every destination routes; the rail only appears on dashboard-style screens
+ * so the landing page stays full-bleed.
  */
 
 interface NavItem {
   label: string;
   href: string;
-  ready: boolean;
 }
 
 const TOP_NAV: NavItem[] = [
-  { label: "Lobby", href: "/", ready: true },
-  { label: "Arena", href: "/arena", ready: true },
-  { label: "Intel", href: "/intel", ready: true },
-  { label: "Archive", href: "/archive", ready: true },
+  { label: "Lobby", href: "/" },
+  { label: "Arena", href: "/arena" },
+  { label: "Rankings", href: "/rankings" },
+  { label: "Archive", href: "/archive" },
+  { label: "Intel", href: "/intel" },
 ];
 
 const RAIL_NAV: (NavItem & { icon: ReactNode })[] = [
-  { label: "Mission Control", href: "/", ready: true, icon: <IconTerminal /> },
-  { label: "Tactical Feed", href: "/feed", ready: true, icon: <IconChart /> },
-  { label: "Armory", href: "/armory", ready: true, icon: <IconShield /> },
-  { label: "Rankings", href: "/rankings", ready: true, icon: <IconMedal /> },
-  { label: "Settings", href: "/settings", ready: true, icon: <IconGear /> },
+  { label: "Mission Control", href: "/", icon: <IconTerminal /> },
+  { label: "Tactical Feed", href: "/feed", icon: <IconChart /> },
+  { label: "Armory", href: "/armory", icon: <IconShield /> },
+  { label: "Rankings", href: "/rankings", icon: <IconMedal /> },
+  { label: "Settings", href: "/settings", icon: <IconGear /> },
 ];
 
 export function AppShell({
@@ -55,7 +55,7 @@ export function AppShell({
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <CommandBar session={session} right={right} />
+      <CommandBar session={session} profile={profile} right={right} />
       <div className="flex flex-1">
         {rail && <NavRail session={session} profile={profile} />}
         <main className="min-w-0 flex-1">{children}</main>
@@ -67,88 +67,144 @@ export function AppShell({
 
 function CommandBar({
   session,
+  profile,
   right,
 }: {
   session?: Session | null;
+  profile?: ProfileResponse | null;
   right?: ReactNode;
 }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   return (
     <header
-      className="sticky top-0 z-30 flex flex-wrap items-center gap-x-6 gap-y-3 border-b px-5 py-3 sm:px-7"
+      className="sticky top-0 z-30 border-b"
       style={{
         borderColor: "var(--color-line)",
-        background: "color-mix(in srgb, var(--color-void) 92%, transparent)",
-        backdropFilter: "blur(8px)",
+        background: "color-mix(in srgb, var(--color-void) 85%, transparent)",
+        backdropFilter: "blur(10px)",
       }}
     >
-      <Link href="/" className="transition-opacity hover:opacity-75">
-        <Logo />
-      </Link>
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-x-7 px-5 py-3 sm:px-7">
+        <Link href="/" className="transition-opacity hover:opacity-75">
+          <Logo />
+        </Link>
 
-      <nav className="flex items-center gap-1">
-        {TOP_NAV.map((item) => (
-          <NavLink key={item.label} item={item} active={pathname === item.href} />
-        ))}
-      </nav>
+        <nav className="hidden items-center gap-1 md:flex">
+          {TOP_NAV.map((item) => (
+            <NavLink
+              key={item.label}
+              item={item}
+              active={pathname === item.href}
+            />
+          ))}
+        </nav>
 
-      <div className="ml-auto flex items-center gap-2.5">
-        {right}
-        {session && <IdentityChip session={session} />}
+        <div className="ml-auto flex items-center gap-2.5">
+          {right}
+          {session && <IdentityChip session={session} profile={profile} />}
+          {!session && (
+            <Link href="/#deploy" className="btn btn-primary hidden sm:inline-flex">
+              Play now
+            </Link>
+          )}
+
+          <button
+            className="md:hidden"
+            aria-label="Toggle navigation"
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            style={{ color: "var(--color-ink-dim)" }}
+          >
+            <IconMenu />
+          </button>
+        </div>
       </div>
+
+      {/* Mobile nav — the top links collapse here below md. */}
+      {open && (
+        <nav
+          className="flex flex-col gap-0.5 border-t px-5 py-3 md:hidden"
+          style={{ borderColor: "var(--color-line)" }}
+        >
+          {TOP_NAV.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              className="rounded-[6px] px-3 py-2.5 text-[0.9rem]"
+              style={{
+                color:
+                  pathname === item.href
+                    ? "var(--color-accent)"
+                    : "var(--color-ink-dim)",
+                background:
+                  pathname === item.href
+                    ? "var(--color-surface-2)"
+                    : undefined,
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
-  const base =
-    "relative px-2.5 py-1.5 text-[0.82rem] font-medium transition-colors";
-
-  if (!item.ready) {
-    return (
-      <span
-        className={`${base} cursor-not-allowed`}
-        style={{ color: "var(--color-ink-ghost)" }}
-        title={`${item.label} — not built yet`}
-      >
-        {item.label}
-        <sup
-          className="ml-1 font-mono text-[0.5rem] tracking-wider"
-          style={{ color: "var(--color-line-strong)" }}
-        >
-          SOON
-        </sup>
-      </span>
-    );
-  }
-
   return (
     <Link
       href={item.href}
-      className={base}
+      className="relative px-2.5 py-1.5 text-[0.85rem] font-medium transition-colors"
       style={{ color: active ? "var(--color-accent)" : "var(--color-ink-dim)" }}
     >
       {item.label}
       {active && (
         <span
-          className="absolute inset-x-2.5 -bottom-px h-0.5"
-          style={{ background: "var(--color-accent)" }}
+          className="absolute inset-x-2.5 -bottom-[13px] h-0.5"
+          style={{ background: "var(--color-primary)" }}
         />
       )}
     </Link>
   );
 }
 
-function IdentityChip({ session }: { session: Session }) {
+/** Avatar + callsign in the command bar. Links to settings to change either. */
+function IdentityChip({
+  session,
+  profile,
+}: {
+  session: Session;
+  profile?: ProfileResponse | null;
+}) {
+  // Prefer the freshly-fetched profile: it reflects a change made in another
+  // tab, where the stored session copy could still be stale.
+  const avatarId = profile?.avatarId ?? session.avatarId;
+  const avatarColor = profile?.avatarColor ?? session.avatarColor;
+
   return (
-    <span className="chip chip-good">
-      <span
-        className="ping-ring relative inline-block h-1.5 w-1.5 rounded-full"
-        style={{ background: "var(--color-good)", color: "var(--color-good)" }}
+    <Link
+      href="/settings"
+      className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors"
+      style={{
+        background: "var(--color-surface-2)",
+        border: "1px solid var(--color-line-strong)",
+      }}
+      title="Profile settings"
+    >
+      <Avatar
+        avatarId={avatarId}
+        color={avatarColor}
+        size={24}
+        rounded={999}
       />
-      {session.displayName}
-    </span>
+      <span className="max-w-28 truncate font-mono text-[0.72rem]">
+        {profile?.displayName ?? session.displayName}
+      </span>
+    </Link>
   );
 }
 
@@ -170,9 +226,19 @@ function NavRail({
 
       <nav className="flex flex-col gap-0.5 p-3">
         {RAIL_NAV.map((item) => {
-          const active = item.ready && pathname === item.href;
-          const inner = (
-            <>
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="flex items-center gap-2.5 rounded-[6px] px-3 py-2.5 text-[0.85rem] transition-colors"
+              style={{
+                background: active ? "var(--color-surface-2)" : undefined,
+                color: active ? "var(--color-accent)" : "var(--color-ink-dim)",
+                fontWeight: active ? 600 : 400,
+                borderLeft: `2px solid ${active ? "var(--color-primary)" : "transparent"}`,
+              }}
+            >
               <span
                 className="shrink-0"
                 style={{
@@ -184,46 +250,7 @@ function NavRail({
                 {item.icon}
               </span>
               <span className="truncate">{item.label}</span>
-              {!item.ready && (
-                <span
-                  className="ml-auto font-mono text-[0.5rem] tracking-wider"
-                  style={{ color: "var(--color-line-strong)" }}
-                >
-                  SOON
-                </span>
-              )}
-            </>
-          );
-
-          const cls =
-            "flex items-center gap-2.5 rounded-[2px] px-3 py-2.5 text-[0.85rem] transition-colors";
-
-          return item.ready ? (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={cls}
-              style={{
-                background: active ? "var(--color-blush)" : undefined,
-                color: active ? "var(--color-primary)" : "var(--color-ink-dim)",
-                fontWeight: active ? 600 : 400,
-                borderLeft: `2px solid ${active ? "var(--color-accent)" : "transparent"}`,
-              }}
-            >
-              {inner}
             </Link>
-          ) : (
-            <span
-              key={item.label}
-              className={`${cls} cursor-not-allowed`}
-              style={{
-                color: "var(--color-ink-ghost)",
-                borderLeft: "2px solid transparent",
-              }}
-              title={`${item.label} — not built yet`}
-            >
-              {inner}
-            </span>
           );
         })}
       </nav>
@@ -232,9 +259,9 @@ function NavRail({
 }
 
 /**
- * Identity block at the top of the rail: callsign, rank, and progress to the
- * next tier. Rank is derived from real XP via the same pure function the
- * server uses, so the badge can never disagree with the award.
+ * Identity block at the top of the rail: character, callsign, rank, and
+ * progress to the next tier. Rank is derived from real XP via the same pure
+ * function the server uses, so the badge can never disagree with the award.
  */
 function OperativeCard({
   session,
@@ -249,28 +276,25 @@ function OperativeCard({
 
   return (
     <div
-      className="m-3 border p-3"
+      className="m-3 rounded-[10px] border p-3"
       style={{
         borderColor: "var(--color-line)",
-        background: "var(--color-blush)",
+        background: "var(--color-surface)",
       }}
     >
       <div className="flex items-center gap-3">
-        <span
-          className="grid h-10 w-10 shrink-0 place-items-center font-mono text-sm font-bold"
-          style={{
-            background: "var(--color-primary)",
-            color: "var(--color-sand)",
-          }}
-        >
-          {session.displayName.charAt(0).toUpperCase()}
-        </span>
+        <Avatar
+          avatarId={profile?.avatarId ?? session.avatarId}
+          color={profile?.avatarColor ?? session.avatarColor}
+          size={40}
+          rounded={8}
+        />
         <div className="min-w-0">
-          <div className="truncate font-mono text-[0.78rem] font-semibold uppercase tracking-wide">
-            {session.displayName}
+          <div className="truncate font-mono text-[0.8rem] font-semibold">
+            {profile?.displayName ?? session.displayName}
           </div>
           <div className="label mt-0.5" style={{ color: "var(--color-accent)" }}>
-            Rank: {rank.label}
+            {rank.label}
           </div>
         </div>
       </div>
@@ -278,14 +302,15 @@ function OperativeCard({
       {profile && (
         <div className="mt-3">
           <div
-            className="h-1.5 w-full overflow-hidden"
-            style={{ background: "var(--color-surface-2)" }}
+            className="h-1.5 w-full overflow-hidden rounded-full"
+            style={{ background: "var(--color-surface-3)" }}
           >
             <div
-              className="h-full transition-all"
+              className="h-full rounded-full transition-all"
               style={{
                 width: `${Math.round(progress * 100)}%`,
-                background: "var(--color-accent)",
+                background:
+                  "linear-gradient(90deg, var(--color-primary), var(--color-accent))",
               }}
             />
           </div>
@@ -304,26 +329,35 @@ function OperativeCard({
 function SiteFooter() {
   return (
     <footer
-      className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-7"
+      className="mt-auto border-t"
       style={{
         borderColor: "var(--color-line)",
-        background: "var(--color-surface-2)",
+        background: "var(--color-surface)",
       }}
     >
-      <span className="label">CombatX // Protocol 7.4.1</span>
-      <span className="label" style={{ color: "var(--color-ink-ghost)" }}>
-        Server-authoritative · Sandboxed execution
-      </span>
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7">
+        <Logo size="sm" />
+        <span className="label" style={{ color: "var(--color-ink-ghost)" }}>
+          Server-authoritative · Sandboxed execution
+        </span>
+      </div>
     </footer>
   );
 }
 
 /* --- icons: 16px, currentColor, no dependency ---------------------------- */
 
+function IconMenu() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+      <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
 function IconTerminal() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1.5" y="2.5" width="13" height="11" stroke="currentColor" />
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
       <path d="M4 6l2 2-2 2M8.5 10.5H12" stroke="currentColor" strokeLinecap="round" />
     </svg>
   );
@@ -331,7 +365,7 @@ function IconTerminal() {
 function IconChart() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1.5" y="1.5" width="13" height="13" stroke="currentColor" />
+      <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke="currentColor" />
       <path d="M4.5 10.5v-3M8 10.5v-5M11.5 10.5v-2" stroke="currentColor" strokeLinecap="round" />
     </svg>
   );

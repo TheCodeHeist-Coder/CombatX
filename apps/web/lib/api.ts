@@ -7,9 +7,11 @@ import {
   BattleHistoryResponse,
   UpdateProfileResponse,
   JoinBattleResponse,
+  type AvatarChoice,
   type CreateBattleRequest,
   type Difficulty,
   type Mode,
+  type UpdateProfileRequest,
 } from "@repo/protocol";
 import { API_URL } from "./config";
 
@@ -63,10 +65,13 @@ function auth(token: string): Record<string, string> {
 }
 
 /** POST /auth/guest — mint a guest identity + JWT. */
-export function createGuest(displayName: string): Promise<GuestAuthResponse> {
+export function createGuest(
+  displayName: string,
+  avatar?: AvatarChoice,
+): Promise<GuestAuthResponse> {
   return request(
     "/auth/guest",
-    { method: "POST", body: JSON.stringify({ displayName }) },
+    { method: "POST", body: JSON.stringify({ displayName, ...avatar }) },
     (d) => GuestAuthResponse.parse(d),
   );
 }
@@ -107,17 +112,21 @@ export function fetchProfile(token: string): Promise<ProfileResponse> {
   );
 }
 
-/** PATCH /me — rename. Returns a FRESH token (JWTs embed the display name). */
+/**
+ * PATCH /me — update name and/or avatar. Every field is optional, so the
+ * settings screen can save just the character without touching the callsign.
+ * Returns a FRESH token (JWTs embed the display name).
+ */
 export function updateProfile(
   token: string,
-  displayName: string,
+  patch: UpdateProfileRequest,
 ): Promise<UpdateProfileResponse> {
   return request(
     "/me",
     {
       method: "PATCH",
       headers: auth(token),
-      body: JSON.stringify({ displayName }),
+      body: JSON.stringify(patch),
     },
     (d) => UpdateProfileResponse.parse(d),
   );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AvatarId, AvatarColor } from "./avatars.js";
 import {
   BattleStatus,
   Difficulty,
@@ -41,6 +42,9 @@ export type PublicProblem = z.infer<typeof PublicProblem>;
 export const PlayerView = z.object({
   userId: z.string(),
   displayName: z.string(),
+  /** Chosen pixel-art character. Everyone in the room sees it. */
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
   side: Side.nullable(),
   slot: z.number().int().nonnegative().nullable(),
   ready: z.boolean(),

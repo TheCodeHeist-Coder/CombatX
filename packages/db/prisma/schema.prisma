@@ -62,6 +62,12 @@ model User {
   email       String?  @unique
   createdAt   DateTime @default(now())
 
+  // Cosmetic identity. Nullable because rows created before avatars existed
+  // have none; readers fall back to a seeded default (see @repo/protocol
+  // normalizeAvatar) rather than backfilling.
+  avatarId    String?
+  avatarColor String?
+
   // Progression. Awarded by ws-server when a battle finishes; see
   // packages/game/src/progression.ts for the (pure, tested) award rules.
   eloRating   Int      @default(1200)

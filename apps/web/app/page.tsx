@@ -5,10 +5,18 @@ import { Spinner } from "../components/atoms";
 import { AppShell } from "../components/AppShell";
 import { GuestGate } from "../components/GuestGate";
 import { Launcher } from "../components/Launcher";
+import { HeroFighter } from "../components/landing/HeroFighters";
+import { CodePanel } from "../components/landing/CodePanel";
+import { JS_LINES, GO_LINES } from "../components/landing/demoCode";
 import { useSession } from "../lib/useSession";
 import { useProfile } from "../lib/useProfile";
 import { clearSession } from "../lib/session";
 
+/**
+ * The landing page: hero duel, how-it-works, live stats, languages, and the
+ * deploy panel. Signed-in visitors get the Launcher in place of the guest gate
+ * so the primary CTA always does something useful.
+ */
 export default function HomePage() {
   const { session, loaded, refresh } = useSession();
   const { profile } = useProfile(session);
@@ -18,7 +26,6 @@ export default function HomePage() {
     <AppShell
       session={session}
       profile={profile}
-      rail={!!session}
       right={
         session ? (
           <button
@@ -30,376 +37,489 @@ export default function HomePage() {
           >
             Sign out
           </button>
-        ) : (
-          <span className="label hidden sm:inline">Recon</span>
-        )
+        ) : null
       }
     >
-      {/* --- Hero ------------------------------------------------------- */}
-      <section className="border-b" style={{ borderColor: "var(--color-line)" }}>
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 sm:px-7 lg:grid-cols-[1fr_1fr] lg:items-center lg:py-20">
-          <div className="rise">
-            <span className="chip chip-live">
-              <span
-                className="ping-ring relative inline-block h-1.5 w-1.5 rounded-full"
-                style={{
-                  background: "var(--color-accent)",
-                  color: "var(--color-accent)",
-                }}
-              />
-              System status: operational // secure
-            </span>
-
-            <h1
-              className="mt-6 text-[2.1rem] font-semibold leading-[1.1] sm:text-[2.7rem]"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              The master class
-              <br />
-              in{" "}
-              <em
-                className="not-italic"
-                style={{ color: "var(--color-accent)" }}
-              >
-                competitive logic.
-              </em>
-            </h1>
-
-            <p
-              className="mt-5 max-w-md font-mono text-[0.86rem] leading-relaxed"
-              style={{ color: "var(--color-ink-dim)" }}
-            >
-              Elite-level architecture for developers who treat code as
-              weaponry. CombatX provides a rigorous, server-authoritative
-              environment for head-to-head tactical programming.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href="#deploy" className="btn btn-primary">
-                Quick_start_init
-              </a>
-              <a href="#protocol-01" className="btn btn-ghost">
-                Read_documentation
-              </a>
-            </div>
-          </div>
-
-          <div className="rise rise-2">
-            <BootTerminal />
-          </div>
-        </div>
-      </section>
-
-      {/* --- Protocol 01: the gap --------------------------------------- */}
-      <section
-        id="protocol-01"
-        className="border-b"
-        style={{
-          borderColor: "var(--color-line)",
-          background: "var(--color-blush)",
-        }}
-      >
-        <div className="mx-auto w-full max-w-6xl px-5 py-14 sm:px-7">
-          <p className="eyebrow">Protocol 01</p>
-          <h2 className="mt-2 font-mono text-sm font-bold uppercase tracking-wider">
-            The head-to-head gap
-          </h2>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {PILLARS.map((p) => (
-              <article key={p.title} className="panel step-card p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-mono text-[0.8rem] font-bold uppercase tracking-wide">
-                    {p.title}
-                  </h3>
-                  <span style={{ color: "var(--color-line-strong)" }}>
-                    {p.icon}
-                  </span>
-                </div>
-                <p
-                  className="mt-3 font-mono text-[0.78rem] leading-relaxed"
-                  style={{ color: "var(--color-ink-dim)" }}
-                >
-                  {p.body}
-                </p>
-                <p
-                  className="mt-4 font-mono text-[0.6rem] uppercase tracking-widest"
-                  style={{ color: "var(--color-accent)" }}
-                >
-                  {p.tag}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* --- Protocol 02: architecture ---------------------------------- */}
-      <section className="border-b" style={{ borderColor: "var(--color-line)" }}>
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 sm:px-7 lg:grid-cols-2 lg:items-center">
-          <ArchitectureDiagram />
-
-          <div>
-            <p className="eyebrow">Protocol 02</p>
-            <h2 className="mt-2 text-2xl font-semibold leading-tight sm:text-3xl">
-              Server-authoritative
-              <br />
-              architecture
-            </h2>
-            <p
-              className="mt-4 font-mono text-[0.84rem] leading-relaxed"
-              style={{ color: "var(--color-ink-dim)" }}
-            >
-              CombatX eliminates client-side bias. Every contestable fact —
-              readiness, submission time, score, outcome — is decided by the
-              server. Clients send intent; they never assert results.
-            </p>
-
-            <ul className="mt-6 flex flex-col gap-3">
-              {GUARANTEES.map((g) => (
-                <li key={g} className="flex gap-2.5">
-                  <span
-                    className="mt-0.5 shrink-0"
-                    style={{ color: "var(--color-accent)" }}
-                  >
-                    <IconCheck />
-                  </span>
-                  <span
-                    className="font-mono text-[0.8rem] leading-relaxed"
-                    style={{ color: "var(--color-ink-dim)" }}
-                  >
-                    {g}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* --- Deploy / action panel -------------------------------------- */}
-      <section
-        id="deploy"
-        style={{ background: "var(--color-primary)" }}
-        className="px-5 py-16 sm:px-7"
-      >
-        <div className="mx-auto w-full max-w-2xl text-center">
-          <h2
-            className="font-mono text-sm font-bold uppercase leading-relaxed tracking-[0.2em]"
-            style={{ color: "var(--color-sand)" }}
-          >
-            Are you ready
-            <br />
-            to deploy?
-          </h2>
-          <p
-            className="mt-5 font-mono text-[0.82rem]"
-            style={{ color: "color-mix(in srgb, var(--color-sand) 70%, transparent)" }}
-          >
-            Pick a callsign, share a room code, and test your limits in the
-            Arena. No account required.
-          </p>
-
-          <div className="mx-auto mt-8 max-w-md text-left">
-            <div
-              className="border p-5"
-              style={{
-                borderColor: "color-mix(in srgb, var(--color-sand) 30%, transparent)",
-                background: "color-mix(in srgb, #000 12%, transparent)",
-              }}
-            >
-              {!loaded ? (
-                <div className="flex h-36 items-center justify-center">
-                  <Spinner />
-                </div>
-              ) : session ? (
-                <Launcher
-                  session={session}
-                  onEnterBattle={(id) => router.push(`/battle/${id}`)}
-                  onDark
-                />
-              ) : (
-                <GuestGate onReady={refresh} onDark />
-              )}
-            </div>
-          </div>
-
-          <p
-            className="mt-6 font-mono text-[0.6rem] uppercase tracking-[0.2em]"
-            style={{ color: "color-mix(in srgb, var(--color-sand) 45%, transparent)" }}
-          >
-            System_version: 7.4.1 // recruitment_phase: active
-          </p>
-        </div>
-      </section>
+      <Hero />
+      <HowItWorks />
+      <StatsAndLanguages />
+      <Inception />
+      <DeployPanel
+        loaded={loaded}
+        session={session}
+        refresh={refresh}
+        onEnterBattle={(id) => router.push(`/battle/${id}`)}
+      />
     </AppShell>
   );
 }
 
-/* --- pieces --------------------------------------------------------------- */
+/* --- 1. Hero -------------------------------------------------------------- */
 
-const PILLARS = [
-  {
-    title: "Latency rejection",
-    body: "The server stamps every submission on receipt. Network jitter cannot buy you a tie-break, and it cannot cost you one either.",
-    tag: "Active_mitigation_on",
-    icon: <IconTrend />,
-  },
-  {
-    title: "Hidden test cases",
-    body: "Tests live in the database and are read only by the judge. You see how many passed — never which, never the inputs.",
-    tag: "Resource_lock_engaged",
-    icon: <IconLock />,
-  },
-  {
-    title: "Zero-trust execution",
-    body: "Every submission runs in an isolated Piston sandbox with hard timeouts and truncated output. Your machine is never the runtime.",
-    tag: "Kernel_monitor_ready",
-    icon: <IconEye />,
-  },
-] as const;
-
-const GUARANTEES = [
-  "Readiness, scoring, and outcome are computed by pure, unit-tested rules on the server.",
-  "Submission receipt time is the sole tie-break authority — no client clock is trusted.",
-  "Problem selection is seeded by battle ID, so both sides provably get the same problem.",
-] as const;
-
-/** The boot log from the hero. Static text — it documents a real build. */
-function BootTerminal() {
-  const lines = [
-    ["operative@combatx:~$", "docker compose up --build"],
-    ["[+]", "Building 0.4s (12/12) FINISHED"],
-    ["=>", "[internal] load build definition from Dockerfile"],
-    ["=>", "[internal] load .dockerignore"],
-    ["=>", "[auth-srv] spawning high-latency simulation ..."],
-    ["SUCCESS", "Arena environment initialized."],
-  ];
-
+function Hero() {
   return (
-    <div className="terminal" style={{ boxShadow: "var(--shadow-lift)" }}>
-      <div className="terminal-bar">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ background: "var(--color-accent)" }}
-        />
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ background: "var(--color-amber)" }}
-        />
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ background: "var(--color-line-strong)" }}
-        />
-        <span className="label ml-auto">SH-V8 // Terminal</span>
-      </div>
-      <div className="overflow-x-auto p-4">
-        {lines.map(([prefix, rest], i) => (
-          <div key={i} className="flex gap-3 whitespace-nowrap">
-            <span
-              className="select-none tabular-nums"
-              style={{ color: "var(--color-line-strong)" }}
-            >
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <span>
-              <span style={{ color: "var(--color-accent)" }}>{prefix}</span>{" "}
-              <span style={{ color: "var(--color-ink-dim)" }}>{rest}</span>
-            </span>
-          </div>
-        ))}
-        <div className="flex gap-3">
-          <span
-            className="select-none tabular-nums"
-            style={{ color: "var(--color-line-strong)" }}
-          >
-            07
-          </span>
-          <span style={{ color: "var(--color-accent)" }}>
-            operative@combatx:~${" "}
-            <span className="caret" style={{ color: "var(--color-ink)" }}>
-              _
-            </span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
+    <section className="arena-glow relative overflow-hidden">
+      <div className="relative mx-auto w-full max-w-6xl px-5 pb-0 pt-16 sm:px-7 sm:pt-20">
+        {/* Wordmark */}
+        <h1 className="rise display grad-text text-center text-[clamp(2.6rem,9vw,5.5rem)]">
+          Code Battle
+        </h1>
 
-/** Two clients, one authoritative hub. Pure CSS/SVG, no image asset. */
-function ArchitectureDiagram() {
-  return (
-    <div
-      className="relative border p-6"
-      style={{
-        borderColor: "var(--color-line-strong)",
-        background: "var(--color-surface-2)",
-        minHeight: "20rem",
-      }}
-    >
-      <div className="flex justify-between">
-        <span className="chip">Operative_client</span>
-        <span className="chip">Operative_client</span>
-      </div>
-
-      <div className="my-8 flex justify-center">
-        <div
-          className="grid h-32 w-32 place-items-center rounded-full border border-dashed"
-          style={{ borderColor: "var(--color-accent)" }}
+        <p
+          className="rise rise-1 mx-auto mt-6 max-w-xl text-center font-mono text-[0.82rem] leading-[1.9] sm:text-[0.9rem]"
+          style={{ color: "var(--color-ink-dim)" }}
         >
-          <div
-            className="grid h-20 w-20 place-items-center px-2 text-center"
-            style={{
-              background: "var(--color-primary)",
-              color: "var(--color-sand)",
-            }}
-          >
-            <span className="font-mono text-[0.55rem] uppercase leading-tight tracking-wider">
-              Central_command
+          A thrilling arena for coders who crave competition and fun. Unleash
+          your programming skills in real-time battles against friends and
+          fellow developers, all while tackling unique AI-generated challenges
+        </p>
+
+        <div className="rise rise-2 mt-8 flex justify-center">
+          <a href="#deploy" className="btn btn-primary px-9! py-4! text-[0.86rem]!">
+            Go to lobby
+          </a>
+        </div>
+
+        {/* Fighters occupy the band above the panels, one lit from each
+            side. Below xl there is no room beside the copy, so they drop. */}
+        <div className="relative mt-8 hidden h-64 xl:block">
+          <div className="absolute bottom-0 left-0 flex items-end gap-4">
+            <HeroFighter side="left" className="float-y h-60 w-36" />
+            <Annotation className="mb-14" flip>
+              It&apos;s you
+            </Annotation>
+          </div>
+
+          <div className="absolute bottom-0 right-0 flex items-end gap-4">
+            <Annotation className="mb-10 text-right">
+              The computer science teacher
               <br />
-              Authoritative_hub
-            </span>
+              who doubted me
+              <br />
+              <span style={{ opacity: 0.7 }}>if you send him the link</span>
+            </Annotation>
+            <HeroFighter side="right" className="float-y-slow h-60 w-36" />
+          </div>
+        </div>
+
+        <div className="relative">
+          {/* The duelling panels. */}
+          <div className="rise rise-3 mx-auto -mt-8 grid max-w-6xl gap-5 pb-16 max-xl:mt-10 lg:grid-cols-2">
+            <CodePanel
+              side="A"
+              playerName="Mysterious Fox"
+              avatarId="frog"
+              avatarColor="#2e8b6b"
+              passed={28}
+              total={50}
+              lines={JS_LINES}
+              startLine={7}
+              runtime="Node.js 12 LTS"
+              language="JavaScript"
+            />
+            <CodePanel
+              side="B"
+              playerName="Galactic Penguin"
+              avatarId="penguin"
+              avatarColor="#5b4bc4"
+              passed={44}
+              total={50}
+              lines={GO_LINES}
+              startLine={12}
+              runtime="Go 1.17"
+              language="Go"
+            />
           </div>
         </div>
       </div>
+    </section>
+  );
+}
 
-      <div className="flex justify-center">
-        <span className="chip">State_consensus_engine</span>
+/** The handwritten-style pointer labels from the reference hero. */
+function Annotation({
+  children,
+  className,
+  flip = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  flip?: boolean;
+}) {
+  return (
+    <span
+      className={`pointer-events-none font-mono text-[0.7rem] uppercase leading-relaxed tracking-[0.12em] ${className ?? ""}`}
+      style={{ color: "var(--color-ink-faint)" }}
+    >
+      <svg
+        width="60"
+        height="26"
+        viewBox="0 0 60 26"
+        fill="none"
+        className="mb-1 block"
+        style={{ transform: flip ? "scaleX(-1)" : undefined }}
+        aria-hidden
+      >
+        <path
+          d="M2 2c6 14 22 21 56 20"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+          opacity="0.55"
+        />
+      </svg>
+      {children}
+    </span>
+  );
+}
+
+/* --- 2. How it works ------------------------------------------------------ */
+
+function HowItWorks() {
+  return (
+    <section className="border-t" style={{ borderColor: "var(--color-line)" }}>
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-5 py-20 sm:px-7 md:grid-cols-3 md:gap-8">
+        {STEPS.map((s) => (
+          <article key={s.title} className="flex flex-col items-center text-center">
+            <div className="mb-7 h-24">{s.icon}</div>
+            <h3 className="max-w-[16rem] text-[1.4rem] font-bold leading-tight">
+              {s.title}
+            </h3>
+            <p
+              className="mt-4 max-w-[19rem] font-mono text-[0.78rem] leading-[1.9]"
+              style={{ color: "var(--color-ink-dim)" }}
+            >
+              {s.body}
+            </p>
+          </article>
+        ))}
       </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  {
+    title: "AI generates a coding task",
+    body: "That's why every fight has a new challenge. Tasks are solved from 3 to 20 minutes",
+    icon: <IconChip />,
+  },
+  {
+    title: "See who can solve the problem faster",
+    body: "Whoever completes all the test cases first takes the win. During coding, you see your friend's code, which makes it more fun",
+    icon: <IconClock />,
+  },
+  {
+    title: "Earn money on crypto duels",
+    body: "This time it's all up to your skills. Make a 50/50 bet with your opponent, and take it all back as the winner",
+    icon: <IconCoins />,
+  },
+] as const;
+
+/* --- 3. Stats + languages ------------------------------------------------- */
+
+function StatsAndLanguages() {
+  return (
+    <section className="border-t" style={{ borderColor: "var(--color-line)" }}>
+      {/* Stats strip */}
+      <div
+        className="border-b"
+        style={{
+          borderColor: "var(--color-line)",
+          background: "var(--color-surface)",
+        }}
+      >
+        <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-8 sm:px-7 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
+          <div className="grid grid-cols-3 gap-6">
+            {STATS.map((s) => (
+              <div key={s.label}>
+                <div className="label">{s.label}</div>
+                <div className="grad-text display mt-2 text-[2.4rem] tabular-nums">
+                  {s.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Recent-results ticker */}
+          <ul
+            className="flex flex-col justify-center gap-2.5 border-l pl-8 max-lg:border-l-0 max-lg:pl-0"
+            style={{ borderColor: "var(--color-line)" }}
+          >
+            {TICKER.map((t, i) => (
+              <li
+                key={i}
+                className="flex gap-4 font-mono text-[0.78rem]"
+                style={{ color: "var(--color-ink-dim)" }}
+              >
+                <span
+                  className="w-12 shrink-0 text-right"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  {t.when}
+                </span>
+                <span>
+                  <span style={{ color: "var(--color-accent)" }}>
+                    {t.winner}
+                  </span>{" "}
+                  {t.verb}{" "}
+                  <span style={{ color: "var(--color-accent)" }}>
+                    {t.loser}
+                  </span>
+                  {t.time ? ` in ${t.time}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Languages */}
+      <div className="mx-auto w-full max-w-4xl px-5 py-20 text-center sm:px-7">
+        <h2 className="grad-text display text-[clamp(1.5rem,4vw,2.2rem)]">
+          {LANGUAGES.length} Programming Languages
+        </h2>
+
+        <div className="mt-9 flex flex-wrap justify-center gap-3">
+          {LANGUAGES.map((l) => (
+            <span key={l} className="lang-pill font-mono">
+              {l}
+            </span>
+          ))}
+        </div>
+
+        <div className="mt-12">
+          <a href="#deploy" className="btn btn-primary px-12! py-4! text-[0.86rem]!">
+            Start
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Marketing figures for the stats strip.
+ *
+ * Static on purpose: these are illustrative, and wiring them to a live count
+ * would show "0 / 0 / 0" on a fresh database — worse than an honest sample.
+ * Swap for a real aggregate endpoint when there is traffic to report.
+ */
+const STATS = [
+  { label: "Tasks generated", value: "338" },
+  { label: "Total players", value: "121" },
+  { label: "Lines of code", value: "6505" },
+] as const;
+
+const TICKER = [
+  { when: "30 min", winner: "Zheludkov", verb: "defeated", loser: "Arseniy", time: "5:32" },
+  { when: "8 min", winner: "Funky Chicken", verb: "defeated", loser: "Zheludkov Ivan", time: "12:40" },
+  { when: "8 min", winner: "Mr Scrubble", verb: "defeated", loser: "Galactic Penguin", time: "15:01" },
+  { when: "now", winner: "3 battles", verb: "going on right now", loser: "", time: "" },
+] as const;
+
+const LANGUAGES = [
+  "Javascript", "Python", "Ruby", "PHP", "C#", "Objective-C", "Swift", "Java",
+  "Kotlin", "C ++", "Go", "TypeScript", "Scala", "Rust", "Elixir", "Dart",
+] as const;
+
+/* --- 4. Inception --------------------------------------------------------- */
+
+function Inception() {
+  return (
+    <section
+      className="grid-tex border-t"
+      style={{ borderColor: "var(--color-line)" }}
+    >
+      <div className="mx-auto w-full max-w-4xl px-5 py-20 text-center sm:px-7">
+        <div className="flex items-center justify-center gap-6">
+          <ChevronCluster color="var(--color-side-a)" />
+          <h2 className="grad-text display text-[clamp(2rem,6vw,3.4rem)]">
+            Inception
+          </h2>
+          <ChevronCluster color="var(--color-side-b)" reverse />
+        </div>
+
+        <p
+          className="mx-auto mt-8 max-w-2xl font-mono text-[0.86rem] leading-[1.95] sm:text-[0.95rem]"
+          style={{ color: "var(--color-ink-dim)" }}
+        >
+          Our goal was to create a fun-filled arena where coders can duel it out
+          in skill-specific challenges, chit-chat, and put their coding chops
+          &mdash; and those of their friends &mdash; to the ultimate test, all
+          in the spirit of good fun
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/** The five-bar cluster flanking the Inception heading. */
+function ChevronCluster({
+  color,
+  reverse = false,
+}: {
+  color: string;
+  reverse?: boolean;
+}) {
+  // Fades out toward the outer edge, mirroring the reference's decorative run.
+  const opacities = [1, 0.85, 0.7, 0.3, 0.18];
+  const order = reverse ? [...opacities].reverse() : opacities;
+
+  return (
+    <div className="hidden gap-1 sm:flex" aria-hidden>
+      {order.map((o, i) => (
+        <span
+          key={i}
+          className="chev"
+          style={{ background: color, opacity: o, height: "1.6rem", width: "1.4rem" }}
+        />
+      ))}
     </div>
   );
 }
 
-function IconCheck() {
+/* --- 5. Deploy ------------------------------------------------------------ */
+
+function DeployPanel({
+  loaded,
+  session,
+  refresh,
+  onEnterBattle,
+}: {
+  loaded: boolean;
+  session: ReturnType<typeof useSession>["session"];
+  refresh: () => void;
+  onEnterBattle: (id: string) => void;
+}) {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="8" cy="8" r="6.5" stroke="currentColor" />
-      <path d="M5.2 8.2l2 2 3.6-4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    <section
+      id="deploy"
+      className="arena-glow border-t px-5 py-20 sm:px-7"
+      style={{ borderColor: "var(--color-line)" }}
+    >
+      <div className="mx-auto w-full max-w-lg text-center">
+        <h2 className="display grad-text text-[clamp(1.6rem,5vw,2.4rem)]">
+          Enter the arena
+        </h2>
+        <p
+          className="mt-4 font-mono text-[0.82rem] leading-relaxed"
+          style={{ color: "var(--color-ink-dim)" }}
+        >
+          Pick a character, share a room code, and test your limits. No account
+          required.
+        </p>
+
+        <div className="panel mt-8 p-6 text-left">
+          {!loaded ? (
+            <div className="flex h-36 items-center justify-center">
+              <Spinner />
+            </div>
+          ) : session ? (
+            <Launcher session={session} onEnterBattle={onEnterBattle} />
+          ) : (
+            <GuestGate onReady={refresh} />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --- icons: drawn, not imported ------------------------------------------ */
+
+/** An AI chip on a circuit board. */
+function IconChip() {
+  return (
+    <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden>
+      <g stroke="var(--color-line-strong)" strokeWidth="1.5">
+        <path d="M30 18V6M48 18V4M66 18V6M30 78v12M48 78v14M66 78v12M18 30H6M18 48H4M18 66H6M78 30h12M78 48h14M78 66h12" strokeLinecap="round" />
+        <circle cx="30" cy="6" r="2.5" fill="var(--color-surface)" />
+        <circle cx="66" cy="6" r="2.5" fill="var(--color-surface)" />
+        <circle cx="6" cy="30" r="2.5" fill="var(--color-surface)" />
+        <circle cx="6" cy="66" r="2.5" fill="var(--color-surface)" />
+        <circle cx="90" cy="30" r="2.5" fill="var(--color-surface)" />
+        <circle cx="90" cy="66" r="2.5" fill="var(--color-surface)" />
+        <circle cx="30" cy="90" r="2.5" fill="var(--color-surface)" />
+        <circle cx="66" cy="90" r="2.5" fill="var(--color-surface)" />
+      </g>
+      <rect x="18" y="18" width="60" height="60" rx="8" fill="var(--color-surface-3)" stroke="var(--color-line-strong)" strokeWidth="2" />
+      <text
+        x="48"
+        y="55"
+        textAnchor="middle"
+        fill="var(--color-primary)"
+        style={{ font: "800 22px var(--font-mono)" }}
+      >
+        AI
+      </text>
     </svg>
   );
 }
-function IconTrend() {
+
+/** A stopwatch over a keyboard, with the idea bulb. */
+function IconClock() {
   return (
-    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M1.5 11.5l4-4 3 3 6-6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10.5 4.5h4v4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-hidden>
+      <rect x="6" y="52" width="72" height="30" rx="5" fill="var(--color-surface-3)" stroke="var(--color-line-strong)" strokeWidth="2" />
+      <g fill="var(--color-line-strong)">
+        {[0, 1, 2, 3, 4, 5].map((c) =>
+          [0, 1, 2].map((r) => (
+            <rect key={`${c}-${r}`} x={12 + c * 11} y={58 + r * 8} width="8" height="6" rx="1.5" />
+          )),
+        )}
+      </g>
+      <circle cx="60" cy="26" r="19" fill="var(--color-surface-3)" stroke="var(--color-amber)" strokeWidth="2.5" />
+      <path d="M60 15v11l7 5" stroke="var(--color-amber)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M54 5h12M60 5V2" stroke="var(--color-amber)" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M86 60a6 6 0 10-12 0c0 3 2 4 2 7h8c0-3 2-4 2-7z" fill="var(--color-primary)" opacity="0.9" />
+      <path d="M77 71h6" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
-function IconLock() {
+
+/** Decorative sparkle positions around the coins icon. */
+const SPARKLES = [
+  { x: 9, y: 12 },
+  { x: 111, y: 16 },
+  { x: 100, y: 76 },
+  { x: 14, y: 82 },
+] as const;
+
+/** Coins under a "coming soon" plate. */
+function IconCoins() {
   return (
-    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="3" y="7" width="10" height="7" stroke="currentColor" />
-      <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" />
-    </svg>
-  );
-}
-function IconEye() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" stroke="currentColor" />
-      <circle cx="8" cy="8" r="1.8" stroke="currentColor" />
+    <svg width="120" height="96" viewBox="0 0 120 96" fill="none" aria-hidden>
+      <circle cx="44" cy="62" r="18" fill="var(--color-amber)" opacity="0.9" />
+      <text
+        x="44"
+        y="70"
+        textAnchor="middle"
+        fill="#14161c"
+        style={{ font: "800 20px var(--font-mono)" }}
+      >
+        ₿
+      </text>
+      <circle cx="70" cy="58" r="16" fill="var(--color-side-a)" opacity="0.75" />
+      <circle cx="30" cy="46" r="12" fill="var(--color-line-strong)" opacity="0.9" />
+      <rect x="14" y="14" width="92" height="27" rx="6" fill="#14161c" stroke="var(--color-primary)" strokeWidth="2" />
+      <text
+        x="60"
+        y="32.5"
+        textAnchor="middle"
+        fill="var(--color-primary)"
+        style={{ font: "800 12px var(--font-mono)", letterSpacing: "0.06em" }}
+      >
+        COMING SOON
+      </text>
+      {SPARKLES.map(({ x, y }, i) => (
+        <path
+          key={i}
+          d={`M${x} ${y - 6}l1.6 4.4L${x + 6} ${y}l-4.4 1.6L${x} ${y + 6}l-1.6-4.4L${x - 6} ${y}l4.4-1.6z`}
+          fill="var(--color-ink-dim)"
+          opacity="0.55"
+        />
+      ))}
     </svg>
   );
 }

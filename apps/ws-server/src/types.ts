@@ -1,5 +1,7 @@
 import type { WebSocket } from "ws";
 import type {
+  AvatarColor,
+  AvatarId,
   Language,
   PresenceStatus,
   Side,
@@ -14,6 +16,15 @@ export interface Connection {
   ws: WebSocket;
   userId: string;
   displayName: string;
+  /**
+   * Cosmetic identity, resolved at handshake time.
+   *
+   * NOT read from the JWT: guest tokens only carry id and name, and a player
+   * who changes avatar mid-session would otherwise keep showing the old one
+   * until their token was re-minted. The DB is the source of truth.
+   */
+  avatarId: AvatarId;
+  avatarColor: AvatarColor;
   battleId: string;
   /** last app-level ping we received, epoch ms — for idle eviction */
   lastSeen: number;
@@ -25,6 +36,8 @@ export interface Connection {
 export interface LobbySeat {
   userId: string;
   displayName: string;
+  avatarId: AvatarId;
+  avatarColor: AvatarColor;
   side: Side | null;
   slot: number | null;
   ready: boolean;

@@ -1,5 +1,9 @@
 import type { Request, Response } from "express";
-import type { LeaderboardEntry, LeaderboardResponse } from "@repo/protocol";
+import {
+  normalizeAvatar,
+  type LeaderboardEntry,
+  type LeaderboardResponse,
+} from "@repo/protocol";
 import { prisma } from "@repo/db";
 import { verifyBearer } from "../../middleware/auth.js";
 
@@ -10,6 +14,8 @@ function toEntry(
   u: {
     id: string;
     displayName: string;
+    avatarId: string | null;
+    avatarColor: string | null;
     xp: number;
     wins: number;
     losses: number;
@@ -17,10 +23,13 @@ function toEntry(
   },
   rank: number,
 ): LeaderboardEntry {
+  const avatar = normalizeAvatar(u.avatarId, u.avatarColor, u.id);
   return {
     rank,
     userId: u.id,
     displayName: u.displayName,
+    avatarId: avatar.avatarId,
+    avatarColor: avatar.avatarColor,
     xp: u.xp,
     wins: u.wins,
     losses: u.losses,
@@ -43,6 +52,8 @@ export async function getLeaderboard(
   const select = {
     id: true,
     displayName: true,
+    avatarId: true,
+    avatarColor: true,
     xp: true,
     wins: true,
     losses: true,

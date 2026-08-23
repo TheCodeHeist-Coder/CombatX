@@ -1,6 +1,7 @@
 "use client";
 
 import type { PlayerView, Side } from "@repo/protocol";
+import { Avatar } from "../avatar/Avatar";
 
 interface Seat {
   slot: number;
@@ -113,12 +114,13 @@ function SeatRow({
       }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-          style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
-        >
-          {player.displayName.charAt(0).toUpperCase()}
-        </span>
+        <Avatar
+          avatarId={player.avatarId}
+          color={player.avatarColor}
+          size={32}
+          rounded={7}
+          ring={offline ? undefined : color}
+        />
         <div className="flex flex-col min-w-0">
           <span className="truncate text-sm font-medium">
             {player.displayName}

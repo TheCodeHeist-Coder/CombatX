@@ -28,7 +28,7 @@ export function ScoreBar({
       className="border p-3"
       style={{
         borderColor: isMine ? color : "var(--color-line)",
-        background: isMine ? "var(--color-blush)" : "var(--color-surface)",
+        background: isMine ? "var(--color-surface-2)" : "var(--color-surface)",
       }}
     >
       <div className="flex items-baseline justify-between gap-2">

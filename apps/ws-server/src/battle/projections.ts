@@ -51,6 +51,8 @@ export function toPlayerView(
   return {
     userId: seat.userId,
     displayName: seat.displayName,
+    avatarId: seat.avatarId,
+    avatarColor: seat.avatarColor,
     side: seat.side,
     slot: seat.slot,
     ready: seat.ready,

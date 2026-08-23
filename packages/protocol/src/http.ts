@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AvatarId, AvatarColor } from "./avatars.js";
 import { BattleConfig, StandingRow } from "./domain.js";
 import {
   BattleStatus,
@@ -16,6 +17,9 @@ import {
 // POST /auth/guest — create a guest identity.
 export const GuestAuthRequest = z.object({
   displayName: z.string().min(1).max(24),
+  /** Optional at sign-up — omitted means "seed one from my user id". */
+  avatarId: AvatarId.optional(),
+  avatarColor: AvatarColor.optional(),
 });
 export type GuestAuthRequest = z.infer<typeof GuestAuthRequest>;
 
@@ -23,6 +27,8 @@ export const GuestAuthResponse = z.object({
   token: z.string(),
   userId: z.string(),
   displayName: z.string(),
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
 });
 export type GuestAuthResponse = z.infer<typeof GuestAuthResponse>;
 
@@ -32,6 +38,8 @@ export type GuestAuthResponse = z.infer<typeof GuestAuthResponse>;
 export const ProfileResponse = z.object({
   userId: z.string(),
   displayName: z.string(),
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
@@ -42,7 +50,9 @@ export type ProfileResponse = z.infer<typeof ProfileResponse>;
 
 // PATCH /me — change your display name. (Auth required.)
 export const UpdateProfileRequest = z.object({
-  displayName: z.string().min(1).max(24),
+  displayName: z.string().min(1).max(24).optional(),
+  avatarId: AvatarId.optional(),
+  avatarColor: AvatarColor.optional(),
 });
 export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequest>;
 
@@ -62,6 +72,8 @@ export const LeaderboardEntry = z.object({
   rank: z.number().int().positive(),
   userId: z.string(),
   displayName: z.string(),
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),

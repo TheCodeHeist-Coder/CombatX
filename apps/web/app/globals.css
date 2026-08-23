@@ -1,59 +1,62 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
- * CombatX design system — "tactical dossier".
+ * CombatX design system — "arcade arena".
  *
- * A light, warm, print-inspired theme: cream paper, deep maroon ink, tan
- * hairlines. Structure comes from sharp rectangles and monospace labels rather
- * than shadow and gloss. Radii are near-zero on purpose — this should read as
- * a briefing document, not a consumer app.
+ * A dark, high-contrast fighting-game theme: near-black ground, a warm
+ * orange→coral gradient for the player side and an electric blue for the
+ * opponent side. Structure comes from glowing rails, parallelogram score
+ * chevrons, and monospace body copy. The two side colours are load-bearing —
+ * blue is always "you", orange is always "them", everywhere in the app.
  * ------------------------------------------------------------------------- */
 
 @theme {
-  /* Paper. */
-  --color-void: #faf6ee; /* page background — cream */
-  --color-surface: #fffdf8; /* cards — near-white cream */
-  --color-surface-2: #f0e3cf; /* raised / active — light cream */
-  --color-surface-3: #f5ecd9; /* wells, inputs */
-  --color-blush: #f7e7e1; /* soft blush surface */
-  --color-sand: #f6e7c9; /* primary foreground / on-maroon text */
+  /* Ground. Layered near-blacks, slightly blue-shifted so orange reads warm. */
+  --color-void: #0d0e12;        /* page background */
+  --color-surface: #16181f;     /* cards, panels */
+  --color-surface-2: #1d2028;   /* raised / active rows */
+  --color-surface-3: #24272f;   /* wells, inputs, code gutters */
+  --color-surface-4: #2c303a;   /* hover on raised */
 
-  /* Hairlines — tan, never grey. */
-  --color-line: #e4d2af;
-  --color-line-strong: #a98a5f;
+  /* Hairlines. */
+  --color-line: #262a33;
+  --color-line-strong: #3a3f4b;
 
-  /* Ink. */
-  --color-ink: #3b2415; /* dark espresso */
-  --color-ink-dim: #6b4a2b; /* secondary brown */
-  --color-ink-faint: #8a6a45; /* muted mid-brown */
-  --color-ink-ghost: #a98a5f; /* muted tan — placeholders, disabled */
+  /* Text. */
+  --color-ink: #f2f4f8;         /* primary */
+  --color-ink-dim: #a8afbd;     /* secondary body copy */
+  --color-ink-faint: #767e8e;   /* labels, meta */
+  --color-ink-ghost: #4d5462;   /* placeholders, disabled */
 
-  /* Command colours. */
-  --color-primary: #5a1a1a; /* deep maroon */
-  --color-primary-hover: #731f1f;
-  --color-accent: #a23b2e; /* terracotta */
-  --color-amber: #d99743;
-  --color-amber-deep: #c2761c;
-  --color-olive: #5f6e46;
+  /* Command colours — the orange gradient is the brand. */
+  --color-primary: #f2622e;         /* CTA orange */
+  --color-primary-hover: #ff7442;
+  --color-accent: #ff8a5c;          /* light coral — headings, links */
+  --color-accent-deep: #d94a1f;
+  --color-amber: #f5a524;
 
-  /* Sides. Alpha = maroon authority, Bravo = espresso. */
-  --color-side-a: #a23b2e;
-  --color-side-b: #6b4a2b;
+  /* Sides. Blue = you, orange = opponent. Never swap these. */
+  --color-side-a: #3b82f6;      /* you / Team Alpha */
+  --color-side-a-dim: #1e3a6d;
+  --color-side-b: #f28c28;      /* opponent / Team Bravo */
+  --color-side-b-dim: #6b4416;
 
   /* Semantic. */
-  --color-good: #5f6e46; /* olive — passed */
-  --color-bad: #a23b2e; /* terracotta — failed */
-  --color-warn: #c2761c;
+  --color-good: #37d67a;
+  --color-bad: #f04a4a;
+  --color-warn: #f5a524;
 
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Sharp by default — this is a dossier, not a card UI. */
-  --radius-lg: 3px;
-  --radius-md: 2px;
-  --radius-sm: 2px;
+  /* Softly rounded — arcade panels, not paper. */
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 5px;
 
-  --shadow-panel: 0 1px 2px rgba(59, 36, 21, 0.04);
-  --shadow-lift: 0 4px 14px -6px rgba(59, 36, 21, 0.18);
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 18px 40px -18px rgba(0, 0, 0, 0.9);
+  --shadow-glow-a: 0 0 0 1px rgba(59, 130, 246, 0.45), 0 0 34px -6px rgba(59, 130, 246, 0.4);
+  --shadow-glow-b: 0 0 0 1px rgba(242, 140, 40, 0.45), 0 0 34px -6px rgba(242, 140, 40, 0.4);
 }
 
 @layer base {
@@ -62,7 +65,7 @@
   }
 
   html {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   body {
@@ -72,23 +75,9 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Faint paper tooth — texture without a background image. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.5;
-    background-image:
-      linear-gradient(rgba(169, 138, 95, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(169, 138, 95, 0.055) 1px, transparent 1px);
-    background-size: 4px 4px;
-  }
-
   ::selection {
     background: var(--color-primary);
-    color: var(--color-sand);
+    color: #ffffff;
   }
 
   ::-webkit-scrollbar {
@@ -96,14 +85,15 @@
     height: 11px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-surface-3);
+    background: var(--color-void);
   }
   ::-webkit-scrollbar-thumb {
     background: var(--color-line-strong);
-    border: 3px solid var(--color-surface-3);
+    border: 3px solid var(--color-void);
+    border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-ink-faint);
+    background: var(--color-ink-ghost);
   }
 
   :focus-visible {
@@ -122,13 +112,15 @@
     border-radius: var(--radius-lg);
   }
 
-  /* Emphasis panel — a heavy ink rule, as if stamped. */
-  .panel-strong {
-    border: 2px solid var(--color-primary);
-    background-color: var(--color-blush);
+  /* A panel that belongs to a side. Set --side-color on the element. */
+  .panel-side {
+    background-color: var(--color-surface);
+    border: 1px solid var(--side-color);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 30px -10px var(--side-color);
   }
 
-  /* Monospace all-caps micro-label. The workhorse of this aesthetic. */
+  /* Monospace all-caps micro-label. */
   .label {
     font-family: var(--font-mono);
     font-size: 0.66rem;
@@ -138,9 +130,26 @@
     font-weight: 500;
   }
 
+  /* The brand gradient, applied to text. Used for display headings. */
+  .grad-text {
+    background: linear-gradient(180deg, #ff5c39 0%, #ff9a6b 62%, #ffc79b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Chunky arcade display type — the "CODE BATTLE" treatment. */
+  .display {
+    font-family: var(--font-mono);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    line-height: 0.95;
+  }
+
   .field {
     width: 100%;
-    background-color: var(--color-surface);
+    background-color: var(--color-surface-3);
     border: 1px solid var(--color-line-strong);
     border-radius: var(--radius-md);
     padding: 0.7rem 0.85rem;
@@ -157,7 +166,7 @@
   .field:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(90, 26, 26, 0.1);
+    box-shadow: 0 0 0 3px rgba(242, 98, 46, 0.18);
   }
 
   .btn {
@@ -166,11 +175,11 @@
     justify-content: center;
     gap: 0.5rem;
     border-radius: var(--radius-md);
-    padding: 0.68rem 1.15rem;
+    padding: 0.72rem 1.3rem;
     font-family: var(--font-mono);
     font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     line-height: 1;
     border: 1px solid transparent;
@@ -179,6 +188,7 @@
       background-color 0.14s ease,
       border-color 0.14s ease,
       color 0.14s ease,
+      box-shadow 0.14s ease,
       transform 0.06s ease;
     user-select: none;
   }
@@ -186,34 +196,48 @@
     transform: translateY(1px);
   }
   .btn:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
+  /* The hero CTA — flat orange, glows on hover. */
   .btn-primary {
     background-color: var(--color-primary);
-    color: var(--color-sand);
+    color: #ffffff;
   }
   .btn-primary:not(:disabled):hover {
     background-color: var(--color-primary-hover);
+    box-shadow: 0 0 26px -4px rgba(242, 98, 46, 0.7);
   }
 
   .btn-ghost {
     background-color: transparent;
-    border-color: var(--color-ink);
-    color: var(--color-ink);
+    border-color: var(--color-line-strong);
+    color: var(--color-ink-dim);
   }
   .btn-ghost:not(:disabled):hover {
     background-color: var(--color-surface-2);
+    border-color: var(--color-ink-faint);
+    color: var(--color-ink);
   }
 
   .btn-accent {
     background-color: transparent;
-    border-color: var(--color-accent);
+    border-color: var(--color-primary);
     color: var(--color-accent);
   }
   .btn-accent:not(:disabled):hover {
-    background-color: var(--color-blush);
+    background-color: rgba(242, 98, 46, 0.12);
+  }
+
+  /* Blue variant — "you" actions inside a battle. */
+  .btn-side-a {
+    background-color: var(--color-side-a);
+    color: #ffffff;
+  }
+  .btn-side-a:not(:disabled):hover {
+    background-color: #4f90ff;
+    box-shadow: 0 0 26px -4px rgba(59, 130, 246, 0.7);
   }
 
   .chip {
@@ -224,58 +248,81 @@
     font-size: 0.65rem;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    padding: 0.3rem 0.6rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-line);
-    background-color: var(--color-surface);
+    padding: 0.32rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-line-strong);
+    background-color: var(--color-surface-2);
     color: var(--color-ink-dim);
   }
 
   .chip-live {
-    border-color: var(--color-accent);
+    border-color: rgba(242, 98, 46, 0.5);
     color: var(--color-accent);
-    background-color: var(--color-blush);
+    background-color: rgba(242, 98, 46, 0.1);
   }
 
   .chip-good {
-    border-color: var(--color-good);
+    border-color: rgba(55, 214, 122, 0.45);
     color: var(--color-good);
-    background-color: rgba(95, 110, 70, 0.08);
+    background-color: rgba(55, 214, 122, 0.1);
   }
 
-  /* Section eyebrow: "PROTOCOL 01" */
+  /* Outlined language pill from the "16 programming languages" section. */
+  .lang-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.6rem 1.15rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-line-strong);
+    background-color: transparent;
+    color: var(--color-accent);
+    font-size: 0.85rem;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease,
+      transform 0.16s ease;
+  }
+  .lang-pill:hover {
+    border-color: var(--color-primary);
+    background-color: rgba(242, 98, 46, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Section eyebrow. */
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 0.7rem;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: var(--color-accent);
-    font-weight: 500;
+    font-weight: 600;
   }
 
-  /* Empty lobby seat. */
   .seat-empty:not(:disabled):hover {
     border-style: solid;
     border-color: var(--seat-color) !important;
-    background-color: var(--color-blush);
+    background-color: color-mix(in srgb, var(--seat-color) 12%, transparent);
     color: var(--seat-color) !important;
   }
 
   .step-card {
     transition:
       transform 0.18s ease,
-      border-color 0.18s ease;
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
   }
   .step-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     border-color: var(--color-line-strong);
+    box-shadow: var(--shadow-lift);
   }
 
-  /* Terminal block — dark inversion, used sparingly for log output. */
+  /* Code surface — the editor panels in the hero and the arena. */
   .terminal {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-line-strong);
-    border-radius: var(--radius-md);
+    background-color: #14161c;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
     font-family: var(--font-mono);
     font-size: 0.78rem;
     line-height: 1.75;
@@ -283,20 +330,63 @@
   .terminal-bar {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 0.8rem;
     border-bottom: 1px solid var(--color-line);
-    background-color: var(--color-surface-3);
+    background-color: var(--color-surface-2);
+  }
+
+  /* The parallelogram test-case chevrons. Blue for you, orange for them. */
+  .chev {
+    width: 1.05rem;
+    height: 1.15rem;
+    transform: skewX(-20deg);
+    border-radius: 2px;
+    background-color: var(--chev-off, var(--color-surface-4));
+    transition: background-color 0.3s ease;
+  }
+  .chev-on {
+    background-color: var(--chev-on);
+    box-shadow: 0 0 12px -2px var(--chev-on);
   }
 }
 
 /* ---------------------------------------------------------------------------
- * Motion. Restrained — this is a professional tool.
+ * Backdrops. The two-tone arena glow behind the hero.
+ * ------------------------------------------------------------------------- */
+@layer utilities {
+  /* Blue glow bottom-left, orange bottom-right — the signature hero lighting. */
+  .arena-glow {
+    position: relative;
+    isolation: isolate;
+  }
+  .arena-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60% 55% at 8% 92%, rgba(37, 99, 235, 0.34), transparent 70%),
+      radial-gradient(60% 55% at 92% 92%, rgba(242, 98, 46, 0.32), transparent 70%);
+  }
+
+  /* Faint grid, for section backgrounds that need texture. */
+  .grid-tex {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion.
  * ------------------------------------------------------------------------- */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -304,41 +394,24 @@
   }
 }
 .rise {
-  animation: rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.rise-1 {
-  animation-delay: 0.05s;
-}
-.rise-2 {
-  animation-delay: 0.1s;
-}
-.rise-3 {
-  animation-delay: 0.15s;
-}
+.rise-1 { animation-delay: 0.06s; }
+.rise-2 { animation-delay: 0.12s; }
+.rise-3 { animation-delay: 0.18s; }
+.rise-4 { animation-delay: 0.24s; }
 
 @keyframes pulse-soft {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 .pulse-soft {
   animation: pulse-soft 1.6s ease-in-out infinite;
 }
 
 @keyframes ping-ring {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.7;
-  }
-  75%,
-  100% {
-    transform: scale(2.3);
-    opacity: 0;
-  }
+  0% { transform: scale(0.7); opacity: 0.75; }
+  75%, 100% { transform: scale(2.4); opacity: 0; }
 }
 .ping-ring::after {
   content: "";
@@ -349,25 +422,29 @@
   animation: ping-ring 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-/* Blinking terminal caret. */
 @keyframes caret {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
 }
 .caret {
   animation: caret 1.05s step-end infinite;
 }
 
+/* Slow float for the hero fighter silhouettes. */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float-y {
+  animation: float-y 5.5s ease-in-out infinite;
+}
+.float-y-slow {
+  animation: float-y 7s ease-in-out infinite;
+  animation-delay: -1.6s;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

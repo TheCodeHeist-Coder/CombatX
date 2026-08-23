@@ -2,6 +2,7 @@ import type { WebSocket } from "ws";
 import { prisma } from "@repo/db";
 import {
   MODE_TEAM_SIZE,
+  normalizeAvatar,
   type BattleConfig,
   type BattleStatus,
   type FinishReason,
@@ -98,6 +99,8 @@ export class BattleRoom {
       seat = {
         userId: conn.userId,
         displayName: conn.displayName,
+        avatarId: conn.avatarId,
+        avatarColor: conn.avatarColor,
         side: null,
         slot: null,
         ready: false,
@@ -107,6 +110,8 @@ export class BattleRoom {
     } else {
       seat.presence = "ONLINE";
       seat.displayName = conn.displayName;
+      seat.avatarId = conn.avatarId;
+      seat.avatarColor = conn.avatarColor;
     }
 
     this.wire.add(conn.userId, conn.ws);
@@ -371,9 +376,16 @@ export class BattleRoom {
 
     for (const team of teams) {
       for (const m of team.members) {
+        const avatar = normalizeAvatar(
+          m.user.avatarId,
+          m.user.avatarColor,
+          m.userId,
+        );
         this.seats.set(m.userId, {
           userId: m.userId,
           displayName: m.user.displayName,
+          avatarId: avatar.avatarId,
+          avatarColor: avatar.avatarColor,
           side: team.side,
           slot: m.slot,
           ready: true, // the battle already started — they were ready
@@ -702,6 +714,8 @@ export class BattleRoom {
     const players = [...this.seats.values()].map((s) => ({
       userId: s.userId,
       displayName: s.displayName,
+      avatarId: s.avatarId,
+      avatarColor: s.avatarColor,
       side: s.side,
       slot: s.slot,
       ready: s.ready,

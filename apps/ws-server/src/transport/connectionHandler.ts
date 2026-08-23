@@ -1,6 +1,11 @@
 import type { WebSocket } from "ws";
 import { verifyGuestToken } from "@repo/auth";
-import { parseClientMessage, type ClientMessage } from "@repo/protocol";
+import {
+  normalizeAvatar,
+  parseClientMessage,
+  type ClientMessage,
+} from "@repo/protocol";
+import { prisma } from "@repo/db";
 import { env } from "../config/env.js";
 import type { RoomRegistry } from "../battle/roomRegistry.js";
 import type { BattleRoom } from "../battle/battleRoom.js";
@@ -102,10 +107,24 @@ export class ConnectionHandler {
       return;
     }
 
+    // Avatars are not in the token, so read the current pick. A failed or
+    // missing row is not fatal — normalizeAvatar seeds a stable stand-in.
+    const user = await prisma.user.findUnique({
+      where: { id: claims.userId },
+      select: { avatarId: true, avatarColor: true },
+    });
+    const avatar = normalizeAvatar(
+      user?.avatarId,
+      user?.avatarColor,
+      claims.userId,
+    );
+
     this.conn = {
       ws: this.ws,
       userId: claims.userId,
       displayName: claims.displayName,
+      avatarId: avatar.avatarId,
+      avatarColor: avatar.avatarColor,
       battleId: msg.battleId,
       lastSeen: Date.now(),
       authed: true,

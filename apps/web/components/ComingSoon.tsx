@@ -36,7 +36,7 @@ export function ComingSoon({
 
         <div
           className="panel mt-6 p-5"
-          style={{ background: "var(--color-blush)" }}
+          style={{ background: "var(--color-surface-2)" }}
         >
           <span className="chip chip-live">Not_implemented</span>
           <p

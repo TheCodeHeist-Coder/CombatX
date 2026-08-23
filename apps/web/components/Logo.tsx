@@ -1,13 +1,15 @@
-/** The CombatX wordmark. Restrained: an inked mark + a single accent slash. */
+/**
+ * The CombatX wordmark: chunky arcade type with the brand gradient, matching
+ * the "CODE BATTLE" hero treatment at a smaller size.
+ */
 export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const scale = size === "lg" ? 1.5 : size === "sm" ? 0.82 : 1;
+  const scale = size === "lg" ? 1.6 : size === "sm" ? 0.8 : 1;
   return (
     <span
-      className="inline-flex items-baseline font-semibold tracking-tight select-none"
-      style={{ fontSize: `${scale * 1.15}rem`, letterSpacing: "-0.02em" }}
+      className="display grad-text inline-flex select-none items-baseline"
+      style={{ fontSize: `${scale * 1.1}rem` }}
     >
-      <span style={{ color: "var(--color-ink)" }}>combat</span>
-      <span style={{ color: "var(--color-accent)" }}>X</span>
+      CombatX
     </span>
   );
 }

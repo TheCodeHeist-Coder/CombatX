@@ -8,6 +8,7 @@ import { Spinner } from "../../components/atoms";
 import { fetchLeaderboard } from "../../lib/api";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
+import { Avatar } from "../../components/avatar/Avatar";
 
 /** Global XP leaderboard. Every figure is read from the database. */
 export default function RankingsPage() {
@@ -130,7 +131,7 @@ function Row({ entry, isMe }: { entry: LeaderboardEntry; isMe: boolean }) {
   return (
     <tr
       style={{
-        background: isMe ? "var(--color-blush)" : undefined,
+        background: isMe ? "var(--color-surface-2)" : undefined,
       }}
     >
       <Td>
@@ -145,8 +146,16 @@ function Row({ entry, isMe }: { entry: LeaderboardEntry; isMe: boolean }) {
         </span>
       </Td>
       <Td>
-        <span className="font-semibold">{entry.displayName}</span>
-        {isMe && <span className="label ml-2">you</span>}
+        <span className="flex items-center gap-2.5">
+          <Avatar
+            avatarId={entry.avatarId}
+            color={entry.avatarColor}
+            size={26}
+            rounded={6}
+          />
+          <span className="font-semibold">{entry.displayName}</span>
+          {isMe && <span className="label">you</span>}
+        </span>
       </Td>
       <Td>
         <span style={{ color: "var(--color-ink-dim)" }}>{tier.label}</span>

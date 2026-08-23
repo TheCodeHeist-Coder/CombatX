@@ -24,12 +24,9 @@ const TIMES = [
 export function Launcher({
   session,
   onEnterBattle,
-  onDark = false,
 }: {
   session: Session;
   onEnterBattle: (battleId: string) => void;
-  /** Re-tint for the maroon deploy panel. */
-  onDark?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("create");
   const [mode, setMode] = useState<Mode>("ONE_V_ONE");
@@ -71,19 +68,12 @@ export function Launcher({
     }
   }
 
-  const sand = "var(--color-sand)";
-  const dimOnDark = "color-mix(in srgb, var(--color-sand) 60%, transparent)";
-
   return (
     <div className="flex flex-col gap-5">
       {/* Segmented tabs */}
       <div
-        className="grid grid-cols-2 gap-1 p-1"
-        style={{
-          background: onDark
-            ? "color-mix(in srgb, #000 20%, transparent)"
-            : "var(--color-surface-3)",
-        }}
+        className="grid grid-cols-2 gap-1 rounded-[8px] p-1"
+        style={{ background: "var(--color-surface-3)" }}
       >
         {(["create", "join"] as Tab[]).map((t) => (
           <button
@@ -92,41 +82,35 @@ export function Launcher({
               setTab(t);
               setError(null);
             }}
-            className="py-2 font-mono text-[0.7rem] font-semibold uppercase tracking-wider transition-colors"
+            className="rounded-[6px] py-2 font-mono text-[0.72rem] font-bold uppercase tracking-wider transition-colors"
             style={
               tab === t
-                ? onDark
-                  ? { background: sand, color: "var(--color-primary)" }
-                  : { background: "var(--color-primary)", color: sand }
-                : { color: onDark ? dimOnDark : "var(--color-ink-faint)" }
+                ? { background: "var(--color-primary)", color: "#fff" }
+                : { color: "var(--color-ink-faint)" }
             }
           >
-            {t === "create" ? "Create_op" : "Join_op"}
+            {t === "create" ? "Create" : "Join"}
           </button>
         ))}
       </div>
 
       {tab === "create" ? (
         <div className="flex flex-col gap-4">
-          <Field label="Mode" onDark={onDark}>
+          <Field label="Mode">
             <OptionRow
-              options={MODES.map((m) => ({
-                value: m,
-                label: modeLabel(m),
-              }))}
+              options={MODES.map((m) => ({ value: m, label: modeLabel(m) }))}
               value={mode}
               onChange={(v) => setMode(v as Mode)}
-              onDark={onDark}
             />
             <p
               className="mt-1.5 font-mono text-[0.66rem]"
-              style={{ color: onDark ? dimOnDark : "var(--color-ink-faint)" }}
+              style={{ color: "var(--color-ink-faint)" }}
             >
-              All operatives must fill their slots before deployment.
+              All slots must be filled before the battle can start.
             </p>
           </Field>
 
-          <Field label="Difficulty" onDark={onDark}>
+          <Field label="Difficulty">
             <OptionRow
               options={DIFFICULTIES.map((d) => ({
                 value: d,
@@ -134,45 +118,31 @@ export function Launcher({
               }))}
               value={difficulty}
               onChange={(v) => setDifficulty(v as Difficulty)}
-              onDark={onDark}
             />
           </Field>
 
-          <Field label="Time limit" onDark={onDark}>
+          <Field label="Time limit">
             <OptionRow
-              options={TIMES.map((t) => ({ value: String(t.sec), label: t.label }))}
+              options={TIMES.map((t) => ({
+                value: String(t.sec),
+                label: t.label,
+              }))}
               value={String(timeSec)}
               onChange={(v) => setTimeSec(Number(v))}
-              onDark={onDark}
             />
           </Field>
 
           {error && <ErrorBanner message={error} />}
 
-          <button
-            className="btn btn-primary"
-            onClick={onCreate}
-            disabled={busy}
-            style={onDark ? { background: sand, color: "var(--color-primary)" } : undefined}
-          >
-            {busy ? <Spinner /> : "Deploy_battle"}
+          <button className="btn btn-primary" onClick={onCreate} disabled={busy}>
+            {busy ? <Spinner /> : "Create battle"}
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <Field label="Room code" onDark={onDark}>
+          <Field label="Room code">
             <input
-              className="field text-center text-lg tracking-[0.3em] uppercase"
-              style={
-                onDark
-                  ? {
-                      background: "color-mix(in srgb, #000 22%, transparent)",
-                      borderColor:
-                        "color-mix(in srgb, var(--color-sand) 35%, transparent)",
-                      color: sand,
-                    }
-                  : undefined
-              }
+              className="field text-center text-lg uppercase tracking-[0.3em]"
               placeholder="X99-TA"
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
@@ -188,9 +158,8 @@ export function Launcher({
             className="btn btn-primary"
             onClick={onJoin}
             disabled={busy || roomCode.trim().length < 4}
-            style={onDark ? { background: sand, color: "var(--color-primary)" } : undefined}
           >
-            {busy ? <Spinner /> : "Infiltrate_room"}
+            {busy ? <Spinner /> : "Join room"}
           </button>
         </div>
       )}
@@ -201,24 +170,13 @@ export function Launcher({
 function Field({
   label,
   children,
-  onDark = false,
 }: {
   label: string;
   children: React.ReactNode;
-  onDark?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span
-        className="label"
-        style={
-          onDark
-            ? { color: "color-mix(in srgb, var(--color-sand) 60%, transparent)" }
-            : undefined
-        }
-      >
-        {label}
-      </span>
+      <span className="label">{label}</span>
       {children}
     </div>
   );
@@ -229,12 +187,10 @@ function OptionRow({
   options,
   value,
   onChange,
-  onDark = false,
 }: {
   options: { value: string; label: string; disabled?: boolean }[];
   value: string;
   onChange: (value: string) => void;
-  onDark?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -245,31 +201,19 @@ function OptionRow({
             key={o.value}
             disabled={o.disabled}
             onClick={() => onChange(o.value)}
-            className="border px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-35"
+            className="rounded-[6px] border px-3 py-1.5 font-mono text-[0.7rem] uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-35"
             style={
               active
-                ? onDark
-                  ? {
-                      borderColor: "var(--color-sand)",
-                      background: "var(--color-sand)",
-                      color: "var(--color-primary)",
-                    }
-                  : {
-                      borderColor: "var(--color-accent)",
-                      background: "var(--color-blush)",
-                      color: "var(--color-accent)",
-                    }
-                : onDark
-                  ? {
-                      borderColor:
-                        "color-mix(in srgb, var(--color-sand) 28%, transparent)",
-                      color: "color-mix(in srgb, var(--color-sand) 65%, transparent)",
-                    }
-                  : {
-                      borderColor: "var(--color-line)",
-                      background: "var(--color-surface)",
-                      color: "var(--color-ink-dim)",
-                    }
+                ? {
+                    borderColor: "var(--color-primary)",
+                    background: "rgba(242, 98, 46, 0.14)",
+                    color: "var(--color-accent)",
+                  }
+                : {
+                    borderColor: "var(--color-line-strong)",
+                    background: "var(--color-surface-3)",
+                    color: "var(--color-ink-dim)",
+                  }
             }
           >
             {o.label}
