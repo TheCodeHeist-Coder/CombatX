@@ -51,7 +51,7 @@ export function HeroFighter({
       className={className}
       style={{
         // The coloured rim-light that ties each fighter to their side.
-        filter: `drop-shadow(0 0 40px color-mix(in srgb, ${glow} 55%, transparent))`,
+        filter: `drop-shadow(0 0 40px color-mix(in srgb, ${glow} 10%, transparent))`,
       }}
       aria-hidden
     >

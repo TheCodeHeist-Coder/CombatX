@@ -76,7 +76,7 @@ function Hero({
     <section className="arena-glow relative overflow-hidden">
       <div className="relative mx-auto w-full max-w-6xl px-5 pb-0 pt-16 sm:px-7 sm:pt-20">
         {/* Wordmark */}
-        <h1 className="rise display grad-text text-center text-[clamp(2.6rem,9vw,5.5rem)]">
+        <h1 className="rise wordmark grad-text text-center text-[clamp(4.5rem,15vw,10rem)]">
           Code Battle
         </h1>
 
@@ -89,32 +89,27 @@ function Hero({
           fellow developers, all while tackling unique AI-generated challenges
         </p>
 
-        {/* The launcher sits centre stage with a fighter flanking each side.
-            Below xl the figures drop away and the launcher stands alone. */}
-        <div className="relative mt-10 min-h-72">
-          <HeroFighter
-            side="left"
-            className="float-y pointer-events-none absolute bottom-0 left-0 hidden h-72 w-52 xl:block"
-          />
-          <HeroFighter
-            side="right"
-            className="float-y-slow pointer-events-none absolute bottom-0 right-0 hidden h-72 w-52 xl:block"
-          />
+        {/*
+          A three-column band: fighter, launcher, fighter. A grid rather than
+          absolute positioning, so the artwork and the captions can never sit
+          on top of each other however tall the launcher or wide the art gets.
+          Below xl the fighter columns collapse and the launcher stands alone.
+        */}
+        <div className="relative mt-10 grid items-center gap-6 xl:grid-cols-[minmax(0,1fr)_28rem_minmax(0,1fr)]">
+          {/* Left: you */}
+          <div className="hidden h-full flex-col items-center justify-end xl:flex">
+            <HeroFighter side="left" className="h-80 w-full max-w-60" />
+            <Annotation className="mt-2 text-center" flip>
+              It&apos;s you
+            </Annotation>
+          </div>
 
-          <Annotation className="absolute bottom-16 left-52 hidden 2xl:block" flip>
-            It&apos;s you
-          </Annotation>
-          <Annotation className="absolute bottom-12 right-52 hidden text-right 2xl:block">
-            The computer science teacher
-            <br />
-            who doubted me
-            <br />
-            <span style={{ opacity: 0.7 }}>if you send him the link</span>
-          </Annotation>
-
-          {/* Create or join a battle without leaving the hero. */}
-          <div className="rise rise-2 relative mx-auto w-full max-w-md">
-            <div className="panel p-6 text-left" style={{ boxShadow: "var(--shadow-lift)" }}>
+          {/* Centre: create or join a battle without leaving the hero. */}
+          <div className="rise rise-2 mx-auto w-full max-w-md">
+            <div
+              className="panel p-6 text-left"
+              style={{ boxShadow: "var(--shadow-lift)" }}
+            >
               {!loaded ? (
                 <div className="flex h-36 items-center justify-center">
                   <Spinner />
@@ -126,11 +121,23 @@ function Hero({
               )}
             </div>
           </div>
+
+          {/* Right: the rival */}
+          <div className="hidden h-full flex-col items-center justify-end xl:flex">
+            <HeroFighter side="right" className="h-80 w-full max-w-60" />
+            <Annotation className="mt-2 text-center">
+              Your friend who assumes
+              <br />
+              he is better than you
+              <br />
+              <span style={{ opacity: 0.7 }}>if you send him the link</span>
+            </Annotation>
+          </div>
         </div>
 
         <div className="relative">
           {/* The duelling panels. */}
-          <div className="rise rise-3 mx-auto mt-10 grid max-w-6xl gap-5 pb-16 lg:grid-cols-2">
+          <div className="rise rise-3 mx-auto  grid max-w-6xl gap-5 pb-16 lg:grid-cols-2">
             <CodePanel
               side="A"
               playerName="Mysterious Fox"
@@ -140,7 +147,7 @@ function Hero({
               total={50}
               lines={JS_LINES}
               startLine={7}
-              runtime="Node.js 12 LTS"
+              runtime="Node.js 24.6.1 LTS"
               language="JavaScript"
             />
             <CodePanel

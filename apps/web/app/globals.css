@@ -138,13 +138,27 @@
     color: transparent;
   }
 
-  /* Chunky arcade display type — the "CODE BATTLE" treatment. */
+  /* Chunky arcade display type — section headings and big stat numbers. */
   .display {
     font-family: var(--font-mono);
     font-weight: 800;
     letter-spacing: 0.02em;
     text-transform: uppercase;
     line-height: 0.95;
+  }
+
+  /*
+   * The hero wordmark only. Lacquer is a rough, brush-inked face, so it wants
+   * a touch more tracking than the mono display face to stay legible at size,
+   * and it carries no real weight axis — faux-bolding it would clog the
+   * inktraps that give it its character.
+   */
+  .wordmark {
+    font-family: var(--font-display), var(--font-mono), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
   }
 
   .field {
