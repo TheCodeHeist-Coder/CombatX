@@ -5,7 +5,7 @@ import type { Language, PlayerView, Side } from "@repo/protocol";
 import { ErrorBanner, Spinner, Centered } from "../atoms";
 import { AppShell } from "../AppShell";
 import { ConnBadge } from "../ConnBadge";
-import { UserAvatar } from "../identity/UserIdentity";
+import { ProfileLink, UserAvatar } from "../identity/UserIdentity";
 import { Markdown } from "./Markdown";
 import { Samples } from "./Samples";
 import { CodeEditor } from "./CodeEditor";
@@ -367,7 +367,11 @@ function OpponentPanel({
         {players.length > 0 && (
           <div className="flex flex-wrap justify-center gap-3">
             {players.map((p) => (
-              <div key={p.userId} className="flex flex-col items-center gap-1.5">
+              <ProfileLink
+                key={p.userId}
+                username={p.username}
+                className="flex flex-col items-center gap-1.5"
+              >
                 <UserAvatar
                   identity={p}
                   size={56}
@@ -385,7 +389,7 @@ function OpponentPanel({
                 >
                   {p.username}
                 </span>
-              </div>
+              </ProfileLink>
             ))}
           </div>
         )}

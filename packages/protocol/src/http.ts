@@ -61,6 +61,116 @@ export const RealName = z.string().max(60);
  * whole site at a third-party host, which is both a privacy leak (every viewer
  * hits it) and an SSRF-shaped foot-gun the day anything server-side fetches it.
  */
+/**
+ * "About me" text. Capped well below a database-bloating size; this is a short
+ * introduction on a battle site, not a blog post.
+ */
+export const Bio = z.string().max(500);
+
+/**
+ * The external profiles a user may link, as one table.
+ *
+ * Handles are stored WITHOUT the URL prefix, which is what keeps these fields
+ * from becoming an open redirect: the site builds the URL itself from a
+ * pattern here, so a value can never point somewhere else. Each `pattern` is
+ * that platform's own rule for what a handle may contain.
+ *
+ * Adding a site means adding a row here — the Prisma column, the settings
+ * form, and the profile page all derive from this.
+ */
+export const PROFILE_LINKS = [
+  {
+    key: "github",
+    label: "GitHub",
+    max: 39,
+    // GitHub allows internal single hyphens but not leading/trailing ones.
+    pattern: /^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$/,
+    url: (h: string) => `https://github.com/${h}`,
+    placeholder: "octocat",
+    display: (h: string) => `@${h}`,
+  },
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    max: 100,
+    pattern: /^[a-zA-Z0-9-]+$/,
+    url: (h: string) => `https://www.linkedin.com/in/${h}`,
+    placeholder: "your-handle",
+    display: (h: string) => h,
+  },
+  {
+    key: "twitter",
+    label: "X",
+    max: 15,
+    pattern: /^[a-zA-Z0-9_]+$/,
+    url: (h: string) => `https://x.com/${h}`,
+    placeholder: "handle",
+    display: (h: string) => `@${h}`,
+  },
+  {
+    key: "codeforces",
+    label: "Codeforces",
+    max: 24,
+    pattern: /^[a-zA-Z0-9_.-]+$/,
+    url: (h: string) => `https://codeforces.com/profile/${h}`,
+    placeholder: "tourist",
+    display: (h: string) => h,
+  },
+  {
+    key: "leetcode",
+    label: "LeetCode",
+    max: 39,
+    pattern: /^[a-zA-Z0-9_.-]+$/,
+    url: (h: string) => `https://leetcode.com/u/${h}/`,
+    placeholder: "handle",
+    display: (h: string) => h,
+  },
+  {
+    key: "codechef",
+    label: "CodeChef",
+    max: 40,
+    pattern: /^[a-zA-Z0-9_]+$/,
+    url: (h: string) => `https://www.codechef.com/users/${h}`,
+    placeholder: "handle",
+    display: (h: string) => h,
+  },
+  {
+    key: "hackerrank",
+    label: "HackerRank",
+    max: 40,
+    pattern: /^[a-zA-Z0-9_]+$/,
+    url: (h: string) => `https://www.hackerrank.com/profile/${h}`,
+    placeholder: "handle",
+    display: (h: string) => h,
+  },
+] as const;
+
+export type ProfileLinkKey = (typeof PROFILE_LINKS)[number]["key"];
+
+/** A Zod schema per link, built from the table so the rules cannot drift. */
+export const ProfileLinkSchemas = Object.fromEntries(
+  PROFILE_LINKS.map((l) => [
+    l.key,
+    z
+      .string()
+      .max(l.max)
+      .regex(l.pattern, `Enter a ${l.label} handle, not a URL.`),
+  ]),
+) as Record<ProfileLinkKey, z.ZodString>;
+
+/**
+ * A personal site. Full URL, but restricted to http(s) so a profile cannot
+ * carry a `javascript:` or `data:` link that runs when a visitor clicks it.
+ */
+export const WebsiteUrl = z
+  .string()
+  .max(200)
+  .url("Enter a full URL, e.g. https://example.com")
+  .refine(
+    (v) => /^https?:\/\//i.test(v),
+    "Only http and https links are allowed.",
+  );
+
 export const ProfileImage = z
   .string()
   .max(400_000, "That image is too large.")
@@ -120,6 +230,16 @@ export const ProfileResponse = z.object({
   avatarId: AvatarId,
   avatarColor: AvatarColor,
   imageUrl: z.string().nullable(),
+  isPublic: z.boolean(),
+  bio: z.string().nullable(),
+  github: z.string().nullable(),
+  linkedin: z.string().nullable(),
+  twitter: z.string().nullable(),
+  codeforces: z.string().nullable(),
+  leetcode: z.string().nullable(),
+  codechef: z.string().nullable(),
+  hackerrank: z.string().nullable(),
+  website: z.string().nullable(),
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
@@ -127,6 +247,39 @@ export const ProfileResponse = z.object({
   bestStreak: z.number().int().min(0),
 });
 export type ProfileResponse = z.infer<typeof ProfileResponse>;
+
+/**
+ * GET /users/:username — someone else's profile.
+ *
+ * Deliberately NOT ProfileResponse: this is what a stranger may see, so it
+ * omits the account's email entirely. Only served when the owner has made the
+ * profile public — see the service, which 404s otherwise.
+ */
+export const PublicProfileResponse = z.object({
+  userId: z.string(),
+  username: z.string(),
+  name: z.string().nullable(),
+  avatarId: AvatarId,
+  avatarColor: AvatarColor,
+  imageUrl: z.string().nullable(),
+  bio: z.string().nullable(),
+  github: z.string().nullable(),
+  linkedin: z.string().nullable(),
+  twitter: z.string().nullable(),
+  codeforces: z.string().nullable(),
+  leetcode: z.string().nullable(),
+  codechef: z.string().nullable(),
+  hackerrank: z.string().nullable(),
+  website: z.string().nullable(),
+  /** ISO date the account was created, for a "member since" line. */
+  joinedAt: z.string(),
+  xp: z.number().int().min(0),
+  wins: z.number().int().min(0),
+  losses: z.number().int().min(0),
+  winStreak: z.number().int().min(0),
+  bestStreak: z.number().int().min(0),
+});
+export type PublicProfileResponse = z.infer<typeof PublicProfileResponse>;
 
 // PATCH /me — change identity or look. (Auth required.)
 // Every field optional: the client sends only what actually changed.
@@ -138,6 +291,19 @@ export const UpdateProfileRequest = z.object({
   avatarColor: AvatarColor.optional(),
   /** Null clears an uploaded photo and falls back to the pixel avatar. */
   imageUrl: ProfileImage.nullable().optional(),
+  /** Whether strangers may open this profile. */
+  isPublic: z.boolean().optional(),
+  // Each nullable so an empty field can clear a previously-set value. The
+  // client sends null for "cleared"; omitted still means "leave alone".
+  bio: Bio.nullable().optional(),
+  github: ProfileLinkSchemas.github.nullable().optional(),
+  linkedin: ProfileLinkSchemas.linkedin.nullable().optional(),
+  twitter: ProfileLinkSchemas.twitter.nullable().optional(),
+  codeforces: ProfileLinkSchemas.codeforces.nullable().optional(),
+  leetcode: ProfileLinkSchemas.leetcode.nullable().optional(),
+  codechef: ProfileLinkSchemas.codechef.nullable().optional(),
+  hackerrank: ProfileLinkSchemas.hackerrank.nullable().optional(),
+  website: WebsiteUrl.nullable().optional(),
 });
 export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequest>;
 

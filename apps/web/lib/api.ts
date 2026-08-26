@@ -5,6 +5,7 @@ import {
   AuthResponse,
   UsernameAvailableResponse,
   ProfileResponse,
+  PublicProfileResponse,
   LeaderboardResponse,
   BattleHistoryResponse,
   UpdateProfileResponse,
@@ -109,6 +110,23 @@ export function checkUsername(
     `/auth/available?username=${encodeURIComponent(username)}`,
     { signal },
     (d) => UsernameAvailableResponse.parse(d),
+  );
+}
+
+/**
+ * GET /users/:username — someone else's profile.
+ *
+ * The token is optional and only lets you fetch your OWN profile while it is
+ * private; a private profile belonging to anyone else answers 404 either way.
+ */
+export function fetchPublicProfile(
+  username: string,
+  token?: string,
+): Promise<PublicProfileResponse> {
+  return request(
+    `/users/${encodeURIComponent(username)}`,
+    { headers: token ? auth(token) : {} },
+    (d) => PublicProfileResponse.parse(d),
   );
 }
 

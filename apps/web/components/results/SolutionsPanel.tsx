@@ -154,6 +154,11 @@ function SolutionRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            {/*
+              Not a profile link: this whole row is the expand/collapse button,
+              and an <a> nested in a <button> is invalid HTML that would also
+              swallow the toggle click. The roster and rankings link instead.
+            */}
             <span className="truncate font-mono text-[0.85rem] font-bold">
               {entry.username}
             </span>

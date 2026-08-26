@@ -10,6 +10,7 @@ import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import {
   NameStack,
+  ProfileLink,
   UserAvatar,
 } from "../../components/identity/UserIdentity";
 
@@ -150,8 +151,13 @@ function Row({ entry, isMe }: { entry: LeaderboardEntry; isMe: boolean }) {
       </Td>
       <Td>
         <span className="flex items-center gap-2.5">
-          <UserAvatar identity={entry} size={26} rounded={6} />
-          <NameStack identity={entry} usernameClassName="font-semibold" />
+          <ProfileLink
+            username={entry.username}
+            className="flex min-w-0 items-center gap-2.5"
+          >
+            <UserAvatar identity={entry} size={26} rounded={6} />
+            <NameStack identity={entry} usernameClassName="font-semibold" />
+          </ProfileLink>
           {isMe && <span className="label">you</span>}
         </span>
       </Td>

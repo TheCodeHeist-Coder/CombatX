@@ -94,6 +94,33 @@ model User {
    */
   imageUrl String?
 
+  /**
+   * Whether strangers may open this profile.
+   *
+   * Public by default: this is a competitive site where finding an opponent's
+   * record and handles is the point, and a profile nobody can open is dead
+   * weight. Everything on it is opt-in anyway — bio and links are blank until
+   * the owner fills them in — and Settings can flip this to private.
+   */
+  isPublic Boolean @default(true)
+
+  /** Free-text "about me", shown on a public profile. */
+  bio       String?
+  /**
+   * External profiles. Handles only, never URLs — the site builds the link
+   * from the pattern in @repo/protocol PROFILE_LINKS, which is also the one
+   * place a new site gets added.
+   */
+  github     String?
+  linkedin   String?
+  twitter    String?
+  codeforces String?
+  leetcode   String?
+  codechef   String?
+  hackerrank String?
+  /** A personal site. Stored as a full URL, http(s) only. */
+  website   String?
+
   // Progression. Awarded by ws-server when a battle finishes; see
   // packages/game/src/progression.ts for the (pure, tested) award rules.
   eloRating   Int      @default(1200)

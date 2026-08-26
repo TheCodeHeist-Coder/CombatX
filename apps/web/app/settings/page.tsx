@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Username, type AvatarChoice } from "@repo/protocol";
+import { PROFILE_LINKS, Username, type AvatarChoice } from "@repo/protocol";
 import { AppShell } from "../../components/AppShell";
 import { ErrorBanner, Spinner } from "../../components/atoms";
 import { AvatarPicker } from "../../components/avatar/AvatarPicker";
@@ -24,6 +25,13 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<AvatarChoice | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Seeded true to match the column default, so the radio does not flash
+  // "Private" on a public account during the moment before /me arrives.
+  const [isPublic, setIsPublic] = useState(true);
+  const [bio, setBio] = useState("");
+  const [website, setWebsite] = useState("");
+  // One entry per PROFILE_LINKS row, so adding a site needs no new state.
+  const [links, setLinks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -40,6 +48,14 @@ export default function SettingsPage() {
       avatarColor: profile.avatarColor,
     });
     setImageUrl(profile.imageUrl);
+    setIsPublic(profile.isPublic);
+    setBio(profile.bio ?? "");
+    setWebsite(profile.website ?? "");
+    setLinks(
+      Object.fromEntries(
+        PROFILE_LINKS.map((l) => [l.key, profile[l.key] ?? ""]),
+      ),
+    );
   }, [profile]);
 
   const usernameChanged = !!profile && username !== profile.username;
@@ -72,8 +88,21 @@ export default function SettingsPage() {
     (avatar.avatarId !== profile.avatarId ||
       avatar.avatarColor !== profile.avatarColor);
   const imageChanged = !!profile && imageUrl !== profile.imageUrl;
+  const publicChanged = !!profile && isPublic !== profile.isPublic;
+  const bioChanged = !!profile && bio.trim() !== (profile.bio ?? "");
+  const websiteChanged = !!profile && website.trim() !== (profile.website ?? "");
+  const changedLinks = PROFILE_LINKS.filter(
+    (l) => !!profile && (links[l.key] ?? "").trim() !== (profile[l.key] ?? ""),
+  );
   const dirty =
-    usernameChanged || nameChanged || avatarChanged || imageChanged;
+    usernameChanged ||
+    nameChanged ||
+    avatarChanged ||
+    imageChanged ||
+    publicChanged ||
+    bioChanged ||
+    websiteChanged ||
+    changedLinks.length > 0;
   const canSave = dirty && (!usernameChanged || (usernameValid && !taken));
 
   async function pickPhoto(file: File | undefined) {
@@ -104,6 +133,13 @@ export default function SettingsPage() {
         ...(nameChanged ? { name: trimmedName } : {}),
         ...(avatarChanged && avatar ? avatar : {}),
         ...(imageChanged ? { imageUrl } : {}),
+        ...(publicChanged ? { isPublic } : {}),
+        ...(bioChanged ? { bio: bio.trim() || null } : {}),
+        ...(websiteChanged ? { website: website.trim() || null } : {}),
+        // Blank clears a handle, which is why these send null rather than "".
+        ...Object.fromEntries(
+          changedLinks.map((l) => [l.key, links[l.key]?.trim() || null]),
+        ),
       });
       // The token embeds the username, so swap the stored session for the
       // freshly-minted one or battles would still show the old handle.
@@ -314,30 +350,185 @@ export default function SettingsPage() {
                 </>
               )}
 
-              <div className="mt-5 flex items-center gap-3">
-                <button
-                  className="btn btn-primary"
-                  onClick={save}
-                  disabled={!canSave || busy}
-                >
-                  {busy ? <Spinner /> : "Save changes"}
-                </button>
-                {saved && (
-                  <span
-                    className="font-mono text-[0.75rem]"
-                    style={{ color: "var(--color-good)" }}
-                  >
-                    Profile updated.
-                  </span>
-                )}
+            </section>
+
+            <section className="panel mt-4 p-5">
+              <h2 className="text-base font-bold">Profile visibility</h2>
+              <p
+                className="mt-1.5 font-mono text-[0.75rem]"
+                style={{ color: "var(--color-ink-faint)" }}
+              >
+                A public profile can be opened by anyone who clicks your avatar
+                or username. A private one is visible only to you.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2">
+                <Choice
+                  checked={isPublic}
+                  onSelect={() => {
+                    setIsPublic(true);
+                    setSaved(false);
+                  }}
+                  title="Public"
+                  detail="Anyone can open your profile and see your about, links and record."
+                />
+                <Choice
+                  checked={!isPublic}
+                  onSelect={() => {
+                    setIsPublic(false);
+                    setSaved(false);
+                  }}
+                  title="Private"
+                  detail="Only you can open your profile. Your username and character still appear in battles and on the leaderboard."
+                />
               </div>
 
-              {error && (
-                <div className="mt-3">
-                  <ErrorBanner message={error} />
-                </div>
+              {profile?.isPublic && (
+                <Link
+                  href={`/u/${profile.username}`}
+                  className="btn btn-ghost mt-4"
+                >
+                  View my public profile
+                </Link>
               )}
             </section>
+
+            <section className="panel mt-4 p-5">
+              <h2 className="text-base font-bold">About you</h2>
+              <p
+                className="mt-1.5 font-mono text-[0.75rem]"
+                style={{ color: "var(--color-ink-faint)" }}
+              >
+                Shown on your profile.{" "}
+                {isPublic
+                  ? "Your profile is public, so anyone can read this."
+                  : "Your profile is private, so only you can see this for now."}
+              </p>
+
+              <div className="mt-4 flex flex-col gap-1.5">
+                <label htmlFor="bio" className="label">
+                  Bio
+                </label>
+                <textarea
+                  id="bio"
+                  className="field min-h-24 py-2"
+                  placeholder="A few lines about you — what you build, what you are learning."
+                  value={bio}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setBio(e.target.value);
+                    setSaved(false);
+                  }}
+                  disabled={!profile || busy}
+                />
+                <p
+                  className="self-end font-mono text-[0.68rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  {bio.length}/500
+                </p>
+              </div>
+
+              <h3 className="mt-4 text-[0.9rem] font-bold">Links</h3>
+              <p
+                className="mt-1 font-mono text-[0.7rem]"
+                style={{ color: "var(--color-ink-faint)" }}
+              >
+                Handles only, not full URLs.
+              </p>
+
+              <div className="mt-3 flex flex-col gap-3">
+                {PROFILE_LINKS.map((l) => (
+                  <div key={l.key} className="flex flex-col gap-1.5">
+                    <label htmlFor={l.key} className="label">
+                      {l.label}
+                    </label>
+                    <input
+                      id={l.key}
+                      className="field"
+                      placeholder={l.placeholder}
+                      value={links[l.key] ?? ""}
+                      maxLength={l.max}
+                      onChange={(e) => {
+                        setLinks((prev) => ({
+                          ...prev,
+                          [l.key]: e.target.value,
+                        }));
+                        setSaved(false);
+                      }}
+                      disabled={!profile || busy}
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                    />
+                  </div>
+                ))}
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="website" className="label">
+                    Website
+                  </label>
+                  <input
+                    id="website"
+                    className="field"
+                    placeholder="https://example.com"
+                    value={website}
+                    maxLength={200}
+                    onChange={(e) => {
+                      setWebsite(e.target.value);
+                      setSaved(false);
+                    }}
+                    disabled={!profile || busy}
+                    autoComplete="url"
+                    spellCheck={false}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/*
+              One save bar for every editable section above it. It sticks to
+              the bottom because the form is now taller than a viewport — a
+              button pinned inside one section would be off-screen while you
+              edit another, and the page would look like it had no way to save.
+            */}
+            <div
+              className="sticky bottom-4 z-10 mt-4 flex items-center gap-3 rounded-[10px] border p-3"
+              style={{
+                borderColor: "var(--color-line-strong)",
+                background: "color-mix(in srgb, var(--color-surface-2) 92%, transparent)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              <button
+                className="btn btn-primary"
+                onClick={save}
+                disabled={!canSave || busy}
+              >
+                {busy ? <Spinner /> : "Save changes"}
+              </button>
+              {saved ? (
+                <span
+                  className="font-mono text-[0.75rem]"
+                  style={{ color: "var(--color-good)" }}
+                >
+                  Profile updated.
+                </span>
+              ) : dirty ? (
+                <span
+                  className="font-mono text-[0.75rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  Unsaved changes.
+                </span>
+              ) : null}
+            </div>
+
+            {error && (
+              <div className="mt-3">
+                <ErrorBanner message={error} />
+              </div>
+            )}
 
             <section className="panel mt-4 p-5">
               <h2 className="text-base font-bold">Progression</h2>
@@ -378,6 +569,62 @@ export default function SettingsPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+/** A radio-style option row for the visibility choice. */
+function Choice({
+  checked,
+  onSelect,
+  title,
+  detail,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  title: string;
+  detail: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onSelect}
+      className="flex items-start gap-3 rounded-[10px] border p-3 text-left transition-colors"
+      style={{
+        borderColor: checked
+          ? "var(--color-primary)"
+          : "var(--color-line-strong)",
+        background: checked
+          ? "var(--color-surface-3)"
+          : "var(--color-surface-2)",
+      }}
+    >
+      <span
+        className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border"
+        style={{
+          borderColor: checked
+            ? "var(--color-primary)"
+            : "var(--color-line-strong)",
+        }}
+      >
+        {checked && (
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: "var(--color-primary)" }}
+          />
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[0.85rem] font-semibold">{title}</span>
+        <span
+          className="mt-0.5 block font-mono text-[0.7rem] leading-relaxed"
+          style={{ color: "var(--color-ink-faint)" }}
+        >
+          {detail}
+        </span>
+      </span>
+    </button>
   );
 }
 
