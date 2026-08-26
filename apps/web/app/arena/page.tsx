@@ -44,7 +44,7 @@ export default function ArenaPage() {
   const live = battles?.filter((b) => LIVE_STATUSES.has(b.status)) ?? [];
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Sector // arena</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">

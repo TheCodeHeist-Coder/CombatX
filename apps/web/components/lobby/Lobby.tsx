@@ -62,7 +62,6 @@ export function Lobby({
   return (
     <AppShell
       session={session}
-      rail
       right={
         <div className="flex items-center gap-2.5">
           <span className="chip">Code: {snap.roomCode}</span>

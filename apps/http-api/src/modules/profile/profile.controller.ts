@@ -198,7 +198,10 @@ export async function patchMe(
   } catch (err) {
     // Same race as signup: the pre-check in the form can pass and the insert
     // still lose to a simultaneous claim on the same handle.
-    const e = err as { code?: string; meta?: { target?: unknown } };
+    // usernameLower is the only unique column this update can touch, so the
+    // code alone identifies it — no need to inspect the (adapter-dependent)
+    // target metadata the way signup has to.
+    const e = err as { code?: string };
     if (e.code === "P2002") {
       throw conflict("USERNAME_TAKEN", "That username is taken.");
     }

@@ -45,7 +45,7 @@ export function AuthPageShell({
   }, [loaded, session, next, router]);
 
   return (
-    <AppShell session={session} rail={false}>
+    <AppShell session={session}>
       <div className="mx-auto w-full max-w-md px-5 py-12 sm:px-7">
         <div className="panel p-6 sm:p-7">
           <h1 className="wordmark text-[clamp(1.6rem,5vw,2.1rem)] leading-none">

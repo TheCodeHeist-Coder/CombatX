@@ -175,7 +175,7 @@ export default function SettingsPage() {
         : "Available.";
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-2xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Profile</p>
         <h1 className="mt-2 text-2xl font-bold">Settings</h1>

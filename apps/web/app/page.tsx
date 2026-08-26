@@ -48,11 +48,7 @@ export default function HomePage() {
       <HowItWorks />
       <Languages />
       <Inception />
-      <DeployPanel
-        loaded={loaded}
-        session={session}
-        onEnterBattle={(id) => router.push(`/battle/${id}`)}
-      />
+      <DeployPanel loaded={loaded} session={session} />
     </AppShell>
   );
 }
@@ -69,7 +65,7 @@ function Hero({
   onEnterBattle: (id: string) => void;
 }) {
   return (
-    <section className=" relative overflow-hidden">
+    <section id="play" className="relative overflow-hidden">
       <div className="relative mx-auto w-full max-w-6xl px-5 pb-0 pt-16 sm:px-7 sm:pt-20">
         {/* Wordmark */}
         <h1 className="rise wordmark grad-text text-center text-[clamp(2.5rem,10vw,8rem)]">
@@ -90,18 +86,32 @@ function Hero({
           absolute positioning, so the artwork and the captions can never sit
           on top of each other however tall the launcher or wide the art gets.
           Below xl the fighter columns collapse and the launcher stands alone.
+
+          `items-stretch` (the grid default) rather than `items-end`: the side
+          columns then inherit the row's full height, which is set by whichever
+          launcher is showing. The fighters size to that instead of to a fixed
+          height, so they stand full-length beside a short sign-in card and a
+          tall create-battle card alike.
+
+          The row must END at the tallest column, or the bottom-anchored
+          fighters float above the panels below. So the breathing room under
+          the launcher is margin on the CARD inside the centre column, not
+          padding on the column itself — padding there would grow the row and
+          lift the fighters off the panels again.
         */}
-        <div className="relative z-10 mt-10 grid items-end gap-6 xl:grid-cols-[minmax(0,1fr)_28rem_minmax(0,1fr)]">
+        <div className="relative z-10 mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_28rem_minmax(0,1fr)]">
           {/* Left: you */}
           <div className="relative hidden h-full items-end justify-center xl:flex">
-            <HeroFighter side="left" className="h-80 w-full max-w-60 mr-15" />
-            
+            <HeroFighter
+              side="left"
+              className="h-full max-h-[34rem] min-h-80 w-full max-w-60 mr-15"
+            />
           </div>
 
           {/* Centre: create or join a battle without leaving the hero. */}
-          <div className="rise rise-2 mx-auto mb-15 w-full max-w-md pb-12">
+          <div className="rise rise-2 mx-auto w-full max-w-md">
             <div
-              className="panel p-8 text-left"
+              className="panel mb-10 p-8 text-left"
               style={{ boxShadow: "var(--shadow-lift)" }}
             >
               {!loaded ? (
@@ -118,8 +128,10 @@ function Hero({
 
           {/* Right: the rival */}
           <div className="relative hidden h-full items-end justify-center xl:flex">
-            <HeroFighter side="right" className="h-80 w-full max-w-60 ml-18" />
-           
+            <HeroFighter
+              side="right"
+              className="h-full max-h-[34rem] min-h-80 w-full max-w-60 ml-18"
+            />
           </div>
         </div>
 
@@ -222,7 +234,7 @@ function Languages() {
         </div>
 
         <div className="mt-12">
-          <a href="#deploy" className="btn btn-primary px-12! py-4! text-[0.86rem]!">
+          <a href="#play" className="btn btn-primary px-12! py-4! text-[0.86rem]!">
             Start
           </a>
         </div>
@@ -293,44 +305,153 @@ function ChevronCluster({
 function DeployPanel({
   loaded,
   session,
-  onEnterBattle,
 }: {
   loaded: boolean;
   session: ReturnType<typeof useSession>["session"];
-  onEnterBattle: (id: string) => void;
 }) {
+  const router = useRouter();
+
   return (
-    <section
-      id="deploy"
-      className="arena-glow px-5 py-20 sm:px-7"
-    >
-      <div className="mx-auto w-full max-w-lg text-center">
-        <h2 className="wordmark grad-text text-[clamp(2.2rem,6vw,3.4rem)]">
-          Enter the arena
-        </h2>
-        <p
-          className="mt-4 font-mono text-[0.82rem] leading-relaxed"
-          style={{ color: "var(--color-ink-dim)" }}
-        >
-          Pick a character, share a room code, and test your limits. No account
-          required.
+    <section id="deploy" className="px-5 py-20 sm:px-7">
+      <div className="mx-auto w-full max-w-4xl text-center">
+        <p className="eyebrow" style={{ color: "var(--color-ink-faint)" }}>
+          The rules of engagement
         </p>
 
-        <div className="panel mt-8 p-6 text-left">
-          {!loaded ? (
-            <div className="flex h-36 items-center justify-center">
-              <Spinner />
-            </div>
-          ) : session ? (
-            <Launcher session={session} onEnterBattle={onEnterBattle} />
-          ) : (
-            <HeroGate onReady={onEnterBattle} />
-          )}
+        {/* Flanked the way the Inception heading is, so the two closing
+            sections read as a pair rather than as unrelated blocks. */}
+        <div className="mt-3 flex items-center justify-center gap-6">
+          <ChevronCluster color="var(--color-side-a)" />
+          <h2 className="wordmark grad-text text-[clamp(2.2rem,6vw,3.4rem)]">
+            Enter the arena
+          </h2>
+          <ChevronCluster color="var(--color-side-b)" reverse />
+        </div>
+
+        <p
+          className="mx-auto mt-4 max-w-xl font-mono text-[0.82rem] leading-relaxed"
+          style={{ color: "var(--color-ink-dim)" }}
+        >
+          Every battle is judged the same way, for everyone, every time.
+        </p>
+
+        {/*
+          The rules of a fight, not another launcher — the hero already carries
+          one, and repeating it here made the page end on a form it had already
+          shown. These four are the promises the server actually keeps.
+
+          Each card takes its side's colour through --rule-color, so the
+          blue/orange pairing that runs through the whole arena reads here too.
+        */}
+        <div className="mt-12 grid gap-4 text-left sm:grid-cols-2">
+          {ARENA_RULES.map((rule, i) => (
+            <article
+              key={rule.title}
+              className={`rule-card rise rise-${i + 1}`}
+              style={{ "--rule-color": rule.accent } as React.CSSProperties}
+            >
+              <div className="flex items-start gap-4">
+                <span className="rule-index shrink-0" aria-hidden>
+                  {rule.tag}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="text-[1rem] font-bold leading-snug">
+                    {rule.title}
+                  </h3>
+                  <p
+                    className="mt-2 font-mono text-[0.75rem] leading-[1.85]"
+                    style={{ color: "var(--color-ink-dim)" }}
+                  >
+                    {rule.body}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* A hairline that fades in from both sides, separating the rules
+            from the call to action without a hard full-width border. */}
+        <div
+          className="mx-auto mt-14 h-px w-full max-w-md"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, var(--color-line-strong), transparent)",
+          }}
+        />
+
+        <div className="mt-10 flex flex-col items-center gap-3">
+          <button
+            className="btn btn-primary px-12! py-4! text-[0.86rem]!"
+            onClick={() => {
+              // Signed in, straight to the arena; otherwise sign up first and
+              // land there afterwards. Either way this is a route, not a form
+              // duplicated from the hero.
+              router.push(session ? "/arena" : "/signup?next=%2Farena");
+            }}
+            disabled={!loaded}
+          >
+            {session ? "Go to the arena" : "Create your account"}
+          </button>
+          <p
+            className="font-mono text-[0.72rem]"
+            style={{ color: "var(--color-ink-faint)" }}
+          >
+            {session ? (
+              "Host a battle or join one with a room code."
+            ) : (
+              <>
+                Got a room code?{" "}
+                <a
+                  href="#play"
+                  className="underline underline-offset-2"
+                  style={{ color: "var(--color-accent)" }}
+                >
+                  Jump in without an account
+                </a>
+                .
+              </>
+            )}
+          </p>
         </div>
       </div>
     </section>
   );
 }
+
+/**
+ * What the server guarantees during a battle.
+ *
+ * Deliberately concrete — each line describes behaviour that is actually
+ * enforced in code (the sandbox, the hidden-source rule, the tie-break, the
+ * post-match reveal) rather than marketing copy nothing backs up.
+ */
+const ARENA_RULES = [
+  {
+    tag: "01",
+    accent: "var(--color-side-a)",
+    title: "Same problem, same tests",
+    body: "Both sides get an identical task and an identical hidden test suite. Nobody draws an easier draw.",
+  },
+  {
+    tag: "02",
+    accent: "var(--color-side-b)",
+    title: "Your code stays yours",
+    body: "During the fight your opponent sees your pass-count and nothing else. The source itself is never sent.",
+  },
+  {
+    tag: "03",
+    accent: "var(--color-side-a)",
+    title: "First to pass everything wins",
+    body: "Ties break on who submitted earlier, decided by the server clock rather than whoever's connection was quicker.",
+  },
+  {
+    tag: "04",
+    accent: "var(--color-side-b)",
+    title: "Read the winning solution",
+    body: "When it's over both solutions unlock side by side, so a loss is worth as much as a win.",
+  },
+] as const;
 
 /* --- icons: drawn, not imported ------------------------------------------ */
 

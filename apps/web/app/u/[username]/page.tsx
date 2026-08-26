@@ -60,7 +60,7 @@ export default function PublicProfilePage({
   const isMe = !!data && data.userId === session?.userId;
 
   return (
-    <AppShell session={session} profile={myProfile} rail>
+    <AppShell session={session} profile={myProfile}>
       <div className="mx-auto w-full max-w-2xl px-5 py-8 sm:px-7">
         {missing ? (
           <NotFound username={username} />

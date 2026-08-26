@@ -36,13 +36,26 @@ export type Username = z.infer<typeof Username>;
 export const Email = z.string().email("Enter a valid email address").max(254);
 
 /**
- * Minimum 8 characters and nothing else. Composition rules (a symbol, a digit,
- * a capital) push people toward predictable substitutions rather than longer
- * passwords, so length is the only requirement worth enforcing.
+ * Minimum length, exported so the client can render the rule rather than
+ * hardcoding a copy of it that drifts the next time this changes.
+ */
+export const PASSWORD_MIN_LENGTH = 4;
+
+/**
+ * Length is the only requirement. Composition rules (a symbol, a digit, a
+ * capital) push people toward predictable substitutions rather than longer
+ * passwords, so they buy less than they cost.
+ *
+ * NOTE: 4 is a deliberately low bar for development. A 4-character password is
+ * within trivial reach of an offline attack on the stored scrypt hashes; raise
+ * this before the site handles real accounts.
  */
 export const Password = z
   .string()
-  .min(8, "Password must be at least 8 characters")
+  .min(
+    PASSWORD_MIN_LENGTH,
+    `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+  )
   .max(200);
 
 /** Real name, optional everywhere. Empty string is treated as "not set". */
