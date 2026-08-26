@@ -3,18 +3,22 @@ import { hashPassword, signSessionToken, verifyPassword } from "@repo/auth";
 import {
   normalizeAvatar,
   type AuthResponse,
+  type GuestJoinRequest,
+  type GuestJoinResponse,
   type LoginRequest,
   type SignupRequest,
 } from "@repo/protocol";
-import { conflict, unauthorized } from "../../http/errors.js";
+import { randomUUID } from "node:crypto";
+import { conflict, notFound, unauthorized } from "../../http/errors.js";
 import { env } from "../../env.js";
 
 /** Shape a user row into the auth response, filling in a seeded avatar. */
 async function toAuthResponse(user: {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   name: string | null;
+  isGuest: boolean;
   avatarId: string | null;
   avatarColor: string | null;
   imageUrl: string | null;
@@ -28,6 +32,7 @@ async function toAuthResponse(user: {
     token,
     userId: user.id,
     username: user.username,
+    isGuest: user.isGuest,
     name: user.name,
     email: user.email,
     avatarId: chosen.avatarId,
@@ -98,14 +103,62 @@ export async function login(input: LoginRequest): Promise<AuthResponse> {
     where: { email: input.email.toLowerCase().trim() },
   });
 
-  const ok = user
-    ? await verifyPassword(input.password, user.passwordHash)
-    : await verifyPassword(input.password, DUMMY_HASH);
+  // A guest row has no passwordHash, so it can never satisfy a login even if
+  // someone guesses its (non-unique, non-secret) handle.
+  const ok =
+    user?.passwordHash != null
+      ? await verifyPassword(input.password, user.passwordHash)
+      : await verifyPassword(input.password, DUMMY_HASH);
 
   if (!user || !ok) {
     throw unauthorized("Incorrect email or password.");
   }
   return toAuthResponse(user);
+}
+
+/**
+ * Create a throwaway identity for someone joining with a room code.
+ *
+ * The room code is validated FIRST and the whole thing fails if it is not a
+ * joinable battle. That check is what keeps this from being an open endpoint
+ * for minting unlimited credential-less users: you must already hold a valid
+ * code for a battle that has not started.
+ *
+ * The resulting row is deliberately impoverished — no email, no password, no
+ * public profile — so a guest cannot be mistaken for an account anywhere
+ * downstream, and cannot log back in once the token lapses.
+ */
+export async function guestJoin(
+  input: GuestJoinRequest,
+): Promise<GuestJoinResponse> {
+  const roomCode = input.roomCode.toUpperCase();
+  const battle = await prisma.battle.findUnique({ where: { roomCode } });
+  if (!battle) {
+    throw notFound("No battle with that code");
+  }
+  if (battle.status !== "LOBBY" && battle.status !== "COUNTDOWN") {
+    throw conflict("IN_PROGRESS", "Battle already started");
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      username: input.displayName,
+      // usernameLower is uniquely indexed, but a guest handle is not meant to
+      // be unique — so it gets a suffixed value that will not collide with a
+      // real account's slug or with another guest using the same name.
+      usernameLower: `guest:${randomUUID()}`,
+      isGuest: true,
+      isPublic: false,
+      avatarId: input.avatarId ?? null,
+      avatarColor: input.avatarColor ?? null,
+    },
+  });
+
+  return {
+    auth: await toAuthResponse(user),
+    battleId: battle.id,
+    roomCode: battle.roomCode,
+  };
 }
 
 /**

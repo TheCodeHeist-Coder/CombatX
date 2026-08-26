@@ -28,17 +28,17 @@ const CHECK_DEBOUNCE_MS = 400;
  * is collapsed behind the tile so the form still reads as a short field list.
  */
 export function AuthPanel({
+  mode,
   onReady,
-  initialMode = "signup",
 }: {
+  /** Which form this is. The page owns it; there is no in-panel switcher. */
+  mode: Mode;
   /**
-   * The host page's session refresh. The session lives in localStorage, which
-   * no router refresh re-reads, so the page must look again itself.
+   * Called once a session exists. The session lives in localStorage, which no
+   * router refresh re-reads, so the caller must act on this itself.
    */
   onReady: () => void;
-  initialMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -86,23 +86,8 @@ export function AuthPanel({
     }
   }
 
-  /** Switch tabs without carrying over a stale error from the other form. */
-  function switchTo(next: Mode) {
-    setMode(next);
-    setError(null);
-  }
-
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <div className="flex gap-1.5" role="tablist">
-        <Tab active={isSignup} onClick={() => switchTo("signup")}>
-          Sign up
-        </Tab>
-        <Tab active={!isSignup} onClick={() => switchTo("login")}>
-          Log in
-        </Tab>
-      </div>
-
       <Field label="Email" htmlFor="email">
         <input
           id="email"
@@ -320,35 +305,6 @@ function Field({
         </p>
       )}
     </div>
-  );
-}
-
-function Tab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className="btn flex-1 py-2 text-[0.8rem]"
-      style={{
-        background: active ? "var(--color-surface-4)" : "transparent",
-        borderColor: active
-          ? "var(--color-primary)"
-          : "var(--color-line-strong)",
-        color: active ? "var(--color-ink)" : "var(--color-ink-dim)",
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

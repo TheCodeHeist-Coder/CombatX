@@ -9,7 +9,12 @@ import {
 import { prisma } from "@repo/db";
 import { signSessionToken } from "@repo/auth";
 import { env } from "../../env.js";
-import { badRequest, conflict, notFound } from "../../http/errors.js";
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+} from "../../http/errors.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
 
 /** Columns every profile projection needs. */
@@ -17,6 +22,7 @@ const PROFILE_SELECT = {
   id: true,
   username: true,
   name: true,
+  isGuest: true,
   email: true,
   avatarId: true,
   avatarColor: true,
@@ -42,7 +48,8 @@ type ProfileRow = {
   id: string;
   username: string;
   name: string | null;
-  email: string;
+  isGuest: boolean;
+  email: string | null;
   avatarId: string | null;
   avatarColor: string | null;
   imageUrl: string | null;
@@ -69,6 +76,7 @@ function toProfile(user: ProfileRow): ProfileResponse {
     userId: user.id,
     username: user.username,
     name: user.name,
+    isGuest: user.isGuest,
     email: user.email,
     avatarId: avatar.avatarId,
     avatarColor: avatar.avatarColor,
@@ -126,6 +134,17 @@ export async function patchMe(
   const parsed = UpdateProfileRequest.safeParse(req.body);
   if (!parsed.success) {
     throw badRequest(parsed.error.issues[0]?.message ?? "Invalid input");
+  }
+
+  // Guests have no Settings page and no identity worth persisting; refusing
+  // here means the UI gate is not the only thing standing between a guest and
+  // a username that would collide with a real account's profile slug.
+  const me = await prisma.user.findUnique({
+    where: { id: req.claims.userId },
+    select: { isGuest: true },
+  });
+  if (me?.isGuest) {
+    throw forbidden("Guests cannot edit a profile. Create an account first.");
   }
 
   const { username, ...rest } = parsed.data;

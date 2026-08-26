@@ -35,6 +35,7 @@ export async function getPublicProfile(
       avatarColor: true,
       imageUrl: true,
       isPublic: true,
+      isGuest: true,
       bio: true,
       github: true,
       linkedin: true,
@@ -54,6 +55,10 @@ export async function getPublicProfile(
   });
 
   if (!user) throw notFound("No such user.");
+
+  // A guest has no profile to show and never opted into one; treat the URL as
+  // nonexistent rather than rendering an empty page for a throwaway identity.
+  if (user.isGuest) throw notFound("No such user.");
 
   if (!user.isPublic) {
     const claims = await verifyBearer(req.headers.authorization);

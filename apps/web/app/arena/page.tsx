@@ -24,7 +24,7 @@ const LIVE_STATUSES = new Set(["LOBBY", "COUNTDOWN", "IN_PROGRESS"]);
  * any battle of yours that is still live, or launch a fresh one.
  */
 export default function ArenaPage() {
-  const { session, loaded, refresh } = useSession();
+  const { session, loaded } = useSession();
   const { profile } = useProfile(session);
   const router = useRouter();
 
@@ -58,8 +58,8 @@ export default function ArenaPage() {
           a new room.
         </p>
 
-        {loaded && !session ? (
-          <SignInGate what="deploy into a battle" onReady={refresh} />
+        {loaded && (!session || session.isGuest) ? (
+          <SignInGate what="deploy into a battle" guest={!!session?.isGuest} />
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
             {/* Resume live battles */}

@@ -148,6 +148,7 @@ export default function SettingsPage() {
         userId: res.profile.userId,
         username: res.profile.username,
         name: res.profile.name,
+        isGuest: res.profile.isGuest,
         email: res.profile.email,
         avatarId: res.profile.avatarId,
         avatarColor: res.profile.avatarColor,
@@ -179,8 +180,8 @@ export default function SettingsPage() {
         <p className="eyebrow">Profile</p>
         <h1 className="mt-2 text-2xl font-bold">Settings</h1>
 
-        {loaded && !session ? (
-          <SignInGate what="manage your profile" onReady={refresh} />
+        {loaded && (!session || session.isGuest) ? (
+          <SignInGate what="manage your profile" guest={!!session?.isGuest} />
         ) : (
           <>
             <section className="panel mt-6 p-5">

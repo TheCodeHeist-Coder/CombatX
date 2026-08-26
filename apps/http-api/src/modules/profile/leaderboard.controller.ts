@@ -74,7 +74,13 @@ export async function getLeaderboard(
   ];
 
   // Only rank users who have actually played — a wall of 0 XP guests is noise.
-  const where = { OR: [{ xp: { gt: 0 } }, { wins: { gt: 0 } }, { losses: { gt: 0 } }] };
+  // Only rank real accounts who have played. Guests are excluded outright:
+  // they are throwaway identities that cannot be looked up or logged back
+  // into, so a guest on the leaderboard is a dead row nobody can click.
+  const where = {
+    isGuest: false,
+    OR: [{ xp: { gt: 0 } }, { wins: { gt: 0 } }, { losses: { gt: 0 } }],
+  };
 
   const top = await prisma.user.findMany({
     where,

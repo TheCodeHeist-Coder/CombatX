@@ -3,6 +3,7 @@ import {
   BattleSolutionsResponse,
   CreateBattleResponse,
   AuthResponse,
+  GuestJoinResponse,
   UsernameAvailableResponse,
   ProfileResponse,
   PublicProfileResponse,
@@ -92,6 +93,25 @@ export function login(
     "/auth/login",
     { method: "POST", body: JSON.stringify({ email, password }) },
     (d) => AuthResponse.parse(d),
+  );
+}
+
+/**
+ * POST /auth/guest — join a battle by room code with no account.
+ *
+ * Returns both a session and the battle to walk into, so the caller never has
+ * to make a second call that could fail after the identity already exists.
+ */
+export function guestJoin(input: {
+  roomCode: string;
+  displayName: string;
+  avatarId?: AvatarChoice["avatarId"];
+  avatarColor?: AvatarChoice["avatarColor"];
+}): Promise<GuestJoinResponse> {
+  return request(
+    "/auth/guest",
+    { method: "POST", body: JSON.stringify(input) },
+    (d) => GuestJoinResponse.parse(d),
   );
 }
 

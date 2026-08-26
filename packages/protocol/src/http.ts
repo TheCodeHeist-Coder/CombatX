@@ -211,13 +211,44 @@ export const AuthResponse = z.object({
   token: z.string(),
   userId: z.string(),
   username: z.string(),
+  /** True for a room-code guest: no dashboard, no profile, no re-login. */
+  isGuest: z.boolean(),
   name: z.string().nullable(),
-  email: z.string(),
+  email: z.string().nullable(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
   imageUrl: z.string().nullable(),
 });
 export type AuthResponse = z.infer<typeof AuthResponse>;
+
+/**
+ * POST /auth/guest — a room-code guest, with no credentials.
+ *
+ * Deliberately separate from SignupRequest: a guest supplies only a display
+ * handle, and the room code is required so this cannot be used as an
+ * open account-creation endpoint. The server validates the code before
+ * creating anything.
+ */
+export const GuestJoinRequest = z.object({
+  roomCode: z.string().min(4).max(12),
+  /**
+   * Looser than `Username`: a guest handle is not unique and never appears in
+   * a URL, so the character restrictions that protect a profile slug do not
+   * apply. Still bounded, and still non-blank.
+   */
+  displayName: z.string().trim().min(1).max(20),
+  avatarId: AvatarId.optional(),
+  avatarColor: AvatarColor.optional(),
+});
+export type GuestJoinRequest = z.infer<typeof GuestJoinRequest>;
+
+/** What a guest join returns: a session, plus the battle to walk into. */
+export const GuestJoinResponse = z.object({
+  auth: AuthResponse,
+  battleId: z.string(),
+  roomCode: z.string(),
+});
+export type GuestJoinResponse = z.infer<typeof GuestJoinResponse>;
 
 // GET /me — the caller's profile and progression. (Auth required.)
 // Separate from auth because progression changes after every battle, so the
@@ -226,7 +257,8 @@ export const ProfileResponse = z.object({
   userId: z.string(),
   username: z.string(),
   name: z.string().nullable(),
-  email: z.string(),
+  isGuest: z.boolean(),
+  email: z.string().nullable(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
   imageUrl: z.string().nullable(),

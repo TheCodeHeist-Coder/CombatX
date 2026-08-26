@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Spinner } from "../components/atoms";
 import { AppShell } from "../components/AppShell";
-import { AuthPanel } from "../components/auth/AuthPanel";
+import { HeroGate } from "../components/landing/HeroGate";
 import { Launcher } from "../components/Launcher";
 import { HeroFighter } from "../components/landing/HeroFighters";
 import { CodePanel } from "../components/landing/CodePanel";
@@ -43,7 +43,6 @@ export default function HomePage() {
       <Hero
         loaded={loaded}
         session={session}
-        refresh={refresh}
         onEnterBattle={(id) => router.push(`/battle/${id}`)}
       />
       <HowItWorks />
@@ -52,7 +51,6 @@ export default function HomePage() {
       <DeployPanel
         loaded={loaded}
         session={session}
-        refresh={refresh}
         onEnterBattle={(id) => router.push(`/battle/${id}`)}
       />
     </AppShell>
@@ -64,12 +62,10 @@ export default function HomePage() {
 function Hero({
   loaded,
   session,
-  refresh,
   onEnterBattle,
 }: {
   loaded: boolean;
   session: ReturnType<typeof useSession>["session"];
-  refresh: () => void;
   onEnterBattle: (id: string) => void;
 }) {
   return (
@@ -115,7 +111,7 @@ function Hero({
               ) : session ? (
                 <Launcher session={session} onEnterBattle={onEnterBattle} />
               ) : (
-                <AuthPanel onReady={refresh} />
+                <HeroGate onReady={onEnterBattle} />
               )}
             </div>
           </div>
@@ -297,12 +293,10 @@ function ChevronCluster({
 function DeployPanel({
   loaded,
   session,
-  refresh,
   onEnterBattle,
 }: {
   loaded: boolean;
   session: ReturnType<typeof useSession>["session"];
-  refresh: () => void;
   onEnterBattle: (id: string) => void;
 }) {
   return (
@@ -330,7 +324,7 @@ function DeployPanel({
           ) : session ? (
             <Launcher session={session} onEnterBattle={onEnterBattle} />
           ) : (
-            <AuthPanel onReady={refresh} />
+            <HeroGate onReady={onEnterBattle} />
           )}
         </div>
       </div>

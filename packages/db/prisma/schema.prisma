@@ -60,13 +60,23 @@ model User {
   id          String   @id @default(cuid())
 
   /**
-   * Credentials. Email + password are the only way in; both are required.
-   * Email is stored lowercased so uniqueness is genuinely case-insensitive —
+   * Credentials. Nullable ONLY because a guest — someone who joined with a
+   * room code and never registered — has none. A registered account always
+   * has both; see auth.service signup/login.
+   *
+   * Email is stored lowercased so uniqueness is genuinely case-insensitive:
    * Postgres unique indexes are case-sensitive, so "A@x.com" and "a@x.com"
    * would otherwise both be insertable.
    */
-  email        String  @unique
-  passwordHash String
+  email        String? @unique
+  passwordHash String?
+
+  /**
+   * True for a room-code guest. Guests can battle but get no dashboard,
+   * rankings entry or public profile, and cannot log back in once their token
+   * expires — there is no credential to log in WITH.
+   */
+  isGuest Boolean @default(false)
 
   /**
    * Battle-facing identity. Unique, and stored lowercased in `usernameLower`
@@ -101,6 +111,9 @@ model User {
    * record and handles is the point, and a profile nobody can open is dead
    * weight. Everything on it is opt-in anyway — bio and links are blank until
    * the owner fills them in — and Settings can flip this to private.
+   *
+   * Guests are created with this false: they never chose anything, and they
+   * have no Settings page on which to change their mind.
    */
   isPublic Boolean @default(true)
 

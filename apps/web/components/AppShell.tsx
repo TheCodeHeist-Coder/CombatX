@@ -104,10 +104,27 @@ function CommandBar({
         <div className="ml-auto flex items-center gap-2.5">
           {right}
           {session && <IdentityChip session={session} profile={profile} />}
+          {/*
+            The hero card only offers a room-code join, so this is the only
+            entry point to an account for a signed-out visitor. Both are here
+            rather than one: "Log in" is what a returning user looks for, and
+            sending them through a signup page first is a dead end.
+          */}
           {!session && (
-            <Link href="/#deploy" className="btn btn-primary hidden sm:inline-flex">
-              Play now
-            </Link>
+            <>
+              <Link
+                href="/login"
+                className="btn btn-ghost hidden sm:inline-flex"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="btn btn-primary hidden sm:inline-flex"
+              >
+                Sign up
+              </Link>
+            </>
           )}
 
           <button
@@ -148,6 +165,30 @@ function CommandBar({
               {item.label}
             </Link>
           ))}
+
+          {/* The header's own auth buttons are sm-and-up only, so repeat them
+              here or a signed-out phone visitor has no way to an account. */}
+          {!session && (
+            <div
+              className="mt-2 flex gap-2 border-t pt-3"
+              style={{ borderColor: "var(--color-line)" }}
+            >
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setOpen(false)}
+                className="btn btn-primary flex-1"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </nav>
       )}
     </header>
@@ -190,15 +231,20 @@ function IdentityChip({
     imageUrl: profile?.imageUrl ?? session.imageUrl,
   };
 
+  // A guest has no settings page to reach, so the chip offers the thing they
+  // actually need — an account — rather than linking somewhere that would
+  // just refuse them.
+  const isGuest = profile?.isGuest ?? session.isGuest;
+
   return (
     <Link
-      href="/settings"
+      href={isGuest ? "/signup" : "/settings"}
       className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors"
       style={{
         background: "var(--color-surface-2)",
         border: "1px solid var(--color-line-strong)",
       }}
-      title="Profile settings"
+      title={isGuest ? "Create an account" : "Profile settings"}
     >
       <UserAvatar
         identity={identity}
@@ -208,6 +254,14 @@ function IdentityChip({
       <span className="max-w-28 truncate font-mono text-[0.72rem]">
         {identity.username}
       </span>
+      {isGuest && (
+        <span
+          className="shrink-0 font-mono text-[0.6rem] uppercase tracking-wider"
+          style={{ color: "var(--color-ink-ghost)" }}
+        >
+          guest
+        </span>
+      )}
     </Link>
   );
 }
