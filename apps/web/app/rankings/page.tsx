@@ -10,6 +10,7 @@ import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import {
   NameStack,
+  ProfileLink,
   UserAvatar,
 } from "../../components/identity/UserIdentity";
 
@@ -37,7 +38,7 @@ export default function RankingsPage() {
       : null;
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Module // rankings</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
@@ -150,8 +151,13 @@ function Row({ entry, isMe }: { entry: LeaderboardEntry; isMe: boolean }) {
       </Td>
       <Td>
         <span className="flex items-center gap-2.5">
-          <UserAvatar identity={entry} size={26} rounded={6} />
-          <NameStack identity={entry} usernameClassName="font-semibold" />
+          <ProfileLink
+            username={entry.username}
+            className="flex min-w-0 items-center gap-2.5"
+          >
+            <UserAvatar identity={entry} size={26} rounded={6} />
+            <NameStack identity={entry} usernameClassName="font-semibold" />
+          </ProfileLink>
           {isMe && <span className="label">you</span>}
         </span>
       </Td>

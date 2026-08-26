@@ -60,13 +60,23 @@ model User {
   id          String   @id @default(cuid())
 
   /**
-   * Credentials. Email + password are the only way in; both are required.
-   * Email is stored lowercased so uniqueness is genuinely case-insensitive —
+   * Credentials. Nullable ONLY because a guest — someone who joined with a
+   * room code and never registered — has none. A registered account always
+   * has both; see auth.service signup/login.
+   *
+   * Email is stored lowercased so uniqueness is genuinely case-insensitive:
    * Postgres unique indexes are case-sensitive, so "A@x.com" and "a@x.com"
    * would otherwise both be insertable.
    */
-  email        String  @unique
-  passwordHash String
+  email        String? @unique
+  passwordHash String?
+
+  /**
+   * True for a room-code guest. Guests can battle but get no dashboard,
+   * rankings entry or public profile, and cannot log back in once their token
+   * expires — there is no credential to log in WITH.
+   */
+  isGuest Boolean @default(false)
 
   /**
    * Battle-facing identity. Unique, and stored lowercased in `usernameLower`
@@ -93,6 +103,36 @@ model User {
    * the image loads, and the user can clear the photo to go back to it.
    */
   imageUrl String?
+
+  /**
+   * Whether strangers may open this profile.
+   *
+   * Public by default: this is a competitive site where finding an opponent's
+   * record and handles is the point, and a profile nobody can open is dead
+   * weight. Everything on it is opt-in anyway — bio and links are blank until
+   * the owner fills them in — and Settings can flip this to private.
+   *
+   * Guests are created with this false: they never chose anything, and they
+   * have no Settings page on which to change their mind.
+   */
+  isPublic Boolean @default(true)
+
+  /** Free-text "about me", shown on a public profile. */
+  bio       String?
+  /**
+   * External profiles. Handles only, never URLs — the site builds the link
+   * from the pattern in @repo/protocol PROFILE_LINKS, which is also the one
+   * place a new site gets added.
+   */
+  github     String?
+  linkedin   String?
+  twitter    String?
+  codeforces String?
+  leetcode   String?
+  codechef   String?
+  hackerrank String?
+  /** A personal site. Stored as a full URL, http(s) only. */
+  website   String?
 
   // Progression. Awarded by ws-server when a battle finishes; see
   // packages/game/src/progression.ts for the (pure, tested) award rules.

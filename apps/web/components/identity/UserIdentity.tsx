@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { AvatarColor, AvatarId } from "@repo/protocol";
 import { Avatar } from "../avatar/Avatar";
 
@@ -111,5 +112,34 @@ export function NameStack({
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * Wraps an identity in a link to its public profile.
+ *
+ * Always renders a link, even though a private profile will answer with a
+ * not-found page. Whether an account is public is not something a viewer is
+ * entitled to know up front — hiding the link would leak exactly the fact the
+ * privacy setting exists to keep, by making private accounts visibly
+ * un-clickable in every roster.
+ */
+export function ProfileLink({
+  username,
+  className = "",
+  children,
+}: {
+  username: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={`/u/${encodeURIComponent(username)}`}
+      className={`transition-opacity hover:opacity-80 ${className}`}
+      title={`View ${username}'s profile`}
+    >
+      {children}
+    </Link>
   );
 }

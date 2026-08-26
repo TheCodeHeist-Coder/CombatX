@@ -1,7 +1,17 @@
 import type { Request, Response } from "express";
-import { LoginRequest, SignupRequest, Username } from "@repo/protocol";
+import {
+  GuestJoinRequest,
+  LoginRequest,
+  SignupRequest,
+  Username,
+} from "@repo/protocol";
 import { badRequest } from "../../http/errors.js";
-import { isUsernameAvailable, login, signup } from "./auth.service.js";
+import {
+  guestJoin,
+  isUsernameAvailable,
+  login,
+  signup,
+} from "./auth.service.js";
 
 /**
  * Turn a Zod failure into the first field-level message.
@@ -29,6 +39,20 @@ export async function postLogin(req: Request, res: Response): Promise<void> {
     throw badRequest(firstIssue(parsed.error));
   }
   res.send(await login(parsed.data));
+}
+
+/**
+ * POST /auth/guest — join a battle by room code without an account.
+ *
+ * The service refuses unless the code names a joinable battle, so this cannot
+ * be used to mint credential-less users at will.
+ */
+export async function postGuest(req: Request, res: Response): Promise<void> {
+  const parsed = GuestJoinRequest.safeParse(req.body);
+  if (!parsed.success) {
+    throw badRequest(firstIssue(parsed.error));
+  }
+  res.send(await guestJoin(parsed.data));
 }
 
 /**

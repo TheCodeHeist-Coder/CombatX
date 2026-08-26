@@ -97,7 +97,7 @@ export function Results({
   const slowest = Math.max(...standings.map((s) => s.bestPassed), 1);
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-5xl px-5 py-6 sm:px-7">
         {/* Verdict banner */}
         <section

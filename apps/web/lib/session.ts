@@ -21,7 +21,9 @@ export interface Session {
   username: string;
   /** Real name, shown smaller beneath the username. Optional. */
   name: string | null;
-  email: string;
+  /** True for a room-code guest: no dashboard, no profile, no re-login. */
+  isGuest: boolean;
+  email: string | null;
   avatarId: AvatarId;
   avatarColor: AvatarColor;
   /** Uploaded photo; takes precedence over the pixel avatar when set. */
@@ -59,6 +61,7 @@ export function saveSession(auth: AuthResponse): Session {
     userId: auth.userId,
     username: auth.username,
     name: auth.name,
+    isGuest: auth.isGuest,
     email: auth.email,
     avatarId: auth.avatarId,
     avatarColor: auth.avatarColor,

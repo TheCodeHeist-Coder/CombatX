@@ -3,8 +3,10 @@ import {
   BattleSolutionsResponse,
   CreateBattleResponse,
   AuthResponse,
+  GuestJoinResponse,
   UsernameAvailableResponse,
   ProfileResponse,
+  PublicProfileResponse,
   LeaderboardResponse,
   BattleHistoryResponse,
   UpdateProfileResponse,
@@ -95,6 +97,25 @@ export function login(
 }
 
 /**
+ * POST /auth/guest — join a battle by room code with no account.
+ *
+ * Returns both a session and the battle to walk into, so the caller never has
+ * to make a second call that could fail after the identity already exists.
+ */
+export function guestJoin(input: {
+  roomCode: string;
+  displayName: string;
+  avatarId?: AvatarChoice["avatarId"];
+  avatarColor?: AvatarChoice["avatarColor"];
+}): Promise<GuestJoinResponse> {
+  return request(
+    "/auth/guest",
+    { method: "POST", body: JSON.stringify(input) },
+    (d) => GuestJoinResponse.parse(d),
+  );
+}
+
+/**
  * GET /auth/available — is this username free?
  *
  * Used to give the signup form a live tick before submitting. Advisory only:
@@ -109,6 +130,23 @@ export function checkUsername(
     `/auth/available?username=${encodeURIComponent(username)}`,
     { signal },
     (d) => UsernameAvailableResponse.parse(d),
+  );
+}
+
+/**
+ * GET /users/:username — someone else's profile.
+ *
+ * The token is optional and only lets you fetch your OWN profile while it is
+ * private; a private profile belonging to anyone else answers 404 either way.
+ */
+export function fetchPublicProfile(
+  username: string,
+  token?: string,
+): Promise<PublicProfileResponse> {
+  return request(
+    `/users/${encodeURIComponent(username)}`,
+    { headers: token ? auth(token) : {} },
+    (d) => PublicProfileResponse.parse(d),
   );
 }
 

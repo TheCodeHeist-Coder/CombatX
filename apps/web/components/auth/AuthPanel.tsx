@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AVATAR_COLORS,
   AVATAR_IDS,
+  PASSWORD_MIN_LENGTH,
   Username,
   type AvatarChoice,
 } from "@repo/protocol";
@@ -14,7 +15,7 @@ import { Avatar } from "../avatar/Avatar";
 import { AvatarPicker } from "../avatar/AvatarPicker";
 
 type Mode = "signup" | "login";
-type Availability = "idle" | "checking" | "free" | "taken";
+type Availability = "idle" | "checking" | "free" | "taken" | "error";
 
 /** How long to wait after the last keystroke before asking if a name is free. */
 const CHECK_DEBOUNCE_MS = 400;
@@ -28,17 +29,17 @@ const CHECK_DEBOUNCE_MS = 400;
  * is collapsed behind the tile so the form still reads as a short field list.
  */
 export function AuthPanel({
+  mode,
   onReady,
-  initialMode = "signup",
 }: {
+  /** Which form this is. The page owns it; there is no in-panel switcher. */
+  mode: Mode;
   /**
-   * The host page's session refresh. The session lives in localStorage, which
-   * no router refresh re-reads, so the page must look again itself.
+   * Called once a session exists. The session lives in localStorage, which no
+   * router refresh re-reads, so the caller must act on this itself.
    */
   onReady: () => void;
-  initialMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -56,7 +57,7 @@ export function AuthPanel({
 
   const canSubmit = isSignup
     ? email.trim() !== "" &&
-      password.length >= 8 &&
+      password.length >= PASSWORD_MIN_LENGTH &&
       usernameOk &&
       availability !== "taken"
     : email.trim() !== "" && password !== "";
@@ -86,23 +87,8 @@ export function AuthPanel({
     }
   }
 
-  /** Switch tabs without carrying over a stale error from the other form. */
-  function switchTo(next: Mode) {
-    setMode(next);
-    setError(null);
-  }
-
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <div className="flex gap-1.5" role="tablist">
-        <Tab active={isSignup} onClick={() => switchTo("signup")}>
-          Sign up
-        </Tab>
-        <Tab active={!isSignup} onClick={() => switchTo("login")}>
-          Log in
-        </Tab>
-      </div>
-
       <Field label="Email" htmlFor="email">
         <input
           id="email"
@@ -116,12 +102,31 @@ export function AuthPanel({
         />
       </Field>
 
-      <Field label="Password" htmlFor="password">
+      <Field
+        label="Password"
+        htmlFor="password"
+        // Only once they have started typing: an unmet requirement shown
+        // against an empty field reads as an error before any mistake.
+        hint={
+          isSignup &&
+          password.length > 0 &&
+          password.length < PASSWORD_MIN_LENGTH
+            ? `${PASSWORD_MIN_LENGTH - password.length} more character${
+                PASSWORD_MIN_LENGTH - password.length === 1 ? "" : "s"
+              } needed`
+            : undefined
+        }
+        hintTone="bad"
+      >
         <input
           id="password"
           className="field"
           type="password"
-          placeholder={isSignup ? "At least 8 characters" : "Your password"}
+          placeholder={
+            isSignup
+              ? `At least ${PASSWORD_MIN_LENGTH} characters`
+              : "Your password"
+          }
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete={isSignup ? "new-password" : "current-password"}
@@ -249,9 +254,10 @@ function useUsernameAvailability(username: string): Availability {
           }
         })
         .catch(() => {
-          // A failed check must not block signup — the unique index is the
-          // real guarantee, so fall back to letting the submit decide.
-          if (!controller.signal.aborted) setState("idle");
+          // A failed check must not BLOCK signup — the unique index is the
+          // real guarantee — but it must not be silent either: swallowing it
+          // left the form looking merely unresponsive when the API was down.
+          if (!controller.signal.aborted) setState("error");
         });
     }, CHECK_DEBOUNCE_MS);
 
@@ -275,6 +281,10 @@ function usernameHint(
   if (availability === "checking") return "Checking…";
   if (availability === "taken") return "That username is taken.";
   if (availability === "free") return "Available.";
+  // Deliberately vague: whether the API is down, the database is unreachable,
+  // or the query failed is operational detail the person signing up cannot act
+  // on and should not be shown.
+  if (availability === "error") return "Couldn't check this username.";
   return undefined;
 }
 
@@ -284,7 +294,9 @@ function hintTone(
   availability: Availability,
 ): "good" | "bad" | "dim" {
   if (!value) return "dim";
-  if (!valid || availability === "taken") return "bad";
+  if (!valid || availability === "taken" || availability === "error") {
+    return "bad";
+  }
   if (availability === "free") return "good";
   return "dim";
 }
@@ -320,35 +332,6 @@ function Field({
         </p>
       )}
     </div>
-  );
-}
-
-function Tab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className="btn flex-1 py-2 text-[0.8rem]"
-      style={{
-        background: active ? "var(--color-surface-4)" : "transparent",
-        borderColor: active
-          ? "var(--color-primary)"
-          : "var(--color-line-strong)",
-        color: active ? "var(--color-ink)" : "var(--color-ink-dim)",
-      }}
-    >
-      {children}
-    </button>
   );
 }
 

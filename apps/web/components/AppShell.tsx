@@ -4,17 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import type { ProfileResponse } from "@repo/protocol";
-import { rankFor, rankProgress } from "@repo/game";
 import { Logo } from "./Logo";
 import { UserAvatar } from "./identity/UserIdentity";
 import type { Session } from "../lib/session";
 
 /**
- * The persistent application chrome: a top command bar plus an optional left
- * rail. Screens render inside it.
- *
- * Every destination routes; the rail only appears on dashboard-style screens
- * so the landing page stays full-bleed.
+ * The persistent application chrome: a top command bar, with screens rendered
+ * beneath it. Every destination is reachable from that one bar.
  */
 
 interface NavItem {
@@ -30,36 +26,22 @@ const TOP_NAV: NavItem[] = [
   { label: "Intel", href: "/intel" },
 ];
 
-const RAIL_NAV: (NavItem & { icon: ReactNode })[] = [
-  { label: "Mission Control", href: "/", icon: <IconTerminal /> },
-  { label: "Tactical Feed", href: "/feed", icon: <IconChart /> },
-  { label: "Armory", href: "/armory", icon: <IconShield /> },
-  { label: "Rankings", href: "/rankings", icon: <IconMedal /> },
-  { label: "Settings", href: "/settings", icon: <IconGear /> },
-];
-
 export function AppShell({
   session,
   profile,
   children,
-  rail = false,
   right,
 }: {
   session?: Session | null;
   /** Live progression, when the caller has fetched it. */
   profile?: ProfileResponse | null;
   children: ReactNode;
-  /** Show the left navigation rail (dashboard-style screens). */
-  rail?: boolean;
   right?: ReactNode;
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <CommandBar session={session} profile={profile} right={right} />
-      <div className="flex flex-1">
-        {rail && <NavRail session={session} profile={profile} />}
-        <main className="min-w-0 flex-1">{children}</main>
-      </div>
+      <main className="min-w-0 flex-1">{children}</main>
       <SiteFooter />
     </div>
   );
@@ -104,10 +86,27 @@ function CommandBar({
         <div className="ml-auto flex items-center gap-2.5">
           {right}
           {session && <IdentityChip session={session} profile={profile} />}
+          {/*
+            The hero card only offers a room-code join, so this is the only
+            entry point to an account for a signed-out visitor. Both are here
+            rather than one: "Log in" is what a returning user looks for, and
+            sending them through a signup page first is a dead end.
+          */}
           {!session && (
-            <Link href="/#deploy" className="btn btn-primary hidden sm:inline-flex">
-              Play now
-            </Link>
+            <>
+              <Link
+                href="/login"
+                className="btn btn-ghost hidden sm:inline-flex"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="btn btn-primary hidden sm:inline-flex"
+              >
+                Sign up
+              </Link>
+            </>
           )}
 
           <button
@@ -148,6 +147,30 @@ function CommandBar({
               {item.label}
             </Link>
           ))}
+
+          {/* The header's own auth buttons are sm-and-up only, so repeat them
+              here or a signed-out phone visitor has no way to an account. */}
+          {!session && (
+            <div
+              className="mt-2 flex gap-2 border-t pt-3"
+              style={{ borderColor: "var(--color-line)" }}
+            >
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setOpen(false)}
+                className="btn btn-primary flex-1"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </nav>
       )}
     </header>
@@ -190,15 +213,20 @@ function IdentityChip({
     imageUrl: profile?.imageUrl ?? session.imageUrl,
   };
 
+  // A guest has no settings page to reach, so the chip offers the thing they
+  // actually need — an account — rather than linking somewhere that would
+  // just refuse them.
+  const isGuest = profile?.isGuest ?? session.isGuest;
+
   return (
     <Link
-      href="/settings"
+      href={isGuest ? "/signup" : "/settings"}
       className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors"
       style={{
         background: "var(--color-surface-2)",
         border: "1px solid var(--color-line-strong)",
       }}
-      title="Profile settings"
+      title={isGuest ? "Create an account" : "Profile settings"}
     >
       <UserAvatar
         identity={identity}
@@ -208,137 +236,15 @@ function IdentityChip({
       <span className="max-w-28 truncate font-mono text-[0.72rem]">
         {identity.username}
       </span>
-    </Link>
-  );
-}
-
-function NavRail({
-  session,
-  profile,
-}: {
-  session?: Session | null;
-  profile?: ProfileResponse | null;
-}) {
-  const pathname = usePathname();
-
-  return (
-    <aside
-      className="hidden w-60 shrink-0 flex-col border-r lg:flex"
-      style={{ borderColor: "var(--color-line)" }}
-    >
-      {session && <OperativeCard session={session} profile={profile} />}
-
-      <nav className="flex flex-col gap-0.5 p-3">
-        {RAIL_NAV.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="flex items-center gap-2.5 rounded-[6px] px-3 py-2.5 text-[0.85rem] transition-colors"
-              style={{
-                background: active ? "var(--color-surface-2)" : undefined,
-                color: active ? "var(--color-accent)" : "var(--color-ink-dim)",
-                fontWeight: active ? 600 : 400,
-                borderLeft: `2px solid ${active ? "var(--color-primary)" : "transparent"}`,
-              }}
-            >
-              <span
-                className="shrink-0"
-                style={{
-                  color: active
-                    ? "var(--color-primary)"
-                    : "var(--color-ink-faint)",
-                }}
-              >
-                {item.icon}
-              </span>
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
-  );
-}
-
-/**
- * Identity block at the top of the rail: character, callsign, rank, and
- * progress to the next tier. Rank is derived from real XP via the same pure
- * function the server uses, so the badge can never disagree with the award.
- */
-function OperativeCard({
-  session,
-  profile,
-}: {
-  session: Session;
-  profile?: ProfileResponse | null;
-}) {
-  const xp = profile?.xp ?? 0;
-  const rank = rankFor(xp);
-  const progress = rankProgress(xp);
-
-  return (
-    <div
-      className="m-3 rounded-[10px] border p-3"
-      style={{
-        borderColor: "var(--color-line)",
-        background: "var(--color-surface)",
-      }}
-    >
-      <div className="flex items-center gap-3">
-        <UserAvatar
-          identity={{
-            username: profile?.username ?? session.username,
-            avatarId: profile?.avatarId ?? session.avatarId,
-            avatarColor: profile?.avatarColor ?? session.avatarColor,
-            imageUrl: profile?.imageUrl ?? session.imageUrl,
-          }}
-          size={40}
-          rounded={8}
-        />
-        <div className="min-w-0">
-          <div className="truncate font-mono text-[0.8rem] font-semibold">
-            {profile?.username ?? session.username}
-          </div>
-          {(profile?.name ?? session.name) && (
-            <div
-              className="truncate font-mono text-[0.68rem]"
-              style={{ color: "var(--color-ink-faint)" }}
-            >
-              {profile?.name ?? session.name}
-            </div>
-          )}
-          <div className="label mt-0.5" style={{ color: "var(--color-accent)" }}>
-            {rank.label}
-          </div>
-        </div>
-      </div>
-
-      {profile && (
-        <div className="mt-3">
-          <div
-            className="h-1.5 w-full overflow-hidden rounded-full"
-            style={{ background: "var(--color-surface-3)" }}
-          >
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.round(progress * 100)}%`,
-                background:
-                  "linear-gradient(90deg, var(--color-primary), var(--color-accent))",
-              }}
-            />
-          </div>
-          <div className="mt-1.5 flex justify-between">
-            <span className="label">{profile.xp} XP</span>
-            <span className="label">
-              {profile.wins}W / {profile.losses}L
-            </span>
-          </div>
-        </div>
+      {isGuest && (
+        <span
+          className="shrink-0 font-mono text-[0.6rem] uppercase tracking-wider"
+          style={{ color: "var(--color-ink-ghost)" }}
+        >
+          guest
+        </span>
       )}
-    </div>
+    </Link>
   );
 }
 
@@ -367,45 +273,6 @@ function IconMenu() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
       <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconTerminal() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
-      <path d="M4 6l2 2-2 2M8.5 10.5H12" stroke="currentColor" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconChart() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <rect x="1.5" y="1.5" width="13" height="13" rx="2" stroke="currentColor" />
-      <path d="M4.5 10.5v-3M8 10.5v-5M11.5 10.5v-2" stroke="currentColor" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconShield() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <path d="M8 1.5l5.5 2v4c0 3-2.3 5.6-5.5 7-3.2-1.4-5.5-4-5.5-7v-4l5.5-2z" stroke="currentColor" />
-    </svg>
-  );
-}
-function IconMedal() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="8" cy="10" r="4" stroke="currentColor" />
-      <path d="M5.5 6.2L4 1.5h8l-1.5 4.7" stroke="currentColor" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconGear() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="8" cy="8" r="2.2" stroke="currentColor" />
-      <path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4" stroke="currentColor" strokeLinecap="round" />
     </svg>
   );
 }

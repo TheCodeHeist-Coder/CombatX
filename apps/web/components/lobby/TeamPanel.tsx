@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlayerView, Side } from "@repo/protocol";
-import { UserAvatar } from "../identity/UserIdentity";
+import { ProfileLink, UserAvatar } from "../identity/UserIdentity";
 
 interface Seat {
   slot: number;
@@ -113,7 +113,10 @@ function SeatRow({
         boxShadow: isMe ? `0 8px 26px -14px ${color}` : undefined,
       }}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
+      <ProfileLink
+        username={player.username}
+        className="flex items-center gap-2.5 min-w-0"
+      >
         <UserAvatar
           identity={player}
           size={32}
@@ -135,7 +138,7 @@ function SeatRow({
             {offline && <span style={{ color: "var(--color-warn)" }}>reconnecting…</span>}
           </span>
         </div>
-      </div>
+      </ProfileLink>
 
       <span
         className="chip shrink-0"

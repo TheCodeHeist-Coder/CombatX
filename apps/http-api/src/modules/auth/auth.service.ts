@@ -3,18 +3,22 @@ import { hashPassword, signSessionToken, verifyPassword } from "@repo/auth";
 import {
   normalizeAvatar,
   type AuthResponse,
+  type GuestJoinRequest,
+  type GuestJoinResponse,
   type LoginRequest,
   type SignupRequest,
 } from "@repo/protocol";
-import { conflict, unauthorized } from "../../http/errors.js";
+import { randomUUID } from "node:crypto";
+import { conflict, notFound, unauthorized } from "../../http/errors.js";
 import { env } from "../../env.js";
 
 /** Shape a user row into the auth response, filling in a seeded avatar. */
 async function toAuthResponse(user: {
   id: string;
-  email: string;
+  email: string | null;
   username: string;
   name: string | null;
+  isGuest: boolean;
   avatarId: string | null;
   avatarColor: string | null;
   imageUrl: string | null;
@@ -28,6 +32,7 @@ async function toAuthResponse(user: {
     token,
     userId: user.id,
     username: user.username,
+    isGuest: user.isGuest,
     name: user.name,
     email: user.email,
     avatarId: chosen.avatarId,
@@ -98,14 +103,62 @@ export async function login(input: LoginRequest): Promise<AuthResponse> {
     where: { email: input.email.toLowerCase().trim() },
   });
 
-  const ok = user
-    ? await verifyPassword(input.password, user.passwordHash)
-    : await verifyPassword(input.password, DUMMY_HASH);
+  // A guest row has no passwordHash, so it can never satisfy a login even if
+  // someone guesses its (non-unique, non-secret) handle.
+  const ok =
+    user?.passwordHash != null
+      ? await verifyPassword(input.password, user.passwordHash)
+      : await verifyPassword(input.password, DUMMY_HASH);
 
   if (!user || !ok) {
     throw unauthorized("Incorrect email or password.");
   }
   return toAuthResponse(user);
+}
+
+/**
+ * Create a throwaway identity for someone joining with a room code.
+ *
+ * The room code is validated FIRST and the whole thing fails if it is not a
+ * joinable battle. That check is what keeps this from being an open endpoint
+ * for minting unlimited credential-less users: you must already hold a valid
+ * code for a battle that has not started.
+ *
+ * The resulting row is deliberately impoverished — no email, no password, no
+ * public profile — so a guest cannot be mistaken for an account anywhere
+ * downstream, and cannot log back in once the token lapses.
+ */
+export async function guestJoin(
+  input: GuestJoinRequest,
+): Promise<GuestJoinResponse> {
+  const roomCode = input.roomCode.toUpperCase();
+  const battle = await prisma.battle.findUnique({ where: { roomCode } });
+  if (!battle) {
+    throw notFound("No battle with that code");
+  }
+  if (battle.status !== "LOBBY" && battle.status !== "COUNTDOWN") {
+    throw conflict("IN_PROGRESS", "Battle already started");
+  }
+
+  const user = await prisma.user.create({
+    data: {
+      username: input.displayName,
+      // usernameLower is uniquely indexed, but a guest handle is not meant to
+      // be unique — so it gets a suffixed value that will not collide with a
+      // real account's slug or with another guest using the same name.
+      usernameLower: `guest:${randomUUID()}`,
+      isGuest: true,
+      isPublic: false,
+      avatarId: input.avatarId ?? null,
+      avatarColor: input.avatarColor ?? null,
+    },
+  });
+
+  return {
+    auth: await toAuthResponse(user),
+    battleId: battle.id,
+    roomCode: battle.roomCode,
+  };
 }
 
 /**
@@ -116,12 +169,35 @@ const DUMMY_HASH = await hashPassword(
   "combatx::timing-equalizer::not-a-password",
 );
 
-/** The column named by a Prisma P2002 unique violation, if that's what it is. */
+/**
+ * The column named by a Prisma P2002 unique violation, if that's what it is.
+ *
+ * Reads `meta.target` when present, but falls back to parsing the message:
+ * the pg driver adapter reports P2002 with only `modelName` and the underlying
+ * DriverAdapterError in `meta`, no `target` at all. Relying on `target` alone
+ * silently turned every duplicate signup into a 500.
+ */
 function uniqueViolationTarget(err: unknown): string | null {
   if (typeof err !== "object" || err === null) return null;
-  const e = err as { code?: string; meta?: { target?: unknown } };
+  const e = err as {
+    code?: string;
+    message?: string;
+    meta?: { target?: unknown };
+  };
   if (e.code !== "P2002") return null;
+
   const target = e.meta?.target;
-  if (Array.isArray(target)) return String(target[0] ?? "");
-  return typeof target === "string" ? target : null;
+  if (Array.isArray(target) && target.length > 0) {
+    return stripQuotes(String(target[0]));
+  }
+  if (typeof target === "string" && target) return stripQuotes(target);
+
+  // e.g.: Unique constraint failed on the fields: (`"usernameLower"`)
+  const match = /fields:\s*\(`?"?([A-Za-z0-9_]+)"?`?\)/.exec(e.message ?? "");
+  return match?.[1] ?? null;
+}
+
+/** Column names arrive variously bare, quoted, or backticked. */
+function stripQuotes(value: string): string {
+  return value.replace(/[`"]/g, "");
 }

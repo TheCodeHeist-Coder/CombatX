@@ -27,7 +27,7 @@ export function ComingSoon({
   const { profile } = useProfile(session);
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-7">
         <p className="eyebrow">{code}</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">

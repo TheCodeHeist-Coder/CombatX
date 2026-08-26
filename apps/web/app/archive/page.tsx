@@ -13,7 +13,7 @@ import { SignInGate } from "../../components/SignInGate";
 
 /** The caller's battle history, newest first. */
 export default function ArchivePage() {
-  const { session, loaded, refresh } = useSession();
+  const { session, loaded } = useSession();
   const { profile } = useProfile(session);
 
   const [entries, setEntries] = useState<BattleHistoryEntry[] | null>(null);
@@ -31,7 +31,7 @@ export default function ArchivePage() {
   }, [session]);
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Sector // archive</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
@@ -45,8 +45,8 @@ export default function ArchivePage() {
           submissions — the durable record of participation.
         </p>
 
-        {loaded && !session ? (
-          <SignInGate what="see your battle history" onReady={refresh} />
+        {loaded && (!session || session.isGuest) ? (
+          <SignInGate what="see your battle history" guest={!!session?.isGuest} />
         ) : failed ? (
           <p
             className="panel mt-6 p-5 font-mono text-[0.8rem]"

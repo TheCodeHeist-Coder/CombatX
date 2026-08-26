@@ -24,7 +24,7 @@ const LIVE_STATUSES = new Set(["LOBBY", "COUNTDOWN", "IN_PROGRESS"]);
  * any battle of yours that is still live, or launch a fresh one.
  */
 export default function ArenaPage() {
-  const { session, loaded, refresh } = useSession();
+  const { session, loaded } = useSession();
   const { profile } = useProfile(session);
   const router = useRouter();
 
@@ -44,7 +44,7 @@ export default function ArenaPage() {
   const live = battles?.filter((b) => LIVE_STATUSES.has(b.status)) ?? [];
 
   return (
-    <AppShell session={session} profile={profile} rail>
+    <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Sector // arena</p>
         <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
@@ -58,8 +58,8 @@ export default function ArenaPage() {
           a new room.
         </p>
 
-        {loaded && !session ? (
-          <SignInGate what="deploy into a battle" onReady={refresh} />
+        {loaded && (!session || session.isGuest) ? (
+          <SignInGate what="deploy into a battle" guest={!!session?.isGuest} />
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
             {/* Resume live battles */}

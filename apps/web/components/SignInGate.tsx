@@ -1,39 +1,50 @@
 "use client";
 
-import { AuthPanel } from "./auth/AuthPanel";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 /**
  * What a signed-out visitor sees on a page that needs an account.
  *
- * It carries the form itself rather than pointing at the lobby and leaving you
- * to find it: every one of these pages is reachable straight from the top nav,
- * so "go elsewhere first" is a dead end at exactly the moment someone is
- * trying to use the feature.
+ * Sends them to /signup rather than carrying a form itself: the credential
+ * form is four fields plus an avatar picker, which is a page, not a panel
+ * dropped into the middle of someone else's layout.
+ *
+ * The current path rides along as `next` so they land back here afterwards
+ * instead of on a generic home page.
  */
 export function SignInGate({
   what,
-  onReady,
+  guest = false,
 }: {
   what: string;
-  /**
-   * The host page's session refresh. The session lives in localStorage, which
-   * no router refresh re-reads, so the page must be told to look again itself.
-   */
-  onReady: () => void;
+  /** True when the visitor IS signed in, but only as a room-code guest. */
+  guest?: boolean;
 }) {
+  const pathname = usePathname();
+  const next = encodeURIComponent(pathname);
+
   return (
     <div className="panel mt-6 p-6">
-      <h2 className="text-base font-bold">Sign in to continue</h2>
+      <h2 className="text-base font-bold">
+        {guest ? "Create an account to continue" : "Sign in to continue"}
+      </h2>
       <p
         className="mt-1.5 font-mono text-[0.78rem] leading-relaxed"
         style={{ color: "var(--color-ink-faint)" }}
       >
-        You need an account to {what}. Sign up with your email, or log in if you
-        already have one.
+        {guest
+          ? `You are playing as a guest. Guests can battle, but you need an account to ${what}.`
+          : `You need an account to ${what}.`}
       </p>
 
-      <div className="mt-5 max-w-sm">
-        <AuthPanel onReady={onReady} initialMode="login" />
+      <div className="mt-5 flex flex-wrap gap-2.5">
+        <Link href={`/signup?next=${next}`} className="btn btn-primary">
+          Create account
+        </Link>
+        <Link href={`/login?next=${next}`} className="btn btn-ghost">
+          Log in
+        </Link>
       </div>
     </div>
   );
