@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import type { ProfileResponse } from "@repo/protocol";
 import { rankFor, rankProgress } from "@repo/game";
 import { Logo } from "./Logo";
-import { Avatar } from "./avatar/Avatar";
+import { UserAvatar } from "./identity/UserIdentity";
 import type { Session } from "../lib/session";
 
 /**
@@ -182,8 +182,13 @@ function IdentityChip({
 }) {
   // Prefer the freshly-fetched profile: it reflects a change made in another
   // tab, where the stored session copy could still be stale.
-  const avatarId = profile?.avatarId ?? session.avatarId;
-  const avatarColor = profile?.avatarColor ?? session.avatarColor;
+  const identity = {
+    username: profile?.username ?? session.username,
+    name: profile?.name ?? session.name,
+    avatarId: profile?.avatarId ?? session.avatarId,
+    avatarColor: profile?.avatarColor ?? session.avatarColor,
+    imageUrl: profile?.imageUrl ?? session.imageUrl,
+  };
 
   return (
     <Link
@@ -195,14 +200,13 @@ function IdentityChip({
       }}
       title="Profile settings"
     >
-      <Avatar
-        avatarId={avatarId}
-        color={avatarColor}
+      <UserAvatar
+        identity={identity}
         size={24}
         rounded={999}
       />
       <span className="max-w-28 truncate font-mono text-[0.72rem]">
-        {profile?.displayName ?? session.displayName}
+        {identity.username}
       </span>
     </Link>
   );
@@ -283,16 +287,28 @@ function OperativeCard({
       }}
     >
       <div className="flex items-center gap-3">
-        <Avatar
-          avatarId={profile?.avatarId ?? session.avatarId}
-          color={profile?.avatarColor ?? session.avatarColor}
+        <UserAvatar
+          identity={{
+            username: profile?.username ?? session.username,
+            avatarId: profile?.avatarId ?? session.avatarId,
+            avatarColor: profile?.avatarColor ?? session.avatarColor,
+            imageUrl: profile?.imageUrl ?? session.imageUrl,
+          }}
           size={40}
           rounded={8}
         />
         <div className="min-w-0">
           <div className="truncate font-mono text-[0.8rem] font-semibold">
-            {profile?.displayName ?? session.displayName}
+            {profile?.username ?? session.username}
           </div>
+          {(profile?.name ?? session.name) && (
+            <div
+              className="truncate font-mono text-[0.68rem]"
+              style={{ color: "var(--color-ink-faint)" }}
+            >
+              {profile?.name ?? session.name}
+            </div>
+          )}
           <div className="label mt-0.5" style={{ color: "var(--color-accent)" }}>
             {rank.label}
           </div>

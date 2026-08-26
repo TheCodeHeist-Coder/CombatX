@@ -5,7 +5,7 @@ import type { Language, PlayerView, Side } from "@repo/protocol";
 import { ErrorBanner, Spinner, Centered } from "../atoms";
 import { AppShell } from "../AppShell";
 import { ConnBadge } from "../ConnBadge";
-import { Avatar } from "../avatar/Avatar";
+import { UserAvatar } from "../identity/UserIdentity";
 import { Markdown } from "./Markdown";
 import { Samples } from "./Samples";
 import { CodeEditor } from "./CodeEditor";
@@ -359,7 +359,7 @@ function OpponentPanel({
         >
           {players.length === 0
             ? "Waiting…"
-            : players.map((p) => p.displayName).join(", ")}
+            : players.map((p) => p.username).join(", ")}
         </span>
       </div>
 
@@ -368,9 +368,8 @@ function OpponentPanel({
           <div className="flex flex-wrap justify-center gap-3">
             {players.map((p) => (
               <div key={p.userId} className="flex flex-col items-center gap-1.5">
-                <Avatar
-                  avatarId={p.avatarId}
-                  color={p.avatarColor}
+                <UserAvatar
+                  identity={p}
                   size={56}
                   rounded={10}
                   ring={p.presence === "ONLINE" ? color : undefined}
@@ -384,7 +383,7 @@ function OpponentPanel({
                         : "var(--color-ink-ghost)",
                   }}
                 >
-                  {p.displayName}
+                  {p.username}
                 </span>
               </div>
             ))}

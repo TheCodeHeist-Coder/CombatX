@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import { verifyGuestToken } from "@repo/auth";
+import { verifySessionToken } from "@repo/auth";
 import {
   normalizeAvatar,
   parseClientMessage,
@@ -93,7 +93,7 @@ export class ConnectionHandler {
 
     let claims;
     try {
-      claims = await verifyGuestToken(msg.token, env.jwtSecret);
+      claims = await verifySessionToken(msg.token, env.jwtSecret);
     } catch {
       ackError(this.ws, msg.reqId, "UNAUTHORIZED", "Invalid or expired token.");
       this.ws.close();
@@ -107,11 +107,17 @@ export class ConnectionHandler {
       return;
     }
 
-    // Avatars are not in the token, so read the current pick. A failed or
-    // missing row is not fatal — normalizeAvatar seeds a stable stand-in.
+    // Name, avatar and photo are not in the token, so read the current values.
+    // A failed or missing row is not fatal — normalizeAvatar seeds a stable
+    // stand-in and the rest fall back to null.
     const user = await prisma.user.findUnique({
       where: { id: claims.userId },
-      select: { avatarId: true, avatarColor: true },
+      select: {
+        name: true,
+        avatarId: true,
+        avatarColor: true,
+        imageUrl: true,
+      },
     });
     const avatar = normalizeAvatar(
       user?.avatarId,
@@ -122,9 +128,11 @@ export class ConnectionHandler {
     this.conn = {
       ws: this.ws,
       userId: claims.userId,
-      displayName: claims.displayName,
+      username: claims.username,
+      name: user?.name ?? null,
       avatarId: avatar.avatarId,
       avatarColor: avatar.avatarColor,
+      imageUrl: user?.imageUrl ?? null,
       battleId: msg.battleId,
       lastSeen: Date.now(),
       authed: true,

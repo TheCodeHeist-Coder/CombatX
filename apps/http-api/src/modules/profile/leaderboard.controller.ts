@@ -13,9 +13,11 @@ const PAGE_SIZE = 25;
 function toEntry(
   u: {
     id: string;
-    displayName: string;
+    username: string;
+    name: string | null;
     avatarId: string | null;
     avatarColor: string | null;
+    imageUrl: string | null;
     xp: number;
     wins: number;
     losses: number;
@@ -27,9 +29,11 @@ function toEntry(
   return {
     rank,
     userId: u.id,
-    displayName: u.displayName,
+    username: u.username,
+    name: u.name,
     avatarId: avatar.avatarId,
     avatarColor: avatar.avatarColor,
+    imageUrl: u.imageUrl,
     xp: u.xp,
     wins: u.wins,
     losses: u.losses,
@@ -51,9 +55,11 @@ export async function getLeaderboard(
 ): Promise<void> {
   const select = {
     id: true,
-    displayName: true,
+    username: true,
+    name: true,
     avatarId: true,
     avatarColor: true,
+    imageUrl: true,
     xp: true,
     wins: true,
     losses: true,
@@ -64,7 +70,7 @@ export async function getLeaderboard(
   const orderBy = [
     { xp: "desc" as const },
     { wins: "desc" as const },
-    { displayName: "asc" as const },
+    { usernameLower: "asc" as const },
   ];
 
   // Only rank users who have actually played — a wall of 0 XP guests is noise.

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { SolutionEntry, Side } from "@repo/protocol";
 import { getBattleSolutions, ApiCallError } from "../../lib/api";
 import { languageLabel } from "../../lib/format";
-import { Avatar } from "../avatar/Avatar";
+import { UserAvatar } from "../identity/UserIdentity";
 import { Spinner } from "../atoms";
 
 /**
@@ -150,18 +150,12 @@ function SolutionRow({
         className="flex w-full items-center gap-3 px-5 py-3 text-left transition-colors"
         style={{ background: open ? "var(--color-surface-2)" : undefined }}
       >
-        <Avatar
-          avatarId={entry.avatarId}
-          color={entry.avatarColor}
-          size={32}
-          rounded={7}
-          ring={color}
-        />
+        <UserAvatar identity={entry} size={32} rounded={7} ring={color} />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate font-mono text-[0.85rem] font-bold">
-              {entry.displayName}
+              {entry.username}
             </span>
             {isMine && <span className="label">you</span>}
             {isOpponent && !isMine && (

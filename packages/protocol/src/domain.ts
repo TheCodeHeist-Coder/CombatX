@@ -41,10 +41,15 @@ export type PublicProblem = z.infer<typeof PublicProblem>;
 /** A player as seen by everyone in the room. */
 export const PlayerView = z.object({
   userId: z.string(),
-  displayName: z.string(),
+  /** Battle-facing handle. Unique across the site. */
+  username: z.string(),
+  /** Real name, shown smaller beneath the username when set. */
+  name: z.string().nullable(),
   /** Chosen pixel-art character. Everyone in the room sees it. */
   avatarId: AvatarId,
   avatarColor: AvatarColor,
+  /** Uploaded photo, which takes precedence over the pixel character. */
+  imageUrl: z.string().nullable(),
   side: Side.nullable(),
   slot: z.number().int().nonnegative().nullable(),
   ready: z.boolean(),

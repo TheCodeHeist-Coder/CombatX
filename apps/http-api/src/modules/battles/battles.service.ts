@@ -131,9 +131,10 @@ export async function getBattleSolutions(
       user: {
         select: {
           id: true,
-          displayName: true,
+          username: true,
           avatarId: true,
           avatarColor: true,
+          imageUrl: true,
         },
       },
     },
@@ -154,9 +155,10 @@ export async function getBattleSolutions(
     bestByUser.set(sub.userId, {
       submissionId: sub.id,
       userId: sub.userId,
-      displayName: sub.user.displayName,
+      username: sub.user.username,
       avatarId: avatar.avatarId,
       avatarColor: avatar.avatarColor,
+      imageUrl: sub.user.imageUrl,
       side: sub.teamSide,
       language: sub.language as Language,
       sourceCode: sub.sourceCode,

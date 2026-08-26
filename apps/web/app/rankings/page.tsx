@@ -8,7 +8,10 @@ import { Spinner } from "../../components/atoms";
 import { fetchLeaderboard } from "../../lib/api";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
-import { Avatar } from "../../components/avatar/Avatar";
+import {
+  NameStack,
+  UserAvatar,
+} from "../../components/identity/UserIdentity";
 
 /** Global XP leaderboard. Every figure is read from the database. */
 export default function RankingsPage() {
@@ -147,13 +150,8 @@ function Row({ entry, isMe }: { entry: LeaderboardEntry; isMe: boolean }) {
       </Td>
       <Td>
         <span className="flex items-center gap-2.5">
-          <Avatar
-            avatarId={entry.avatarId}
-            color={entry.avatarColor}
-            size={26}
-            rounded={6}
-          />
-          <span className="font-semibold">{entry.displayName}</span>
+          <UserAvatar identity={entry} size={26} rounded={6} />
+          <NameStack identity={entry} usernameClassName="font-semibold" />
           {isMe && <span className="label">you</span>}
         </span>
       </Td>

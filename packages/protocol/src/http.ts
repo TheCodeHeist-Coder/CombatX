@@ -15,32 +15,111 @@ import {
  * these schemas on both ends.
  */
 
-// POST /auth/guest — create a guest identity.
-export const GuestAuthRequest = z.object({
-  displayName: z.string().min(1).max(24),
-  /** Optional at sign-up — omitted means "seed one from my user id". */
+/**
+ * Identity field rules, shared by signup and profile edits so the client and
+ * server cannot drift on what counts as valid.
+ *
+ * Username is restricted to letters, digits, underscore and hyphen: it is the
+ * battle-facing handle, and allowing spaces or punctuation makes impersonation
+ * by lookalike easy and the name awkward to reference.
+ */
+export const Username = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(20, "Username must be at most 20 characters")
+  .regex(
+    /^[a-zA-Z0-9_-]+$/,
+    "Use letters, numbers, underscore or hyphen only",
+  );
+export type Username = z.infer<typeof Username>;
+
+export const Email = z.string().email("Enter a valid email address").max(254);
+
+/**
+ * Minimum 8 characters and nothing else. Composition rules (a symbol, a digit,
+ * a capital) push people toward predictable substitutions rather than longer
+ * passwords, so length is the only requirement worth enforcing.
+ */
+export const Password = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(200);
+
+/** Real name, optional everywhere. Empty string is treated as "not set". */
+export const RealName = z.string().max(60);
+
+/**
+ * A profile photo, stored inline as a data URL (there is no object store yet;
+ * see apps/web/lib/image.ts).
+ *
+ * The length cap is enforced here rather than only in the browser because the
+ * client limit is advisory — anyone can POST directly — and an unbounded string
+ * column is a cheap way to bloat the database. 400KB leaves headroom over the
+ * ~300KB the client targets.
+ *
+ * `data:` only: an arbitrary remote URL would let a profile field point the
+ * whole site at a third-party host, which is both a privacy leak (every viewer
+ * hits it) and an SSRF-shaped foot-gun the day anything server-side fetches it.
+ */
+export const ProfileImage = z
+  .string()
+  .max(400_000, "That image is too large.")
+  .regex(/^data:image\/(png|jpeg|webp);base64,/, "Unsupported image format.");
+
+// POST /auth/signup — create an account.
+export const SignupRequest = z.object({
+  email: Email,
+  password: Password,
+  username: Username,
+  /** Optional; shown smaller beneath the username when present. */
+  name: RealName.optional(),
+  /** Assigned by the client at signup so nobody starts without a character. */
   avatarId: AvatarId.optional(),
   avatarColor: AvatarColor.optional(),
 });
-export type GuestAuthRequest = z.infer<typeof GuestAuthRequest>;
+export type SignupRequest = z.infer<typeof SignupRequest>;
 
-export const GuestAuthResponse = z.object({
+// POST /auth/login — exchange credentials for a session token.
+export const LoginRequest = z.object({
+  email: Email,
+  /** Not `Password` — an old account may predate the length rule. */
+  password: z.string().min(1, "Enter your password"),
+});
+export type LoginRequest = z.infer<typeof LoginRequest>;
+
+/** GET /auth/available?username=… — live uniqueness check for the signup form. */
+export const UsernameAvailableResponse = z.object({
+  username: z.string(),
+  available: z.boolean(),
+});
+export type UsernameAvailableResponse = z.infer<
+  typeof UsernameAvailableResponse
+>;
+
+/** What both signup and login return: a token plus the identity to render. */
+export const AuthResponse = z.object({
   token: z.string(),
   userId: z.string(),
-  displayName: z.string(),
+  username: z.string(),
+  name: z.string().nullable(),
+  email: z.string(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
+  imageUrl: z.string().nullable(),
 });
-export type GuestAuthResponse = z.infer<typeof GuestAuthResponse>;
+export type AuthResponse = z.infer<typeof AuthResponse>;
 
 // GET /me — the caller's profile and progression. (Auth required.)
 // Separate from auth because progression changes after every battle, so the
 // client needs to be able to refetch it without re-authenticating.
 export const ProfileResponse = z.object({
   userId: z.string(),
-  displayName: z.string(),
+  username: z.string(),
+  name: z.string().nullable(),
+  email: z.string(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
+  imageUrl: z.string().nullable(),
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
@@ -49,16 +128,21 @@ export const ProfileResponse = z.object({
 });
 export type ProfileResponse = z.infer<typeof ProfileResponse>;
 
-// PATCH /me — change your display name. (Auth required.)
+// PATCH /me — change identity or look. (Auth required.)
+// Every field optional: the client sends only what actually changed.
 export const UpdateProfileRequest = z.object({
-  displayName: z.string().min(1).max(24).optional(),
+  username: Username.optional(),
+  /** Empty string clears the name; that is why this is not `.min(1)`. */
+  name: RealName.optional(),
   avatarId: AvatarId.optional(),
   avatarColor: AvatarColor.optional(),
+  /** Null clears an uploaded photo and falls back to the pixel avatar. */
+  imageUrl: ProfileImage.nullable().optional(),
 });
 export type UpdateProfileRequest = z.infer<typeof UpdateProfileRequest>;
 
 /**
- * The rename response carries a FRESH token: guest JWTs embed displayName, and
+ * The update response carries a FRESH token: JWTs embed the username, and
  * ws-server seats players using the name in the claims. Without re-minting,
  * a renamed player would still appear under their old name in a battle.
  */
@@ -72,9 +156,11 @@ export type UpdateProfileResponse = z.infer<typeof UpdateProfileResponse>;
 export const LeaderboardEntry = z.object({
   rank: z.number().int().positive(),
   userId: z.string(),
-  displayName: z.string(),
+  username: z.string(),
+  name: z.string().nullable(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
+  imageUrl: z.string().nullable(),
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
@@ -159,9 +245,10 @@ export type BattleResultResponse = z.infer<typeof BattleResultResponse>;
 export const SolutionEntry = z.object({
   submissionId: z.string(),
   userId: z.string(),
-  displayName: z.string(),
+  username: z.string(),
   avatarId: AvatarId,
   avatarColor: AvatarColor,
+  imageUrl: z.string().nullable(),
   side: Side,
   language: Language,
   sourceCode: z.string(),

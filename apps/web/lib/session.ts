@@ -2,22 +2,30 @@
 
 import {
   normalizeAvatar,
+  type AuthResponse,
   type AvatarColor,
   type AvatarId,
-  type GuestAuthResponse,
 } from "@repo/protocol";
 
 /**
- * The signed-in guest identity, persisted to localStorage so a refresh keeps
- * you in the same battle. There are no passwords — a guest is just a JWT + name.
+ * The signed-in identity, persisted to localStorage so a refresh keeps you
+ * logged in and in the same battle.
+ *
+ * This mirrors just enough of the profile to render the chrome before GET /me
+ * lands. It holds no password — only the bearer token the server issued.
  */
 export interface Session {
   token: string;
   userId: string;
-  displayName: string;
-  /** Chosen character, mirrored locally so the chrome renders before /me lands. */
+  /** Battle-facing handle. */
+  username: string;
+  /** Real name, shown smaller beneath the username. Optional. */
+  name: string | null;
+  email: string;
   avatarId: AvatarId;
   avatarColor: AvatarColor;
+  /** Uploaded photo; takes precedence over the pixel avatar when set. */
+  imageUrl: string | null;
 }
 
 const KEY = "combatx.session";
@@ -28,7 +36,10 @@ export function loadSession(): Session | null {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Session>;
-    if (!parsed.token || !parsed.userId || !parsed.displayName) return null;
+    // A session saved by the old guest build has displayName instead of
+    // username and no credentials behind it, so it cannot be revived — drop it
+    // and make the user sign in properly.
+    if (!parsed.token || !parsed.userId || !parsed.username) return null;
     // Sessions saved before avatars existed have no character; seed a stable
     // one from the user id rather than discarding an otherwise valid login.
     const avatar = normalizeAvatar(
@@ -42,13 +53,16 @@ export function loadSession(): Session | null {
   }
 }
 
-export function saveSession(auth: GuestAuthResponse): Session {
+export function saveSession(auth: AuthResponse): Session {
   const session: Session = {
     token: auth.token,
     userId: auth.userId,
-    displayName: auth.displayName,
+    username: auth.username,
+    name: auth.name,
+    email: auth.email,
     avatarId: auth.avatarId,
     avatarColor: auth.avatarColor,
+    imageUrl: auth.imageUrl,
   };
   window.localStorage.setItem(KEY, JSON.stringify(session));
   return session;

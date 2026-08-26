@@ -6,17 +6,20 @@ import {
   type UpdateProfileResponse,
 } from "@repo/protocol";
 import { prisma } from "@repo/db";
-import { signGuestToken } from "@repo/auth";
+import { signSessionToken } from "@repo/auth";
 import { env } from "../../env.js";
-import { badRequest, notFound } from "../../http/errors.js";
+import { badRequest, conflict, notFound } from "../../http/errors.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
 
 /** Columns every profile projection needs. */
 const PROFILE_SELECT = {
   id: true,
-  displayName: true,
+  username: true,
+  name: true,
+  email: true,
   avatarId: true,
   avatarColor: true,
+  imageUrl: true,
   xp: true,
   wins: true,
   losses: true,
@@ -26,9 +29,12 @@ const PROFILE_SELECT = {
 
 type ProfileRow = {
   id: string;
-  displayName: string;
+  username: string;
+  name: string | null;
+  email: string;
   avatarId: string | null;
   avatarColor: string | null;
+  imageUrl: string | null;
   xp: number;
   wins: number;
   losses: number;
@@ -40,9 +46,12 @@ function toProfile(user: ProfileRow): ProfileResponse {
   const avatar = normalizeAvatar(user.avatarId, user.avatarColor, user.id);
   return {
     userId: user.id,
-    displayName: user.displayName,
+    username: user.username,
+    name: user.name,
+    email: user.email,
     avatarId: avatar.avatarId,
     avatarColor: avatar.avatarColor,
+    imageUrl: user.imageUrl,
     xp: user.xp,
     wins: user.wins,
     losses: user.losses,
@@ -69,12 +78,15 @@ export async function getMe(req: AuthedRequest, res: Response): Promise<void> {
 }
 
 /**
- * PATCH /me — change your display name and/or avatar.
+ * PATCH /me — change your username, name, avatar, or photo.
  *
  * Every field is optional, so a caller can change just their avatar without
- * re-sending their name. Guest JWTs embed displayName and ws-server seats
+ * re-sending anything else. JWTs embed the username and ws-server seats
  * players from those claims, so a rename must re-mint the token; we always
  * return a fresh one and let the client swap its stored session wholesale.
+ *
+ * Email and password are deliberately NOT editable here — changing either is
+ * a credential change that needs its own re-authentication flow.
  */
 export async function patchMe(
   req: AuthedRequest,
@@ -82,36 +94,55 @@ export async function patchMe(
 ): Promise<void> {
   const parsed = UpdateProfileRequest.safeParse(req.body);
   if (!parsed.success) {
-    throw badRequest("Display name must be 1-24 characters.");
+    throw badRequest(parsed.error.issues[0]?.message ?? "Invalid input");
   }
 
-  const displayName = parsed.data.displayName?.trim();
-  if (displayName !== undefined && !displayName) {
-    throw badRequest("Display name cannot be blank.");
-  }
-
-  const { avatarId, avatarColor } = parsed.data;
-  if (displayName === undefined && !avatarId && !avatarColor) {
+  const { username, name, avatarId, avatarColor, imageUrl } = parsed.data;
+  if (
+    username === undefined &&
+    name === undefined &&
+    !avatarId &&
+    !avatarColor &&
+    imageUrl === undefined
+  ) {
     throw badRequest("Nothing to update.");
   }
 
-  const user = await prisma.user.update({
-    where: { id: req.claims.userId },
-    // Omitted keys are left untouched by Prisma, which is exactly the
-    // partial-update semantics we want here.
-    data: {
-      ...(displayName !== undefined ? { displayName } : {}),
-      ...(avatarId ? { avatarId } : {}),
-      ...(avatarColor ? { avatarColor } : {}),
-    },
-    select: PROFILE_SELECT,
-  });
+  // An empty name means "clear it", which is why this maps to null rather
+  // than being rejected the way a blank username would be.
+  const trimmedName = name === undefined ? undefined : name.trim() || null;
 
-  const token = await signGuestToken(
-    { userId: user.id, displayName: user.displayName },
-    env.jwtSecret,
-  );
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.claims.userId },
+      // Omitted keys are left untouched by Prisma, which is exactly the
+      // partial-update semantics we want here.
+      data: {
+        ...(username
+          ? { username, usernameLower: username.toLowerCase() }
+          : {}),
+        ...(trimmedName !== undefined ? { name: trimmedName } : {}),
+        ...(avatarId ? { avatarId } : {}),
+        ...(avatarColor ? { avatarColor } : {}),
+        ...(imageUrl !== undefined ? { imageUrl } : {}),
+      },
+      select: PROFILE_SELECT,
+    });
 
-  const body: UpdateProfileResponse = { token, profile: toProfile(user) };
-  res.json(body);
+    const token = await signSessionToken(
+      { userId: user.id, username: user.username },
+      env.jwtSecret,
+    );
+
+    const body: UpdateProfileResponse = { token, profile: toProfile(user) };
+    res.json(body);
+  } catch (err) {
+    // Same race as signup: the pre-check in the form can pass and the insert
+    // still lose to a simultaneous claim on the same handle.
+    const e = err as { code?: string; meta?: { target?: unknown } };
+    if (e.code === "P2002") {
+      throw conflict("USERNAME_TAKEN", "That username is taken.");
+    }
+    throw err;
+  }
 }

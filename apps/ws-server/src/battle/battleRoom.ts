@@ -98,9 +98,11 @@ export class BattleRoom {
     if (!seat) {
       seat = {
         userId: conn.userId,
-        displayName: conn.displayName,
+        username: conn.username,
+        name: conn.name,
         avatarId: conn.avatarId,
         avatarColor: conn.avatarColor,
+        imageUrl: conn.imageUrl,
         side: null,
         slot: null,
         ready: false,
@@ -109,9 +111,11 @@ export class BattleRoom {
       this.seats.set(conn.userId, seat);
     } else {
       seat.presence = "ONLINE";
-      seat.displayName = conn.displayName;
+      seat.username = conn.username;
+      seat.name = conn.name;
       seat.avatarId = conn.avatarId;
       seat.avatarColor = conn.avatarColor;
+      seat.imageUrl = conn.imageUrl;
     }
 
     this.wire.add(conn.userId, conn.ws);
@@ -383,9 +387,11 @@ export class BattleRoom {
         );
         this.seats.set(m.userId, {
           userId: m.userId,
-          displayName: m.user.displayName,
+          username: m.user.username,
+          name: m.user.name,
           avatarId: avatar.avatarId,
           avatarColor: avatar.avatarColor,
+          imageUrl: m.user.imageUrl,
           side: team.side,
           slot: m.slot,
           ready: true, // the battle already started — they were ready
@@ -713,9 +719,11 @@ export class BattleRoom {
   private broadcastLobby(): void {
     const players = [...this.seats.values()].map((s) => ({
       userId: s.userId,
-      displayName: s.displayName,
+      username: s.username,
+      name: s.name,
       avatarId: s.avatarId,
       avatarColor: s.avatarColor,
+      imageUrl: s.imageUrl,
       side: s.side,
       slot: s.slot,
       ready: s.ready,

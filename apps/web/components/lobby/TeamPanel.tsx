@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlayerView, Side } from "@repo/protocol";
-import { Avatar } from "../avatar/Avatar";
+import { UserAvatar } from "../identity/UserIdentity";
 
 interface Seat {
   slot: number;
@@ -114,16 +114,15 @@ function SeatRow({
       }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <Avatar
-          avatarId={player.avatarId}
-          color={player.avatarColor}
+        <UserAvatar
+          identity={player}
           size={32}
           rounded={7}
           ring={offline ? undefined : color}
         />
         <div className="flex flex-col min-w-0">
           <span className="truncate text-sm font-medium">
-            {player.displayName}
+            {player.username}
             {isMe && (
               <span className="ml-1.5 text-xs" style={{ color: "var(--color-ink-faint)" }}>
                 (you)
@@ -131,6 +130,7 @@ function SeatRow({
             )}
           </span>
           <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-ink-faint)" }}>
+            {player.name && <span className="truncate">{player.name}</span>}
             {player.isHost && <span>Host</span>}
             {offline && <span style={{ color: "var(--color-warn)" }}>reconnecting…</span>}
           </span>

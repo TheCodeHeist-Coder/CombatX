@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Spinner } from "../components/atoms";
 import { AppShell } from "../components/AppShell";
-import { GuestGate } from "../components/GuestGate";
+import { AuthPanel } from "../components/auth/AuthPanel";
 import { Launcher } from "../components/Launcher";
 import { HeroFighter } from "../components/landing/HeroFighters";
 import { CodePanel } from "../components/landing/CodePanel";
@@ -115,7 +115,7 @@ function Hero({
               ) : session ? (
                 <Launcher session={session} onEnterBattle={onEnterBattle} />
               ) : (
-                <GuestGate onReady={refresh} />
+                <AuthPanel onReady={refresh} />
               )}
             </div>
           </div>
@@ -330,7 +330,7 @@ function DeployPanel({
           ) : session ? (
             <Launcher session={session} onEnterBattle={onEnterBattle} />
           ) : (
-            <GuestGate onReady={refresh} />
+            <AuthPanel onReady={refresh} />
           )}
         </div>
       </div>

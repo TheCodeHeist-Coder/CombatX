@@ -58,8 +58,27 @@ enum SubmissionStatus {
 
 model User {
   id          String   @id @default(cuid())
-  displayName String
-  email       String?  @unique
+
+  /**
+   * Credentials. Email + password are the only way in; both are required.
+   * Email is stored lowercased so uniqueness is genuinely case-insensitive —
+   * Postgres unique indexes are case-sensitive, so "A@x.com" and "a@x.com"
+   * would otherwise both be insertable.
+   */
+  email        String  @unique
+  passwordHash String
+
+  /**
+   * Battle-facing identity. Unique, and stored lowercased in `usernameLower`
+   * for the same case-folding reason as email, while `username` keeps the
+   * casing the user typed so it displays the way they wrote it.
+   */
+  username      String
+  usernameLower String @unique
+
+  /** Real name. Optional; shown smaller beneath the username where present. */
+  name String?
+
   createdAt   DateTime @default(now())
 
   // Cosmetic identity. Nullable because rows created before avatars existed
@@ -67,6 +86,13 @@ model User {
   // normalizeAvatar) rather than backfilling.
   avatarId    String?
   avatarColor String?
+
+  /**
+   * An uploaded profile photo, which overrides the pixel avatar when set.
+   * The pixel avatar is kept rather than replaced: it is the fallback while
+   * the image loads, and the user can clear the photo to go back to it.
+   */
+  imageUrl String?
 
   // Progression. Awarded by ws-server when a battle finishes; see
   // packages/game/src/progression.ts for the (pure, tested) award rules.

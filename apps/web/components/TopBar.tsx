@@ -25,7 +25,7 @@ export function TopBar({
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: "var(--color-good)" }}
             />
-            {session.displayName}
+            {session.username}
           </span>
         )}
       </div>

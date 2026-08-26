@@ -15,16 +15,19 @@ import type {
 export interface Connection {
   ws: WebSocket;
   userId: string;
-  displayName: string;
+  username: string;
   /**
-   * Cosmetic identity, resolved at handshake time.
+   * Display identity beyond the handle, resolved at handshake time.
    *
-   * NOT read from the JWT: guest tokens only carry id and name, and a player
-   * who changes avatar mid-session would otherwise keep showing the old one
-   * until their token was re-minted. The DB is the source of truth.
+   * NOT read from the JWT: tokens only carry id and username, and a player who
+   * changes their name, avatar or photo mid-session would otherwise keep
+   * showing the old one until their token was re-minted. The DB is the source
+   * of truth for everything cosmetic.
    */
+  name: string | null;
   avatarId: AvatarId;
   avatarColor: AvatarColor;
+  imageUrl: string | null;
   battleId: string;
   /** last app-level ping we received, epoch ms — for idle eviction */
   lastSeen: number;
@@ -35,9 +38,11 @@ export interface Connection {
 /** A player's seat + readiness in the lobby (authoritative in-memory copy). */
 export interface LobbySeat {
   userId: string;
-  displayName: string;
+  username: string;
+  name: string | null;
   avatarId: AvatarId;
   avatarColor: AvatarColor;
+  imageUrl: string | null;
   side: Side | null;
   slot: number | null;
   ready: boolean;

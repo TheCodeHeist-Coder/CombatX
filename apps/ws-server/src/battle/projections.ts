@@ -50,9 +50,11 @@ export function toPlayerView(
 ): PlayerView {
   return {
     userId: seat.userId,
-    displayName: seat.displayName,
+    username: seat.username,
+    name: seat.name,
     avatarId: seat.avatarId,
     avatarColor: seat.avatarColor,
+    imageUrl: seat.imageUrl,
     side: seat.side,
     slot: seat.slot,
     ready: seat.ready,

@@ -2,7 +2,8 @@ import {
   BattleResultResponse,
   BattleSolutionsResponse,
   CreateBattleResponse,
-  GuestAuthResponse,
+  AuthResponse,
+  UsernameAvailableResponse,
   ProfileResponse,
   LeaderboardResponse,
   BattleHistoryResponse,
@@ -30,8 +31,8 @@ export class ApiCallError extends Error {
 
 async function request<T>(
   path: string,
-  init: RequestInit,
-  parse: (data: unknown) => T,
+  init: RequestInit = {},
+  parse: (data: unknown) => T = (d) => d as T,
 ): Promise<T> {
   let res: Response;
   try {
@@ -65,15 +66,49 @@ function auth(token: string): Record<string, string> {
   return { authorization: `Bearer ${token}` };
 }
 
-/** POST /auth/guest — mint a guest identity + JWT. */
-export function createGuest(
-  displayName: string,
-  avatar?: AvatarChoice,
-): Promise<GuestAuthResponse> {
+/** POST /auth/signup — create an account and get a session token. */
+export function signup(input: {
+  email: string;
+  password: string;
+  username: string;
+  name?: string;
+  avatarId?: AvatarChoice["avatarId"];
+  avatarColor?: AvatarChoice["avatarColor"];
+}): Promise<AuthResponse> {
   return request(
-    "/auth/guest",
-    { method: "POST", body: JSON.stringify({ displayName, ...avatar }) },
-    (d) => GuestAuthResponse.parse(d),
+    "/auth/signup",
+    { method: "POST", body: JSON.stringify(input) },
+    (d) => AuthResponse.parse(d),
+  );
+}
+
+/** POST /auth/login — exchange email + password for a session token. */
+export function login(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
+  return request(
+    "/auth/login",
+    { method: "POST", body: JSON.stringify({ email, password }) },
+    (d) => AuthResponse.parse(d),
+  );
+}
+
+/**
+ * GET /auth/available — is this username free?
+ *
+ * Used to give the signup form a live tick before submitting. Advisory only:
+ * the unique index is what actually prevents a duplicate, since someone else
+ * can claim the name between this check and the insert.
+ */
+export function checkUsername(
+  username: string,
+  signal?: AbortSignal,
+): Promise<UsernameAvailableResponse> {
+  return request(
+    `/auth/available?username=${encodeURIComponent(username)}`,
+    { signal },
+    (d) => UsernameAvailableResponse.parse(d),
   );
 }
 
