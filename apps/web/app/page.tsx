@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "../components/atoms";
 import { AppShell } from "../components/AppShell";
 import { HeroGate } from "../components/landing/HeroGate";
+import { RosterSection } from "../components/landing/RosterSection";
 import { Launcher } from "../components/Launcher";
 import { HeroFighter } from "../components/landing/HeroFighters";
 import { CodePanel } from "../components/landing/CodePanel";
@@ -46,6 +47,7 @@ export default function HomePage() {
         onEnterBattle={(id) => router.push(`/battle/${id}`)}
       />
       <HowItWorks />
+      <RosterSection />
       <Languages />
       <Inception />
       <DeployPanel loaded={loaded} session={session} />

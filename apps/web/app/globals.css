@@ -363,6 +363,28 @@
 
   /* The parallelogram test-case chevrons. Blue for you, orange for them. */
   /* ---------------------------------------------------------------------
+   * Roster tiles — the character sheet on the landing page.
+   * ------------------------------------------------------------------- */
+  .roster-tile {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface-3);
+    transition:
+      border-color 0.16s ease,
+      transform 0.16s ease,
+      box-shadow 0.16s ease;
+  }
+  .roster-tile:hover {
+    transform: translateY(-3px);
+    border-color: var(--tile-accent);
+    box-shadow: 0 0 22px -8px var(--tile-accent);
+    z-index: 1;
+  }
+
+  /* ---------------------------------------------------------------------
    * Rule cards — the four promises in the closing section.
    *
    * Each carries its side's colour through a top rule, the index numeral and
