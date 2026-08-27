@@ -11,6 +11,9 @@ export default function LoginPage() {
         mode="login"
         title="Log in"
         subtitle="Welcome back. Sign in to deploy into the arena."
+        artSrc="/auth-return.png"
+        artHeadline={["Welcome Back", "Warriors"]}
+        artBody="Your rank, your streak, and every battle you have fought are waiting where you left them."
         altHref="/signup"
         altPrompt="No account yet?"
         altLabel="Create one"

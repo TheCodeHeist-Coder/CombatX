@@ -17,6 +17,9 @@ export default function SignupPage() {
         mode="signup"
         title="Create account"
         subtitle="Pick a username and a character. Your username is how opponents see you in battle."
+        artSrc="/auth-duel.png"
+        artHeadline={["Two Teams", "One problem"]}
+        artBody="Same task, same hidden tests, same clock. First to pass every case takes the win."
         altHref="/login"
         altPrompt="Already have an account?"
         altLabel="Log in"
