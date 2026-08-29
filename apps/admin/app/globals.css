@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * CombatX admin console.
+ *
+ * Shares the player app's near-black ground so the two feel like one product,
+ * but swaps the orange command colour for a cool cyan. That difference is
+ * deliberate and load-bearing: an operator glancing at a screen should never
+ * have to wonder whether they are looking at the public site or at the console
+ * that can rewrite the problem set.
+ * ------------------------------------------------------------------------- */
+
+@theme {
+  --color-void: #0b0d11;
+  --color-surface: #14171d;
+  --color-surface-2: #1a1e26;
+  --color-surface-3: #21262f;
+  --color-surface-4: #2a303a;
+
+  --color-line: #242932;
+  --color-line-strong: #363d49;
+
+  --color-ink: #f2f4f8;
+  --color-ink-dim: #a8afbd;
+  --color-ink-faint: #767e8e;
+  --color-ink-ghost: #4d5462;
+
+  /* Admin command colour — cyan, never the player app's orange. */
+  --color-primary: #22a7c4;
+  --color-primary-hover: #2dbfdd;
+  --color-accent: #5ed4ec;
+
+  /* Sides, kept identical to the player app so battle data reads the same. */
+  --color-side-a: #3b82f6;
+  --color-side-b: #f28c28;
+
+  --color-good: #37d67a;
+  --color-bad: #f04a4a;
+  --color-warn: #f5a524;
+
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 5px;
+
+  --shadow-lift: 0 18px 40px -18px rgba(0, 0, 0, 0.9);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-void);
+    color: var(--color-ink);
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--color-void);
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    border-color: var(--color-line);
+  }
+}
+
+@layer components {
+  .panel {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  .field {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-line-strong);
+    background-color: var(--color-surface-3);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .field:focus {
+    border-color: var(--color-primary);
+  }
+  .field::placeholder {
+    color: var(--color-ink-ghost);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      opacity 0.15s ease;
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: #04161b;
+  }
+  .btn-primary:not(:disabled):hover {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-ghost {
+    background-color: transparent;
+    border-color: var(--color-line-strong);
+    color: var(--color-ink-dim);
+  }
+  .btn-ghost:not(:disabled):hover {
+    border-color: var(--color-primary);
+    color: var(--color-ink);
+  }
+  .btn-danger {
+    background-color: transparent;
+    border-color: var(--color-bad);
+    color: var(--color-bad);
+  }
+  .btn-danger:not(:disabled):hover {
+    background-color: color-mix(in srgb, var(--color-bad) 14%, transparent);
+  }
+
+  /* Data tables. */
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+  .tbl th {
+    text-align: left;
+    padding: 0.7rem 0.85rem;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    border-bottom: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+  .tbl td {
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-ink-dim);
+    vertical-align: middle;
+  }
+  .tbl tbody tr:hover td {
+    background-color: var(--color-surface-2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-line-strong);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-dim);
+    white-space: nowrap;
+  }
+}

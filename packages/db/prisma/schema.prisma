@@ -56,6 +56,15 @@ enum SubmissionStatus {
   ERROR
 }
 
+/**
+ * Authorisation role. Kept as an enum rather than a boolean so a MODERATOR
+ * tier can be added later without another migration.
+ */
+enum Role {
+  PLAYER
+  SUPER_ADMIN
+}
+
 model User {
   id          String   @id @default(cuid())
 
@@ -77,6 +86,16 @@ model User {
    * expires — there is no credential to log in WITH.
    */
   isGuest Boolean @default(false)
+
+  /**
+   * Authorisation role. PLAYER for everyone who signs up; SUPER_ADMIN only
+   * ever set by the seed script or by hand in the database.
+   *
+   * Deliberately NOT settable through any API: there is no endpoint that
+   * writes this column, so no request — however crafted — can escalate an
+   * account to admin.
+   */
+  role Role @default(PLAYER)
 
   /**
    * Battle-facing identity. Unique, and stored lowercased in `usernameLower`
@@ -261,4 +280,26 @@ model Result {
   decidingSubmissionId String?
   standings            Json
   createdAt            DateTime     @default(now())
+}
+
+/**
+ * One row per page load, written by the web app's /api/track route.
+ *
+ * `visitorId` is a random id in a first-party cookie — it identifies a browser
+ * for unique-visitor counts and nothing else. No IP address, no user agent,
+ * no cross-site identifier is stored, so this stays a hit counter rather than
+ * becoming a tracking profile.
+ */
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  /** Anonymous per-browser id from a first-party cookie. */
+  visitorId String
+  /** Set when the visitor happened to be signed in; null otherwise. */
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([visitorId])
+  @@index([path])
 }

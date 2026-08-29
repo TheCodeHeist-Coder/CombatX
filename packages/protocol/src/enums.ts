@@ -62,3 +62,12 @@ export type SubmissionStatus = z.infer<typeof SubmissionStatus>;
 /** Presence of a player's connection. */
 export const PresenceStatus = z.enum(["ONLINE", "RECONNECTING", "DISCONNECTED"]);
 export type PresenceStatus = z.infer<typeof PresenceStatus>;
+
+/**
+ * Whether a test case is shown to players or held back.
+ *
+ * SAMPLE tests ship with the problem statement; HIDDEN ones are stripped
+ * server-side and only ever run by the judge. Mirrors the Prisma enum.
+ */
+export const TestKind = z.enum(["SAMPLE", "HIDDEN"]);
+export type TestKind = z.infer<typeof TestKind>;

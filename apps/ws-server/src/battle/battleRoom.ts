@@ -92,6 +92,18 @@ export class BattleRoom {
 
   // --- roster / connections -------------------------------------------------
 
+  /**
+   * User ids currently holding an ONLINE seat in this room.
+   *
+   * Read by the admin dashboard through the registry. Returns ids, not a
+   * count, so the registry can de-duplicate someone sitting in two rooms.
+   */
+  onlineUserIds(): string[] {
+    return [...this.seats.values()]
+      .filter((s) => s.presence === "ONLINE")
+      .map((s) => s.userId);
+  }
+
   /** Attach a socket for a user, creating a seat on first join. */
   attach(conn: Connection): void {
     let seat = this.seats.get(conn.userId);

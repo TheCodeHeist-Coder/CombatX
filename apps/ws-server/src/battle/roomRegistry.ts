@@ -36,6 +36,21 @@ export class RoomRegistry {
     return promise;
   }
 
+  /**
+   * Live counts for the admin dashboard.
+   *
+   * Players are de-duplicated across rooms: one person in two battles is one
+   * person online, and counting seats instead would silently inflate the
+   * number the dashboard reports.
+   */
+  liveStats(): { onlinePlayers: number; activeRooms: number } {
+    const online = new Set<string>();
+    for (const room of this.rooms.values()) {
+      for (const userId of room.onlineUserIds()) online.add(userId);
+    }
+    return { onlinePlayers: online.size, activeRooms: this.rooms.size };
+  }
+
   private async hydrate(battleId: string): Promise<BattleRoom | null> {
     // Re-check the cache in case a room was created while we queued.
     const cached = this.rooms.get(battleId);

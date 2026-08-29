@@ -16,9 +16,9 @@ export interface GameServer {
 }
 
 export function createGameServer(): GameServer {
-  const httpServer: Server = createServer(createHttpApp());
   const judge = new JudgePipeline();
   const registry = new RoomRegistry(judge);
+  const httpServer: Server = createServer(createHttpApp(registry));
   const gateway = new WsGateway(httpServer, registry);
 
   return {
