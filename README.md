@@ -1,4 +1,4 @@
-# ꧁⎝ 𓆩༺✧༻𓆪 ⎠꧂ CombatX
+#  Loading.. .. ..
 
 Real-time competitive coding battles.
 
