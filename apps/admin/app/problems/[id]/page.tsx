@@ -3,7 +3,12 @@
 import { use, useEffect, useState } from "react";
 import type { AdminProblemDetail } from "@repo/protocol";
 import { AdminShell } from "../../../components/AdminShell";
-import { ErrorBanner, Spinner } from "../../../components/atoms";
+import {
+  Chip,
+  ErrorBanner,
+  PageHeader,
+  Spinner,
+} from "../../../components/atoms";
 import { ProblemForm } from "../../../components/ProblemForm";
 import { fetchProblem, AdminApiError } from "../../../lib/api";
 import { useAdminSession } from "../../../lib/useAdminSession";
@@ -54,12 +59,35 @@ function EditProblem({ id }: { id: string }) {
     );
   }
 
+  const difficultyColour =
+    problem.difficulty === "EASY"
+      ? "var(--color-good)"
+      : problem.difficulty === "HARD"
+        ? "var(--color-bad)"
+        : "var(--color-warn)";
+
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="label">Content</p>
-        <h1 className="mt-1 text-2xl font-bold">{problem.title}</h1>
-      </div>
+    <div className="flex flex-col gap-7">
+      <PageHeader
+        eyebrow="Edit problem"
+        title={problem.title}
+        actions={
+          <div className="flex items-center gap-2">
+            <Chip color={difficultyColour}>
+              {problem.difficulty.toLowerCase()}
+            </Chip>
+            <Chip>
+              {problem.testCases.length} test
+              {problem.testCases.length === 1 ? "" : "s"}
+            </Chip>
+            {problem.battleCount > 0 && (
+              <Chip color="var(--color-warn)">
+                used in {problem.battleCount}
+              </Chip>
+            )}
+          </div>
+        }
+      />
       {/* Keyed by id so navigating between problems remounts the form with
           fresh state rather than keeping the previous problem's drafts. */}
       <ProblemForm key={problem.id} existing={problem} />

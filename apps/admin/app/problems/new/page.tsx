@@ -1,16 +1,18 @@
 "use client";
 
 import { AdminShell } from "../../../components/AdminShell";
+import { PageHeader } from "../../../components/atoms";
 import { ProblemForm } from "../../../components/ProblemForm";
 
 export default function NewProblemPage() {
   return (
     <AdminShell>
-      <div className="flex flex-col gap-6">
-        <div>
-          <p className="label">Content</p>
-          <h1 className="mt-1 text-2xl font-bold">New problem</h1>
-        </div>
+      <div className="flex flex-col gap-7">
+        <PageHeader
+          eyebrow="Content"
+          title="New problem"
+          lede="Players read the statement, the judge runs the tests. Hidden tests are what actually decide a battle."
+        />
         <ProblemForm />
       </div>
     </AdminShell>

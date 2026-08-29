@@ -8,7 +8,7 @@ import {
   type AdminProblemDetail,
   type AdminProblemInput,
 } from "@repo/protocol";
-import { ErrorBanner, Spinner } from "./atoms";
+import { Chip, ErrorBanner, IconPlus, IconTrash, Spinner } from "./atoms";
 import {
   createProblem,
   updateProblem,
@@ -130,8 +130,8 @@ export function ProblemForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="panel p-5">
-        <h2 className="text-base font-bold">Statement</h2>
+      <section className="panel panel-lit p-6">
+        <SectionTitle n="01" title="Statement" />
 
         <div className="mt-4 flex flex-col gap-4">
           <Field label="Title" htmlFor="title">
@@ -211,8 +211,8 @@ export function ProblemForm({
         </div>
       </section>
 
-      <section className="panel p-5">
-        <h2 className="text-base font-bold">Languages</h2>
+      <section className="panel panel-lit p-6">
+        <SectionTitle n="02" title="Languages" />
         <p
           className="mt-1.5 font-mono text-[0.75rem]"
           style={{ color: "var(--color-ink-faint)" }}
@@ -267,10 +267,10 @@ export function ProblemForm({
         )}
       </section>
 
-      <section className="panel p-5">
+      <section className="panel panel-lit p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold">Test cases</h2>
+            <SectionTitle n="03" title="Test cases" />
             <p
               className="mt-1.5 font-mono text-[0.75rem]"
               style={{ color: "var(--color-ink-faint)" }}
@@ -290,6 +290,7 @@ export function ProblemForm({
               ])
             }
           >
+            <IconPlus />
             Add case
           </button>
         </div>
@@ -306,6 +307,15 @@ export function ProblemForm({
             >
               <div className="flex flex-wrap items-center gap-3">
                 <span className="label">#{i + 1}</span>
+                <Chip
+                  color={
+                    t.kind === "SAMPLE"
+                      ? "var(--color-primary)"
+                      : "var(--color-violet)"
+                  }
+                >
+                  {t.kind === "SAMPLE" ? "shown to players" : "hidden"}
+                </Chip>
                 <select
                   className="field max-w-32 py-1!"
                   value={t.kind}
@@ -346,7 +356,7 @@ export function ProblemForm({
                     setTests((prev) => prev.filter((_, idx) => idx !== i))
                   }
                 >
-                  Remove
+                  <IconTrash />
                 </button>
               </div>
 
@@ -412,6 +422,27 @@ export function ProblemForm({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/** A numbered section heading with a trailing rule. */
+function SectionTitle({ n, title }: { n: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className="font-mono text-[0.72rem] font-bold tabular-nums"
+        style={{ color: "var(--color-primary)" }}
+      >
+        {n}
+      </span>
+      <h2 className="text-[0.95rem] font-bold">{title}</h2>
+      <span
+        className="h-px flex-1"
+        style={{
+          background: "linear-gradient(90deg, var(--color-line), transparent)",
+        }}
+      />
     </div>
   );
 }
