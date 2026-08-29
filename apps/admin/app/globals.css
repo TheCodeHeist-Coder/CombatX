@@ -3,48 +3,60 @@
 /* ---------------------------------------------------------------------------
  * CombatX admin console.
  *
- * Shares the player app's near-black ground so the two feel like one product,
- * but swaps the orange command colour for a cool cyan. That difference is
- * deliberate and load-bearing: an operator glancing at a screen should never
- * have to wonder whether they are looking at the public site or at the console
- * that can rewrite the problem set.
+ * Black and grey, deliberately. This is a tool someone stares at for an hour,
+ * so the surface stays out of the way: no glow, no coloured washes, no
+ * gradients on chrome. Structure comes from layered greys and hairlines alone.
+ *
+ * Colour is reserved for MEANING — a status, a difficulty, a win or a loss —
+ * so the few coloured things on screen are the things worth looking at.
+ *
+ * The SIGN-IN screen is the exception and keeps the player app's orange; see
+ * the .auth-theme block at the foot of this file.
  * ------------------------------------------------------------------------- */
 
 @theme {
-  --color-void: #0b0d11;
-  --color-surface: #14171d;
-  --color-surface-2: #1a1e26;
-  --color-surface-3: #21262f;
-  --color-surface-4: #2a303a;
+  /* Ground. Slightly cooler than the player app's near-black. */
+  --color-void: #090b0f;
+  --color-surface: #12151c;
+  --color-surface-2: #181c25;
+  --color-surface-3: #1f242e;
+  --color-surface-4: #272d39;
 
-  --color-line: #242932;
-  --color-line-strong: #363d49;
+  --color-line: #212734;
+  --color-line-strong: #313949;
 
-  --color-ink: #f2f4f8;
-  --color-ink-dim: #a8afbd;
-  --color-ink-faint: #767e8e;
-  --color-ink-ghost: #4d5462;
+  --color-ink: #f4f6fa;
+  --color-ink-dim: #a9b1c1;
+  --color-ink-faint: #737d90;
+  --color-ink-ghost: #4a5265;
 
-  /* Admin command colour — cyan, never the player app's orange. */
-  --color-primary: #22a7c4;
-  --color-primary-hover: #2dbfdd;
-  --color-accent: #5ed4ec;
+  /* Chrome is greyscale. --color-primary is a light grey so focus rings and
+     active nav read as emphasis rather than as brand colour. */
+  --color-primary: #b9c0cc;
+  --color-primary-hover: #d4dae4;
+  --color-accent: #e3e7ee;
 
-  /* Sides, kept identical to the player app so battle data reads the same. */
+  /* Kept for the few data figures that still need separating from each other,
+     muted well below the saturation the player app uses. */
+  --color-violet: #8b93a6;
+  --color-magenta: #98a0b0;
+
+  /* Sides, identical to the player app so battle data reads the same. */
   --color-side-a: #3b82f6;
   --color-side-b: #f28c28;
 
-  --color-good: #37d67a;
-  --color-bad: #f04a4a;
-  --color-warn: #f5a524;
+  --color-good: #34d399;
+  --color-bad: #f0556d;
+  --color-warn: #f5b524;
 
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  --radius-lg: 12px;
-  --radius-md: 8px;
-  --radius-sm: 5px;
+  --radius-lg: 14px;
+  --radius-md: 9px;
+  --radius-sm: 6px;
 
-  --shadow-lift: 0 18px 40px -18px rgba(0, 0, 0, 0.9);
+  --shadow-lift: 0 20px 44px -24px rgba(0, 0, 0, 0.95);
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
 }
 
 @layer base {
@@ -60,38 +72,88 @@
   * {
     border-color: var(--color-line);
   }
+  ::selection {
+    background: var(--color-surface-4);
+  }
+
+  /* Scrollbars, so a long table does not punch a bright strip into the page. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-4);
+    border-radius: 999px;
+    border: 2px solid var(--color-void);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line-strong);
+  }
 }
 
 @layer components {
+  /* ---- Surfaces ---------------------------------------------------------- */
+
   .panel {
     background-color: var(--color-surface);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-lg);
   }
 
+  /**
+   * Kept as a no-op alias so every caller does not have to change.
+   * The console has no lit edges; the class survives only so the sign-in
+   * screen and the page markup can share one panel vocabulary.
+   */
+  .panel-lit {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ---- Type -------------------------------------------------------------- */
+
   .label {
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-ink-faint);
   }
 
+  /**
+   * Page titles. Flat ink in the console — the gradient version lives in
+   * .auth-theme, where the sign-in screen restores the player app's orange.
+   */
+  .grad-text {
+    color: var(--color-ink);
+  }
+
+  /* ---- Controls ---------------------------------------------------------- */
+
   .field {
     width: 100%;
-    padding: 0.6rem 0.8rem;
+    padding: 0.62rem 0.85rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-line-strong);
     background-color: var(--color-surface-3);
     color: var(--color-ink);
     font-family: var(--font-mono);
-    font-size: 0.85rem;
+    font-size: 0.84rem;
     outline: none;
-    transition: border-color 0.15s ease;
+    transition:
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      background-color 0.16s ease;
   }
   .field:focus {
     border-color: var(--color-primary);
+    background-color: var(--color-surface-2);
+    /* A hairline halo, not a glow — enough to locate the caret, no bloom. */
+    box-shadow: 0 0 0 2px var(--color-surface-4);
   }
   .field::placeholder {
     color: var(--color-ink-ghost);
@@ -106,83 +168,289 @@
     border-radius: var(--radius-md);
     border: 1px solid transparent;
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     cursor: pointer;
+    white-space: nowrap;
     transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease,
-      opacity 0.15s ease;
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease,
+      transform 0.16s ease,
+      opacity 0.16s ease;
+  }
+  .btn:not(:disabled):active {
+    transform: translateY(1px);
   }
   .btn:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
   }
+
   .btn-primary {
-    background-color: var(--color-primary);
-    color: #04161b;
+    background: var(--color-primary);
+    color: var(--color-void);
   }
   .btn-primary:not(:disabled):hover {
-    background-color: var(--color-primary-hover);
+    background: var(--color-primary-hover);
   }
+
   .btn-ghost {
-    background-color: transparent;
+    background-color: var(--color-surface-3);
     border-color: var(--color-line-strong);
     color: var(--color-ink-dim);
   }
   .btn-ghost:not(:disabled):hover {
     border-color: var(--color-primary);
     color: var(--color-ink);
+    background-color: var(--color-surface-4);
   }
+
   .btn-danger {
     background-color: transparent;
-    border-color: var(--color-bad);
+    border-color: color-mix(in srgb, var(--color-bad) 55%, transparent);
     color: var(--color-bad);
   }
   .btn-danger:not(:disabled):hover {
     background-color: color-mix(in srgb, var(--color-bad) 14%, transparent);
+    border-color: var(--color-bad);
   }
 
-  /* Data tables. */
+  /* ---- Stat cards -------------------------------------------------------- */
+
+  /**
+   * A headline figure.
+   *
+   * Flat: no tinted background, no glow. --stat-accent survives only as a
+   * short rule along the left edge, which is enough to group cards on a scan
+   * without washing the whole card in colour.
+   */
+  .stat {
+    position: relative;
+    overflow: hidden;
+    padding: 1.15rem 1.25rem 1.15rem 1.4rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-line);
+    background-color: var(--color-surface);
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease;
+  }
+  .stat::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--stat-accent);
+    opacity: 0.55;
+  }
+  .stat:hover {
+    border-color: var(--color-line-strong);
+    background-color: var(--color-surface-2);
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---- Tables ------------------------------------------------------------ */
+
   .tbl {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-family: var(--font-mono);
     font-size: 0.78rem;
   }
   .tbl th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     text-align: left;
-    padding: 0.7rem 0.85rem;
-    font-size: 0.64rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.62rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-ink-faint);
+    background-color: var(--color-surface-2);
     border-bottom: 1px solid var(--color-line);
     white-space: nowrap;
   }
   .tbl td {
-    padding: 0.7rem 0.85rem;
+    padding: 0.72rem 0.9rem;
     border-bottom: 1px solid var(--color-line);
     color: var(--color-ink-dim);
     vertical-align: middle;
   }
+  .tbl tbody tr {
+    transition: background-color 0.12s ease;
+  }
   .tbl tbody tr:hover td {
     background-color: var(--color-surface-2);
   }
+  .tbl tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* ---- Chips ------------------------------------------------------------- */
 
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.15rem 0.5rem;
+    padding: 0.18rem 0.55rem;
     border-radius: 999px;
     border: 1px solid var(--color-line-strong);
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     color: var(--color-ink-dim);
     white-space: nowrap;
+  }
+
+  /** A chip tinted by --chip-color, for status and role. */
+  .chip-tint {
+    border-color: color-mix(in srgb, var(--chip-color) 38%, transparent);
+    background: transparent;
+    color: var(--chip-color);
+  }
+
+  /**
+   * Marks a figure that changes without a reload.
+   *
+   * A soft opacity blink rather than an expanding ring — the console has no
+   * glow anywhere, and a halo here would be the one bright thing on screen.
+   */
+  .live-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: var(--color-good);
+    animation: blink 2.4s ease-in-out infinite;
+  }
+
+  /* ---- Navigation -------------------------------------------------------- */
+
+  .nav-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-ink-faint);
+    transition:
+      color 0.16s ease,
+      background-color 0.16s ease;
+  }
+  .nav-item:hover {
+    color: var(--color-ink);
+    background-color: var(--color-surface-2);
+  }
+  .nav-item[data-active="true"] {
+    color: var(--color-ink);
+    background-color: var(--color-surface-3);
+  }
+}
+
+@layer components {
+  /* -------------------------------------------------------------------------
+   * Sign-in screen only.
+   *
+   * The console proper is cyan so an operator can never mistake it for the
+   * public site. The SIGN-IN screen is the one place that should feel like
+   * CombatX — it is the door to the product, not the machinery behind it — so
+   * it borrows the player app's orange, its display faces, and its wordmark
+   * treatment. Everything here is scoped under .auth-theme; nothing leaks into
+   * the dashboard.
+   * --------------------------------------------------------------------- */
+  .auth-theme {
+    --color-primary: #f2622e;
+    --color-primary-hover: #ff7442;
+    --color-accent: #ff8a5c;
+  }
+
+  /* Lacquer, exactly as the player app sets it. */
+  .auth-theme .wordmark {
+    font-family: var(--font-display), var(--font-mono), sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* The player app's orange gradient, not the console's cyan→violet. */
+  .auth-theme .grad-text {
+    background: linear-gradient(180deg, #ff5c39 0%, #ff9a6b 62%, #ffc79b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Finger Paint carries no bold weight — faux-bolding clogs the brush
+     strokes, so weight stays 400 and emphasis comes from tracking. */
+  .auth-theme .btn {
+    font-family: var(--font-button), var(--font-mono), sans-serif;
+    font-size: 0.8rem;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .auth-theme .btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 6px 20px -12px var(--color-primary);
+  }
+  .auth-theme .btn-primary:not(:disabled):hover {
+    background: var(--color-primary-hover);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion. Kept short and few — a console should feel immediate.
+ * ------------------------------------------------------------------------- */
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rise-1 { animation-delay: 0.04s; }
+.rise-2 { animation-delay: 0.08s; }
+.rise-3 { animation-delay: 0.12s; }
+.rise-4 { animation-delay: 0.16s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .live-dot {
+    animation: none;
   }
 }

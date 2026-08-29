@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import type { AdminBattleRow } from "@repo/protocol";
 import { AdminShell } from "../../components/AdminShell";
-import { ErrorBanner, Spinner } from "../../components/atoms";
+import {
+  Chip,
+  Dim,
+  EmptyRow,
+  ErrorBanner,
+  PageHeader,
+  Spinner,
+} from "../../components/atoms";
+import { Pager } from "../../components/Pager";
 import { fetchBattles, AdminApiError } from "../../lib/api";
 import { useAdminSession } from "../../lib/useAdminSession";
 
@@ -40,7 +48,9 @@ function Battles() {
         (err) =>
           alive &&
           setError(
-            err instanceof AdminApiError ? err.message : "Could not load battles.",
+            err instanceof AdminApiError
+              ? err.message
+              : "Could not load battles.",
           ),
       )
       .finally(() => alive && setLoading(false));
@@ -50,109 +60,92 @@ function Battles() {
   }, [session, offset]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="label">History</p>
-        <h1 className="mt-1 text-2xl font-bold">Battles</h1>
-      </div>
+    <div className="flex flex-col gap-7">
+      <PageHeader
+        eyebrow="History"
+        title="Battles"
+        lede={`${total.toLocaleString()} battle${total === 1 ? "" : "s"} on record, newest first.`}
+      />
 
       {error && <ErrorBanner message={error} />}
 
-      <div className="panel overflow-x-auto">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Room</th>
-              <th>Status</th>
-              <th>Mode</th>
-              <th>Difficulty</th>
-              <th>Problem</th>
-              <th>Host</th>
-              <th className="text-right">Players</th>
-              <th>Winner</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((b) => (
-              <tr key={b.id}>
-                <td style={{ color: "var(--color-ink)" }}>{b.roomCode}</td>
-                <td>
-                  <StatusChip status={b.status} />
-                </td>
-                <td>{b.mode.replaceAll("_", " ").toLowerCase()}</td>
-                <td>{b.difficulty.toLowerCase()}</td>
-                <td className="max-w-56 truncate">
-                  {b.problemTitle ?? <Dim>not assigned</Dim>}
-                </td>
-                <td>{b.hostUsername ?? <Dim>—</Dim>}</td>
-                <td className="text-right tabular-nums">{b.playerCount}</td>
-                <td>
-                  {b.winnerSide ? (
-                    <span
-                      className="chip"
-                      style={{
-                        borderColor:
-                          b.winnerSide === "A"
-                            ? "var(--color-side-a)"
-                            : "var(--color-side-b)",
-                        color:
-                          b.winnerSide === "A"
-                            ? "var(--color-side-a)"
-                            : "var(--color-side-b)",
-                      }}
-                    >
-                      Team {b.winnerSide}
-                    </span>
-                  ) : (
-                    <Dim>—</Dim>
-                  )}
-                </td>
-                <td>{fmt(b.createdAt)}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && !loading && (
+      <div className="panel panel-lit overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="tbl">
+            <thead>
               <tr>
-                <td colSpan={9} className="py-8 text-center">
-                  <Dim>No battles yet.</Dim>
-                </td>
+                <th>Room</th>
+                <th>Status</th>
+                <th>Mode</th>
+                <th>Difficulty</th>
+                <th>Problem</th>
+                <th>Host</th>
+                <th className="text-right">Players</th>
+                <th>Winner</th>
+                <th>Created</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((b) => (
+                <tr key={b.id}>
+                  <td
+                    className="font-medium tracking-wider"
+                    style={{ color: "var(--color-ink)" }}
+                  >
+                    {b.roomCode}
+                  </td>
+                  <td>
+                    <StatusChip status={b.status} />
+                  </td>
+                  <td>{b.mode.replaceAll("_", " ").toLowerCase()}</td>
+                  <td>
+                    <DifficultyChip value={b.difficulty} />
+                  </td>
+                  <td className="max-w-56 truncate">
+                    {b.problemTitle ?? <Dim>not assigned</Dim>}
+                  </td>
+                  <td>{b.hostUsername ?? <Dim>—</Dim>}</td>
+                  <td className="text-right tabular-nums">{b.playerCount}</td>
+                  <td>
+                    {b.winnerSide ? (
+                      <Chip
+                        color={
+                          b.winnerSide === "A"
+                            ? "var(--color-side-a)"
+                            : "var(--color-side-b)"
+                        }
+                      >
+                        Team {b.winnerSide}
+                      </Chip>
+                    ) : (
+                      <Dim>—</Dim>
+                    )}
+                  </td>
+                  <td>{fmtDateTime(b.createdAt)}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && !loading && (
+                <EmptyRow colSpan={9}>
+                  No battles yet. They appear here the moment one is created.
+                </EmptyRow>
+              )}
+            </tbody>
+          </table>
+        </div>
         {loading && (
-          <div className="flex justify-center py-6">
+          <div className="flex justify-center py-8">
             <Spinner />
           </div>
         )}
       </div>
 
-      {total > PAGE && (
-        <div className="flex items-center justify-between">
-          <span
-            className="font-mono text-[0.72rem]"
-            style={{ color: "var(--color-ink-faint)" }}
-          >
-            {offset + 1}–{offset + rows.length} of {total}
-          </span>
-          <div className="flex gap-2">
-            <button
-              className="btn btn-ghost"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE))}
-            >
-              Previous
-            </button>
-            <button
-              className="btn btn-ghost"
-              disabled={offset + rows.length >= total}
-              onClick={() => setOffset(offset + PAGE)}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pager
+        offset={offset}
+        count={rows.length}
+        total={total}
+        onPage={setOffset}
+        pageSize={PAGE}
+      />
     </div>
   );
 }
@@ -166,19 +159,21 @@ function StatusChip({ status }: { status: string }) {
         ? "var(--color-bad)"
         : status === "IN_PROGRESS"
           ? "var(--color-warn)"
-          : "var(--color-ink-faint)";
-  return (
-    <span className="chip" style={{ borderColor: colour, color: colour }}>
-      {status.replaceAll("_", " ").toLowerCase()}
-    </span>
-  );
+          : "var(--color-primary)";
+  return <Chip color={colour}>{status.replaceAll("_", " ").toLowerCase()}</Chip>;
 }
 
-function Dim({ children }: { children: React.ReactNode }) {
-  return <span style={{ color: "var(--color-ink-ghost)" }}>{children}</span>;
+function DifficultyChip({ value }: { value: string }) {
+  const colour =
+    value === "EASY"
+      ? "var(--color-good)"
+      : value === "HARD"
+        ? "var(--color-bad)"
+        : "var(--color-warn)";
+  return <Chip color={colour}>{value.toLowerCase()}</Chip>;
 }
 
-function fmt(iso: string): string {
+function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     day: "2-digit",
     month: "short",
