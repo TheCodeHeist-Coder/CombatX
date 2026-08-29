@@ -18,6 +18,64 @@ importers:
         specifier: ^2.10.3
         version: 2.10.3
 
+  apps/admin:
+    dependencies:
+      '@repo/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      geist:
+        specifier: ^1.7.1
+        version: 1.7.1(next@16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
+      next:
+        specifier: 16.2.0
+        version: 16.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react:
+        specifier: ^19.2.0
+        version: 19.2.0
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.0(react@19.2.0)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@next/eslint-plugin-next':
+        specifier: ^16.2.0
+        version: 16.2.0
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@tailwindcss/postcss':
+        specifier: ^4.1.5
+        version: 4.1.16
+      '@types/node':
+        specifier: ^22.15.30
+        version: 22.18.12
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.1.1
+        version: 19.2.2(@types/react@19.2.2)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.4.21(postcss@8.5.6)
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.6.1)
+      postcss:
+        specifier: ^8.5.3
+        version: 8.5.6
+      tailwindcss:
+        specifier: ^4.1.5
+        version: 4.1.16
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   apps/http-api:
     dependencies:
       '@repo/auth':
@@ -268,6 +326,9 @@ importers:
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.2))(typescript@5.9.2)
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../auth
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1

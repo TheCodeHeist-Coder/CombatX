@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import localFont from "next/font/local";
+import { Suspense } from "react";
+import { PageViewTracker } from "../components/PageViewTracker";
 
 /**
  * The display face for the CODE BATTLE wordmark.
@@ -68,7 +70,17 @@ export default function RootLayout({
       lang="en"
       className={`${GeistSans.variable} ${GeistMono.variable} ${lacquer.variable} ${fingerPaint.variable}`}
     >
-      <body className={GeistSans.className}>{children}</body>
+      <body className={GeistSans.className}>
+        {children}
+        {/*
+          Suspense because the tracker reads the pathname, which opts a route
+          into client rendering — without a boundary every page would fail to
+          prerender at build time.
+        */}
+        <Suspense fallback={null}>
+          <PageViewTracker />
+        </Suspense>
+      </body>
     </html>
   );
 }

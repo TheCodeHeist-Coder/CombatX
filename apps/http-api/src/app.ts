@@ -11,6 +11,8 @@ import { healthRoutes } from "./modules/health/health.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { battlesRoutes } from "./modules/battles/battles.routes.js";
 import { profileRoutes } from "./modules/profile/profile.routes.js";
+import { adminRoutes } from "./modules/admin/admin.routes.js";
+import { trackRoutes } from "./modules/track/track.routes.js";
 
 /**
  * Assemble the Express application: global middleware, feature routers, and the
@@ -28,6 +30,8 @@ export function createApp(): Express {
   app.use(authRoutes);
   app.use(battlesRoutes);
   app.use(profileRoutes);
+  app.use(trackRoutes);
+  app.use(adminRoutes);
 
   // Unmatched routes → uniform 404.
   app.use((_req, res) => {

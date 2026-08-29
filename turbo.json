@@ -21,19 +21,38 @@
     "JUDGE_RUN_TIMEOUT_MS",
     "JUDGE_COMPILE_TIMEOUT_MS",
     "JUDGE_MAX_OUTPUT_BYTES",
-    "JUDGE_HTTP_TIMEOUT_MS"
+    "JUDGE_HTTP_TIMEOUT_MS",
+    "WS_SERVER_INTERNAL_URL",
+    "SUPER_ADMIN_EMAIL",
+    "SUPER_ADMIN_PASSWORD",
+    "SUPER_ADMIN_USERNAME",
+    "NEXT_PUBLIC_API_URL"
   ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "!.next/dev/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**"
+      ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": [
+        "^lint"
+      ]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": [
+        "^check-types"
+      ]
     },
     "dev": {
       "cache": false,
