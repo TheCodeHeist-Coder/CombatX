@@ -2,63 +2,74 @@
 
 import type { BadgeProgressView, BadgeView, RatingView } from "@repo/protocol";
 import { TIERS } from "@repo/game";
+import { BadgeMedal, TierMedal, type MedalTone } from "./Medal";
+import { CRESTS, TIER_CRESTS } from "./crests";
 
 /**
  * Badge and tier display.
  *
- * The visual language is deliberately GitHub-shaped: small, dense chips that
- * sit quietly on a profile and reward a closer look, rather than large trophy
- * art that would dominate the page. A player with twenty badges should still
- * have a readable profile.
+ * Every badge is a hexagon achievement medal (see Medal.tsx) carrying a
+ * hand-drawn animal (see crests.ts). The hexagon-and-rim shape is what makes
+ * these read as awards rather than icons; the animal is what makes each one
+ * recognisable before its label is read.
  *
- * Colour is carried by RARITY, not by category, because rarity is the thing a
- * visitor is actually scanning for — "what is unusual about this person?".
+ * Colour carries RARITY, not category, because rarity is what a visitor is
+ * actually scanning for — "what is unusual about this person?".
  */
 
-const RARITY: Record<string, { fg: string; bg: string; ring: string; label: string }> = {
+interface Rarity {
+  tone: MedalTone;
+  /** Label colour beneath the medal. */
+  fg: string;
+  label: string;
+}
+
+const RARITY: Record<string, Rarity> = {
   COMMON: {
+    tone: { base: "#7c8494", rimLight: "#aab2c0", rimDark: "#4a505c" },
     fg: "var(--color-ink-dim)",
-    bg: "color-mix(in srgb, var(--color-ink-ghost) 12%, transparent)",
-    ring: "var(--color-line-strong)",
     label: "Common",
   },
   UNCOMMON: {
-    fg: "#4db6ac",
-    bg: "color-mix(in srgb, #4db6ac 14%, transparent)",
-    ring: "color-mix(in srgb, #4db6ac 40%, transparent)",
+    tone: { base: "#3fa89e", rimLight: "#7fded4", rimDark: "#1f6b63" },
+    fg: "#5cc9bd",
     label: "Uncommon",
   },
   RARE: {
-    fg: "#42a5f5",
-    bg: "color-mix(in srgb, #42a5f5 14%, transparent)",
-    ring: "color-mix(in srgb, #42a5f5 45%, transparent)",
+    tone: { base: "#3d8fe0", rimLight: "#87c4ff", rimDark: "#1c4f85" },
+    fg: "#6fb4f5",
     label: "Rare",
   },
   LEGENDARY: {
-    fg: "#f2622e",
-    bg: "color-mix(in srgb, #f2622e 15%, transparent)",
-    ring: "color-mix(in srgb, #f2622e 50%, transparent)",
+    tone: { base: "#e0632c", rimLight: "#ffb27a", rimDark: "#8a3410" },
+    fg: "#ff8a5c",
     label: "Legendary",
   },
 };
 
-function rarity(key: string) {
+function rarity(key: string): Rarity {
   return RARITY[key] ?? RARITY.COMMON!;
 }
 
 /**
- * Tier colours, read from the single source of truth in @repo/game.
+ * Tier tones, built from the single source of truth in @repo/game.
  *
  * Keyed by plain string because the tier arrives over the wire as one: an
  * unknown key (an older client meeting a newer tier) falls back rather than
  * failing to render.
  */
+const TIER_TONE = new Map<string, MedalTone>(
+  TIERS.map((t) => [
+    t.key,
+    { base: t.color, rimLight: lighten(t.color), rimDark: darken(t.color) },
+  ]),
+);
 const TIER_COLOR = new Map<string, string>(TIERS.map((t) => [t.key, t.color]));
 
 /**
- * One badge chip.
+ * One badge: the medal, with its name beneath.
  *
- * `title` carries the description rather than a custom tooltip: it is
+ * `title` carries the full description rather than a custom tooltip — it is
  * keyboard-reachable, works on every platform, and cannot be clipped by an
  * overflow container the way an absolutely-positioned tooltip can.
  */
@@ -66,62 +77,83 @@ export function Badge({
   badge,
   locked = false,
   size = "md",
+  tier,
 }: {
   badge: BadgeView;
   locked?: boolean;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
+  /** Optional multiplier bubble for a repeatable achievement. */
+  tier?: number;
 }) {
   const r = rarity(badge.rarity);
-  const small = size === "sm";
+  const px = size === "lg" ? 80 : size === "sm" ? 34 : 64;
+
+  const description = locked
+    ? `${badge.label} — ${badge.description} (not yet earned)`
+    : `${badge.label} — ${badge.description}${
+        badge.earnedAt ? ` · earned ${formatDate(badge.earnedAt)}` : ""
+      }`;
 
   return (
-    <span
-      title={
-        locked
-          ? `${badge.label} — ${badge.description} (not yet earned)`
-          : `${badge.label} — ${badge.description}${
-              badge.earnedAt ? ` · earned ${formatDate(badge.earnedAt)}` : ""
-            }`
-      }
-      className="inline-flex items-center gap-1.5 rounded-full border font-mono whitespace-nowrap"
-      style={{
-        padding: small ? "0.15rem 0.5rem" : "0.28rem 0.7rem",
-        fontSize: small ? "0.62rem" : "0.7rem",
-        borderColor: locked ? "var(--color-line)" : r.ring,
-        background: locked ? "transparent" : r.bg,
-        color: locked ? "var(--color-ink-ghost)" : r.fg,
-        opacity: locked ? 0.55 : 1,
-      }}
+    <figure
+      title={description}
+      className="m-0 flex flex-col items-center gap-1.5"
+      style={{ width: px + 16 }}
     >
-      <span
-        aria-hidden
-        className="inline-flex items-center justify-center rounded-full font-bold"
-        style={{
-          width: small ? "0.85rem" : "1rem",
-          height: small ? "0.85rem" : "1rem",
-          fontSize: small ? "0.5rem" : "0.58rem",
-          background: locked ? "var(--color-surface-3)" : r.fg,
-          color: locked ? "var(--color-ink-ghost)" : "var(--color-void)",
-        }}
-      >
-        {badge.glyph}
-      </span>
-      {badge.label}
-    </span>
+      {CRESTS[badge.key] ? (
+        <BadgeMedal
+          badgeKey={badge.key}
+          tone={r.tone}
+          size={px}
+          muted={locked}
+          tier={tier}
+          title={description}
+        />
+      ) : (
+        // A badge added to the table before its art exists still renders,
+        // rather than vanishing from the shelf.
+        <span
+          className="flex items-center justify-center rounded-[6px] border font-mono font-bold"
+          style={{
+            width: px,
+            height: px,
+            borderColor: locked ? "var(--color-line)" : r.tone.rimDark,
+            background: locked ? "transparent" : "var(--color-surface-3)",
+            color: locked ? "var(--color-ink-ghost)" : r.fg,
+            fontSize: px * 0.34,
+          }}
+          aria-hidden
+        >
+          {badge.glyph}
+        </span>
+      )}
+
+      {size !== "sm" && (
+        <figcaption
+          className="text-center font-mono leading-tight"
+          style={{
+            fontSize: "0.62rem",
+            color: locked ? "var(--color-ink-ghost)" : r.fg,
+          }}
+        >
+          {badge.label}
+        </figcaption>
+      )}
+    </figure>
   );
 }
 
-/** A row of earned badges. Renders nothing when there are none. */
+/** A row of earned medals. Renders nothing when there are none. */
 export function BadgeRow({
   badges,
   size = "md",
 }: {
   badges: BadgeView[];
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   if (badges.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-start gap-2">
       {badges.map((b) => (
         <Badge key={b.key} badge={b} size={size} />
       ))}
@@ -130,48 +162,64 @@ export function BadgeRow({
 }
 
 /**
- * The tier crest — the Alpha/Beta/Gamma standing.
+ * The tier medal — the Alpha/Beta/Gamma standing.
  *
  * Shows "Unranked" rather than a fake tier while the rating is provisional,
  * because a tier badge is a claim about skill and we have not earned the right
- * to make one yet. The battles-remaining hint turns that from a refusal into
+ * to make one yet. The battles-so-far line turns that from a refusal into
  * something the player can act on.
  */
 export function TierCrest({
   rating,
   showRating = true,
+  size = 72,
 }: {
   rating: RatingView;
   showRating?: boolean;
+  size?: number;
 }) {
   const color = rating.tier
     ? TIER_COLOR.get(rating.tier) ?? "var(--color-primary)"
     : "var(--color-ink-ghost)";
+  const tone = rating.tier ? TIER_TONE.get(rating.tier) : undefined;
+  const art = rating.tier ? TIER_CRESTS[rating.tier] : null;
 
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border font-mono text-base font-bold"
-        style={{
-          borderColor: `color-mix(in srgb, ${color} 45%, transparent)`,
-          background: `color-mix(in srgb, ${color} 14%, transparent)`,
-          color,
-        }}
-        aria-hidden
-      >
-        {rating.tierLabel ? rating.tierLabel.charAt(0) : "?"}
-      </div>
+    <div className="flex items-center gap-3.5">
+      {art && tone && rating.tier ? (
+        <TierMedal
+          tierKey={rating.tier}
+          tone={tone}
+          size={size}
+          title={`${rating.tierLabel} — ${art.animal}`}
+        />
+      ) : (
+        <div
+          className="flex shrink-0 items-center justify-center rounded-[10px] border font-mono font-bold"
+          style={{
+            width: size,
+            height: size,
+            borderColor: "var(--color-line-strong)",
+            background: "var(--color-surface-2)",
+            color: "var(--color-ink-ghost)",
+            fontSize: size * 0.32,
+          }}
+          aria-hidden
+        >
+          ?
+        </div>
+      )}
 
       <div className="min-w-0">
         <p
-          className="font-mono text-[0.82rem] font-bold leading-tight"
+          className="font-mono text-[0.9rem] font-bold leading-tight"
           style={{ color }}
         >
           {rating.tierLabel ?? "Unranked"}
         </p>
         {showRating && (
           <p
-            className="font-mono text-[0.68rem] leading-tight"
+            className="font-mono text-[0.7rem] leading-tight"
             style={{ color: "var(--color-ink-faint)" }}
           >
             {rating.provisional
@@ -179,6 +227,14 @@ export function TierCrest({
                   rating.rankedBattles === 1 ? "battle" : "battles"
                 } — still placing`
               : `${rating.rating} rating`}
+          </p>
+        )}
+        {art && (
+          <p
+            className="font-mono text-[0.64rem] leading-tight"
+            style={{ color: "var(--color-ink-ghost)" }}
+          >
+            {art.animal}
           </p>
         )}
       </div>
@@ -198,7 +254,9 @@ export function TierProgress({ rating }: { rating: RatingView }) {
   const color = rating.tier
     ? TIER_COLOR.get(rating.tier) ?? "var(--color-primary)"
     : "var(--color-primary)";
-  const next = TIERS.find((t) => t.key !== rating.tier && t.minRating > rating.conservative);
+  const next = TIERS.find(
+    (t) => t.key !== rating.tier && t.minRating > rating.conservative,
+  );
 
   return (
     <div>
@@ -227,17 +285,19 @@ export function TierProgress({ rating }: { rating: RatingView }) {
 }
 
 /**
- * The full shelf: earned badges first, then what is still out there.
+ * The full shelf: earned medals first, then what is still out there.
  *
- * Locked badges are shown on purpose. A shelf that only lists what you already
- * have is a trophy case; showing the rest is what makes it a map.
+ * Locked medals are drained of colour rather than hidden. A shelf that only
+ * lists what you already have is a trophy case; showing the rest is what makes
+ * it a map — and a greyed animal still reads as a specific animal, so a player
+ * can see exactly what they are working toward.
  */
 export function BadgeShelf({ badges }: { badges: BadgeProgressView[] }) {
   const earned = badges.filter((b) => b.earned);
   const locked = badges.filter((b) => !b.earned);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <section>
         <div className="flex items-baseline justify-between">
           <h3 className="label">Earned</h3>
@@ -256,7 +316,7 @@ export function BadgeShelf({ badges }: { badges: BadgeProgressView[] }) {
             No badges yet — win a battle to start.
           </p>
         ) : (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <div className="mt-3.5 flex flex-wrap items-start gap-3">
             {earned.map((b) => (
               <Badge key={b.key} badge={b} />
             ))}
@@ -267,39 +327,61 @@ export function BadgeShelf({ badges }: { badges: BadgeProgressView[] }) {
       {locked.length > 0 && (
         <section>
           <h3 className="label">Locked</h3>
-          <ul className="mt-2.5 flex flex-col gap-2">
+          <div className="mt-3.5 flex flex-wrap items-start gap-3">
             {locked.map((b) => (
-              <li key={b.key} className="flex items-center gap-3">
-                <Badge badge={b} locked size="sm" />
+              <div
+                key={b.key}
+                className="flex flex-col items-center gap-1"
+                style={{ width: 80 }}
+              >
+                <Badge badge={b} locked />
                 {b.progress !== null && b.progress > 0 && (
-                  <div className="flex flex-1 items-center gap-2">
+                  <div className="flex w-full flex-col items-center gap-0.5">
                     <div
-                      className="h-1 flex-1 overflow-hidden rounded-full"
+                      className="h-1 w-full overflow-hidden rounded-full"
                       style={{ background: "var(--color-surface-3)" }}
                     >
                       <div
                         className="h-full rounded-full"
                         style={{
                           width: `${Math.round(b.progress * 100)}%`,
-                          background: "var(--color-ink-ghost)",
+                          background: "var(--color-ink-faint)",
                         }}
                       />
                     </div>
                     <span
-                      className="font-mono text-[0.6rem] tabular-nums"
+                      className="font-mono text-[0.55rem] tabular-nums"
                       style={{ color: "var(--color-ink-ghost)" }}
                     >
                       {Math.round(b.progress * 100)}%
                     </span>
                   </div>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
       )}
     </div>
   );
+}
+
+/** Mix a hex colour toward white, for a rim highlight. */
+function lighten(hex: string, amount = 0.45): string {
+  return mix(hex, 255, amount);
+}
+/** Mix a hex colour toward black, for a rim shadow. */
+function darken(hex: string, amount = 0.45): string {
+  return mix(hex, 0, amount);
+}
+function mix(hex: string, target: number, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1]!, 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) =>
+    Math.round(v + (target - v) * amount),
+  );
+  return `#${ch.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function formatDate(iso: string): string {
