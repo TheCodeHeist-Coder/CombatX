@@ -6,7 +6,7 @@ export default function Page() {
   return (
     <ComingSoon
       title="Intel"
-      code="Sector // intel"
+      code=""
       summary="Problem intelligence — statements, difficulty spread, and per-problem pass rates — is not exposed yet. Problems currently live only in the seed data."
       planned={[
         "Browse the problem catalogue.",

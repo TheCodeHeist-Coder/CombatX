@@ -40,8 +40,7 @@ export default function RankingsPage() {
   return (
     <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
-        <p className="eyebrow">Module // rankings</p>
-        <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
+        <h1 className="mt-2 wordmark  text-2xl font-bold uppercase tracking-wide">
           Rankings
         </h1>
         <p
