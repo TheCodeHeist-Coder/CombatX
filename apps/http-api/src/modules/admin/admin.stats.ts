@@ -1,4 +1,5 @@
 import { prisma } from "@repo/db";
+import { PROVISIONAL_RD, TIERS, tierFor } from "@repo/game";
 import type { AdminOverviewResponse, DailyCount } from "@repo/protocol";
 import { env } from "../../env.js";
 
@@ -91,6 +92,12 @@ export async function getOverview(): Promise<AdminOverviewResponse> {
     battleDates,
     viewDates,
     onlineNow,
+    rankedBattles,
+    placed,
+    placing,
+    queued,
+    badgesAwarded,
+    placedPlayers,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isGuest: true } }),
@@ -135,7 +142,51 @@ export async function getOverview(): Promise<AdminOverviewResponse> {
       select: { createdAt: true },
     }),
     fetchOnlineNow(),
+    prisma.battle.count({ where: { isRanked: true } }),
+    // Placed = settled enough to publish. Placing = has played ranked but is
+    // still provisional. The two together are the ladder's real population.
+    prisma.user.count({
+      where: {
+        isGuest: false,
+        rankedBattles: { gt: 0 },
+        ratingRd: { lte: PROVISIONAL_RD },
+      },
+    }),
+    prisma.user.count({
+      where: {
+        isGuest: false,
+        rankedBattles: { gt: 0 },
+        ratingRd: { gt: PROVISIONAL_RD },
+      },
+    }),
+    prisma.matchQueueEntry.count(),
+    prisma.userBadge.count(),
+    // Every placed player's rating state, for the tier histogram. Bounded by
+    // the placed population, which is small by construction.
+    prisma.user.findMany({
+      where: {
+        isGuest: false,
+        rankedBattles: { gt: 0 },
+        ratingRd: { lte: PROVISIONAL_RD },
+      },
+      select: { rating: true, ratingRd: true, ratingVolatility: true },
+    }),
   ]);
+
+  // Tier histogram, derived with the same pure function the players see.
+  const byTier: Record<string, number> = {};
+  for (const t of TIERS) byTier[t.key] = 0;
+  let topRating: number | null = null;
+  for (const p of placedPlayers) {
+    const tier = tierFor({
+      rating: p.rating,
+      rd: p.ratingRd,
+      volatility: p.ratingVolatility,
+    });
+    if (tier) byTier[tier.key] = (byTier[tier.key] ?? 0) + 1;
+    const r = Math.round(p.rating);
+    if (topRating === null || r > topRating) topRating = r;
+  }
 
   const byDifficulty: Record<string, number> = {
     EASY: 0,
@@ -165,6 +216,15 @@ export async function getOverview(): Promise<AdminOverviewResponse> {
       inProgress: inProgressBattles,
       today: battlesToday,
       week: battlesWeek,
+      ranked: rankedBattles,
+    },
+    ranking: {
+      placed,
+      placing,
+      queued,
+      topRating,
+      byTier,
+      badgesAwarded,
     },
     submissions: { total: totalSubmissions, today: submissionsToday },
     traffic: {

@@ -1,5 +1,6 @@
 import { prisma } from "@repo/db";
 import { signAdminToken, verifyPassword } from "@repo/auth";
+import { tierFor } from "@repo/game";
 import type {
   AdminBattlesResponse,
   AdminLoginRequest,
@@ -83,16 +84,33 @@ export async function listUsers(
         xp: true,
         wins: true,
         losses: true,
+        rating: true,
+        ratingRd: true,
+        ratingVolatility: true,
+        rankedBattles: true,
         createdAt: true,
         lastBattleAt: true,
+        _count: { select: { badges: true } },
       },
     }),
     prisma.user.count({ where }),
   ]);
 
   return {
-    rows: rows.map((u) => ({
+    rows: rows.map(({ _count, ratingVolatility, ...u }) => ({
       ...u,
+      rating: Math.round(u.rating),
+      ratingRd: Math.round(u.ratingRd),
+      // The same tier the player sees, derived from the same pure function —
+      // the console must never show a different standing to the one on the
+      // profile.
+      tier:
+        tierFor({
+          rating: u.rating,
+          rd: u.ratingRd,
+          volatility: ratingVolatility,
+        })?.key ?? null,
+      badgeCount: _count.badges,
       createdAt: u.createdAt.toISOString(),
       lastBattleAt: u.lastBattleAt?.toISOString() ?? null,
     })),

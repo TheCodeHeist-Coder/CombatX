@@ -66,6 +66,10 @@ export class RoomRegistry {
       mode: battle.mode,
       difficulty: battle.difficulty,
       timeLimitSec: battle.timeLimitSec,
+      // Read from the row, never inferred: a battle is ranked because the
+      // matchmaker created it that way, and that decision is fixed at
+      // creation so it cannot change once players see their opponent.
+      isRanked: battle.isRanked,
     };
 
     const room = new BattleRoom({

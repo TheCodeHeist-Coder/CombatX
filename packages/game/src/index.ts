@@ -3,3 +3,5 @@ export * from "./scoring.js";
 export * from "./outcome.js";
 export * from "./lobby.js";
 export * from "./progression.js";
+export * from "./rating.js";
+export * from "./badges.js";

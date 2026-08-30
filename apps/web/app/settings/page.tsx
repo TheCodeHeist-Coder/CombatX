@@ -3,17 +3,32 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PROFILE_LINKS, Username, type AvatarChoice } from "@repo/protocol";
+import {
+  PROFILE_LINKS,
+  Username,
+  type AvatarChoice,
+  type BadgeProgressView,
+} from "@repo/protocol";
 import { AppShell } from "../../components/AppShell";
 import { ErrorBanner, Spinner } from "../../components/atoms";
 import { AvatarPicker } from "../../components/avatar/AvatarPicker";
 import { UserAvatar } from "../../components/identity/UserIdentity";
-import { checkUsername, updateProfile, ApiCallError } from "../../lib/api";
+import {
+  checkUsername,
+  fetchBadgeShelf,
+  updateProfile,
+  ApiCallError,
+} from "../../lib/api";
 import { fileToAvatarDataUrl, ImageError } from "../../lib/image";
 import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import { clearSession, saveSession } from "../../lib/session";
 import { SignInGate } from "../../components/SignInGate";
+import {
+  BadgeShelf,
+  TierCrest,
+  TierProgress,
+} from "../../components/ranking/Badges";
 
 /** Account settings: identity, character, photo, and signing out. */
 export default function SettingsPage() {
@@ -36,7 +51,21 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [taken, setTaken] = useState(false);
+  const [shelf, setShelf] = useState<BadgeProgressView[] | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // The badge shelf is its own request: it is far larger than the profile and
+  // a failure to load it must not take the settings form down.
+  useEffect(() => {
+    if (!profile) return;
+    let alive = true;
+    fetchBadgeShelf(profile.username, session?.token)
+      .then((r) => alive && setShelf(r.badges))
+      .catch(() => alive && setShelf(null));
+    return () => {
+      alive = false;
+    };
+  }, [profile, session?.token]);
 
   // Seed the editable fields once the profile arrives.
   useEffect(() => {
@@ -531,6 +560,26 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {profile && (
+              <section className="panel mt-4 p-5">
+                <h2 className="text-base font-bold">Standing</h2>
+                <div className="mt-4 flex flex-col gap-4">
+                  <TierCrest rating={profile.rating} />
+                  <TierProgress rating={profile.rating} />
+                </div>
+                {profile.rating.provisional && (
+                  <p
+                    className="mt-3 font-mono text-[0.72rem] leading-relaxed"
+                    style={{ color: "var(--color-ink-faint)" }}
+                  >
+                    Your rating is still settling. It appears on the ladder once
+                    enough ranked battles have been fought to be sure of it —
+                    room-code battles do not count toward this.
+                  </p>
+                )}
+              </section>
+            )}
+
             <section className="panel mt-4 p-5">
               <h2 className="text-base font-bold">Progression</h2>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -540,6 +589,15 @@ export default function SettingsPage() {
                 <Stat label="Best streak" value={profile?.bestStreak} />
               </div>
             </section>
+
+            {shelf && (
+              <section className="panel mt-4 p-5">
+                <h2 className="text-base font-bold">Badges</h2>
+                <div className="mt-4">
+                  <BadgeShelf badges={shelf} />
+                </div>
+              </section>
+            )}
 
             <section className="panel mt-4 p-5">
               <h2 className="text-base font-bold">Sign out</h2>

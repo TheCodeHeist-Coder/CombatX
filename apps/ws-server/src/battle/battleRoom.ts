@@ -17,7 +17,6 @@ import {
 import {
   buildStandings,
   canStart,
-  computeAward,
   checkInstantWin,
   isSlotAvailable,
   resolveOnTimeout,
@@ -30,6 +29,7 @@ import { env } from "../config/env.js";
 import type { JudgePipeline } from "../infra/judgeQueue.js";
 import type { Connection, LobbySeat, RoomSubmission } from "../types.js";
 import { buildSnapshot, toPublicProblem, toSideProgress } from "./projections.js";
+import { applyProgression } from "./progression.js";
 import { Broadcaster } from "./broadcaster.js";
 
 /**
@@ -601,7 +601,7 @@ export class BattleRoom {
 
     // Progression is best-effort: a failure here must not stop the finish
     // broadcast, or players would be left staring at a live battle that ended.
-    const awards = await this.awardProgression(winnerSide, standings).catch(
+    const awards = await this.awardProgression(winnerSide, reason, standings).catch(
       (err) => {
         console.error("[room] progression failed:", err);
         return [] as ProgressionAward[];
@@ -619,75 +619,30 @@ export class BattleRoom {
   }
 
   /**
-   * Grant XP / streak / win-loss to every seated player, and return what each
-   * earned so the results screen can show a real breakdown.
+   * Grant everything the finished battle was worth, and return the per-player
+   * breakdown for the results screen.
    *
-   * Uses the pure rules in `@repo/game` so the client can render the same
-   * numbers without duplicating the formula.
+   * The rules live in ./progression.ts, which is the only place that knows XP,
+   * rating and badges all move on different triggers.
    */
   private async awardProgression(
     winnerSide: Side | null,
+    reason: FinishReason,
     standings: StandingRow[],
   ): Promise<ProgressionAward[]> {
-    const seats = [...this.seats.values()];
-    if (seats.length === 0) return [];
-
-    const bySide = new Map(standings.map((s) => [s.side, s]));
-
-    const users = await prisma.user.findMany({
-      where: { id: { in: seats.map((s) => s.userId) } },
-      select: { id: true, xp: true, winStreak: true, bestStreak: true },
+    return applyProgression({
+      battleId: this.battleId,
+      isRanked: this.config.isRanked,
+      difficulty: this.config.difficulty,
+      reason,
+      winnerSide,
+      standings,
+      seats: [...this.seats.values()].map((s) => ({
+        userId: s.userId,
+        side: s.side,
+      })),
+      problemId: this.problem?.id ?? null,
     });
-    const byId = new Map(users.map((u) => [u.id, u]));
-
-    const awards: ProgressionAward[] = [];
-    const writes = [];
-
-    for (const seat of seats) {
-      const before = byId.get(seat.userId);
-      // A spectator who never took a seat did not compete — award nothing.
-      if (!before || seat.side === null) continue;
-
-      const row = bySide.get(seat.side);
-      const won = winnerSide != null && seat.side === winnerSide;
-
-      const award = computeAward({
-        won,
-        passed: row?.bestPassed ?? 0,
-        total: row?.total ?? 0,
-        previousStreak: before.winStreak,
-      });
-
-      awards.push({
-        userId: seat.userId,
-        xp: award.xp,
-        baseXp: award.baseXp,
-        multiplier: award.multiplier,
-        newStreak: award.newStreak,
-        perfect: award.perfect,
-        totalXp: before.xp + award.xp,
-      });
-
-      writes.push(
-        prisma.user.update({
-          where: { id: seat.userId },
-          data: {
-            xp: { increment: award.xp },
-            winStreak: award.newStreak,
-            bestStreak: Math.max(before.bestStreak, award.newStreak),
-            lastBattleAt: new Date(),
-            ...(winnerSide != null
-              ? won
-                ? { wins: { increment: 1 } }
-                : { losses: { increment: 1 } }
-              : {}),
-          },
-        }),
-      );
-    }
-
-    await prisma.$transaction(writes);
-    return awards;
   }
 
   // --- helpers --------------------------------------------------------------

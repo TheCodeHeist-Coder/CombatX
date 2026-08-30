@@ -3,11 +3,20 @@
 import { useEffect, useState } from "react";
 import { use } from "react";
 import Link from "next/link";
-import { PROFILE_LINKS, type PublicProfileResponse } from "@repo/protocol";
+import {
+  PROFILE_LINKS,
+  type BadgeProgressView,
+  type PublicProfileResponse,
+} from "@repo/protocol";
 import { AppShell } from "../../../components/AppShell";
 import { ErrorBanner, Spinner } from "../../../components/atoms";
 import { UserAvatar } from "../../../components/identity/UserIdentity";
-import { fetchPublicProfile, ApiCallError } from "../../../lib/api";
+import { fetchBadgeShelf, fetchPublicProfile, ApiCallError } from "../../../lib/api";
+import {
+  BadgeShelf,
+  TierCrest,
+  TierProgress,
+} from "../../../components/ranking/Badges";
 import { useSession } from "../../../lib/useSession";
 import { useProfile } from "../../../lib/useProfile";
 
@@ -28,6 +37,7 @@ export default function PublicProfilePage({
   const { profile: myProfile } = useProfile(session);
 
   const [data, setData] = useState<PublicProfileResponse | null>(null);
+  const [shelf, setShelf] = useState<BadgeProgressView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
 
@@ -38,6 +48,13 @@ export default function PublicProfilePage({
     let alive = true;
     setError(null);
     setMissing(false);
+
+    // The shelf is a second request rather than part of the profile: it is
+    // much larger than the profile itself, and a failure to load badges must
+    // not take the whole page down with it.
+    fetchBadgeShelf(username, session?.token)
+      .then((r) => alive && setShelf(r.badges))
+      .catch(() => alive && setShelf(null));
 
     fetchPublicProfile(username, session?.token)
       .then((p) => alive && setData(p))
@@ -125,14 +142,41 @@ export default function PublicProfilePage({
             <Links profile={data} />
 
             <section className="panel mt-4 p-5">
+              <h2 className="text-base font-bold">Standing</h2>
+              <div className="mt-4 flex flex-col gap-4">
+                <TierCrest rating={data.rating} />
+                <TierProgress rating={data.rating} />
+              </div>
+
+              <div
+                className="mt-5 grid grid-cols-2 gap-3 border-t pt-5 sm:grid-cols-4"
+                style={{ borderColor: "var(--color-line)" }}
+              >
+                <Stat label="Rating" value={data.rating.rating} />
+                <Stat label="Peak" value={data.rating.peakRating} />
+                <Stat label="Ranked" value={data.rating.rankedBattles} />
+                <Stat label="Best streak" value={data.bestStreak} />
+              </div>
+            </section>
+
+            <section className="panel mt-4 p-5">
               <h2 className="text-base font-bold">Record</h2>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat label="XP" value={data.xp} />
                 <Stat label="Wins" value={data.wins} />
                 <Stat label="Losses" value={data.losses} />
-                <Stat label="Best streak" value={data.bestStreak} />
+                <Stat label="Win rate" value={winRate(data.wins, data.losses)} />
               </div>
             </section>
+
+            {shelf && (
+              <section className="panel mt-4 p-5">
+                <h2 className="text-base font-bold">Badges</h2>
+                <div className="mt-4">
+                  <BadgeShelf badges={shelf} />
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
@@ -216,7 +260,7 @@ function NotFound({ username }: { username: string }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div
       className="rounded-[8px] border-l-2 px-3 py-2.5"
@@ -229,6 +273,13 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="mt-1 font-mono text-lg font-bold tabular-nums">{value}</p>
     </div>
   );
+}
+
+/** Win rate as a percentage, or an em dash before any battles. */
+function winRate(wins: number, losses: number): string {
+  const total = wins + losses;
+  if (total === 0) return "—";
+  return `${Math.round((wins / total) * 100)}%`;
 }
 
 /** "March 2026" — a join month, without pretending to a precise day. */

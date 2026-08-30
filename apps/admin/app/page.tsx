@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AdminOverviewResponse, DailyCount } from "@repo/protocol";
+import { TIERS } from "@repo/game";
 import { AdminShell } from "../components/AdminShell";
 import {
   Chip,
@@ -179,6 +180,83 @@ function Overview() {
             icon={<IconUpload />}
           />
         </div>
+      </Section>
+
+      <Section title="Ladder">
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat
+            label="Placed"
+            value={data.ranking.placed}
+            sub={`${data.ranking.placing} still placing`}
+            accent="var(--color-primary)"
+            icon={<IconPulse />}
+          />
+          <Stat
+            label="In queue"
+            value={data.ranking.queued}
+            live={data.ranking.queued > 0}
+            sub="waiting for a ranked match"
+            accent="var(--color-good)"
+            icon={<IconSwords />}
+          />
+          <Stat
+            label="Ranked battles"
+            value={data.battles.ranked}
+            sub={`of ${data.battles.total} total`}
+            accent="var(--color-side-a)"
+            icon={<IconSwords />}
+          />
+          <Stat
+            label="Badges awarded"
+            value={data.ranking.badgesAwarded}
+            sub={
+              data.ranking.topRating !== null
+                ? `top rating ${data.ranking.topRating}`
+                : "no placed players yet"
+            }
+            accent="var(--color-accent)"
+            icon={<IconDoc />}
+          />
+        </div>
+
+        {/* The tier histogram. Only drawn once somebody is placed — an all-zero
+            chart says nothing and looks broken. */}
+        {data.ranking.placed > 0 && (
+          <div className="panel panel-lit mt-3.5 p-5">
+            <h3 className="label">Tier distribution</h3>
+            <ul className="mt-3.5 flex flex-col gap-2">
+              {TIERS.map((t) => {
+                const n = data.ranking.byTier[t.key] ?? 0;
+                const pct = (n / data.ranking.placed) * 100;
+                return (
+                  <li key={t.key}>
+                    <div className="flex items-baseline justify-between gap-4 font-mono text-[0.74rem]">
+                      <span>{t.label}</span>
+                      <span
+                        className="tabular-nums"
+                        style={{ color: "var(--color-ink-faint)" }}
+                      >
+                        {n}
+                      </span>
+                    </div>
+                    <div
+                      className="mt-1 h-[3px] rounded-full"
+                      style={{ background: "var(--color-surface-3)" }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(n > 0 ? 4 : 0, pct)}%`,
+                          background: t.color,
+                        }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </Section>
 
       <Section title="Traffic & content">

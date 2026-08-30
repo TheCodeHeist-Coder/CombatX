@@ -4,7 +4,19 @@
  * Pure functions with no database and no clock, exactly like the outcome
  * rules. The server applies these when a battle finishes; the client uses the
  * same functions to render a rank badge, so the two can never disagree.
+ *
+ * XP IS NOT A SKILL MEASURE, AND IS NOT MEANT TO BE.
+ * --------------------------------------------------
+ * XP only ever rises, so it answers "how much has this player fought?" — a
+ * career-length number, like a service record. Skill is answered separately by
+ * the Glicko-2 rating in `rating.ts`, which is zero-sum and can fall.
+ *
+ * Keeping them apart is the point. A single number cannot be both motivating
+ * (never goes down) and honest (must go down when you lose), and trying to
+ * make it both is what lets a player top a ladder purely by grinding.
  */
+
+import type { Difficulty, FinishReason } from "@repo/protocol";
 
 /** Rank tiers, ascending. `minXp` is inclusive. */
 export const RANKS = [
@@ -29,14 +41,47 @@ export interface Rank {
 const XP_PARTICIPATION = 25;
 /** Base award for winning, before the streak multiplier. */
 const XP_WIN = 200;
-/** Per test passed, so a strong loss beats a weak one. */
-const XP_PER_TEST = 10;
+/**
+ * The pool paid out for test progress, scaled by the FRACTION passed.
+ *
+ * Deliberately a fraction rather than a per-test rate: paying per test made a
+ * 30-test problem worth three times a 10-test problem for identical play,
+ * which rewarded picking a problem shape rather than solving it well.
+ */
+const XP_TESTS = 100;
 /** Bonus for a flawless run (every test passed). */
 const XP_PERFECT = 75;
 
 /** Streak multiplier: +0.25 per consecutive win after the first, capped. */
 const STREAK_STEP = 0.25;
 const STREAK_MAX = 2.5;
+
+/**
+ * Difficulty weights.
+ *
+ * Without these every player is best off farming EASY, which is both the
+ * fastest to cycle and the least interesting. The spread is modest on purpose:
+ * enough to make HARD worth attempting, not so much that EASY feels wasted.
+ */
+export const DIFFICULTY_WEIGHT: Record<Difficulty, number> = {
+  EASY: 1,
+  MEDIUM: 1.5,
+  HARD: 2.2,
+};
+
+/**
+ * Anti-grind taper.
+ *
+ * Full XP for the first FULL_RATE_BATTLES of a player's day; after that each
+ * award is multiplied by TAPERED_RATE. Playing more always earns more — this
+ * is a taper, not a wall — but a marathon session cannot out-earn skill by an
+ * unbounded margin.
+ *
+ * Note this affects XP only. Rating is untouched: throttling a rating would
+ * make it a measure of when you played rather than how well.
+ */
+export const FULL_RATE_BATTLES = 10;
+const TAPERED_RATE = 0.35;
 
 /**
  * The multiplier applied to a win, given the streak *including* this battle.
@@ -53,14 +98,28 @@ export interface AwardInput {
   total: number;
   /** The player's streak BEFORE this battle. */
   previousStreak: number;
+  /** The problem's difficulty. Scales the whole award. */
+  difficulty: Difficulty;
+  /**
+   * How the battle ended. A FORFEIT win pays participation only — see the
+   * note in computeAward.
+   */
+  reason: FinishReason;
+  /** How many battles this player has already finished today. */
+  battlesToday: number;
 }
 
 export interface Award {
-  /** Total XP granted, streak multiplier already applied. */
+  /** Total XP granted, every multiplier already applied. */
   xp: number;
-  /** XP before the multiplier — useful for showing the breakdown. */
+  /** XP before any multiplier — useful for showing the breakdown. */
   baseXp: number;
+  /** The streak multiplier alone. */
   multiplier: number;
+  /** The difficulty weight applied. */
+  difficultyWeight: number;
+  /** The anti-grind taper applied: 1 normally, TAPERED_RATE past the cap. */
+  taper: number;
   /** The player's streak AFTER this battle. */
   newStreak: number;
   perfect: boolean;
@@ -77,23 +136,58 @@ export function computeAward({
   passed,
   total,
   previousStreak,
+  difficulty,
+  reason,
+  battlesToday,
 }: AwardInput): Award {
-  const perfect = total > 0 && passed === total;
+  const perfect = total > 0 && passed === total && reason !== "FORFEIT";
+
+  /**
+   * A forfeit is not a demonstration of skill — the opponent walked away, and
+   * two accounts can produce one on demand. So it pays participation only, and
+   * it does NOT extend a streak: otherwise the cheapest route to a 2.5x
+   * multiplier is a partner who keeps quitting.
+   */
+  if (reason === "FORFEIT") {
+    const taper = taperFor(battlesToday);
+    return {
+      xp: Math.round(XP_PARTICIPATION * taper),
+      baseXp: XP_PARTICIPATION,
+      multiplier: 1,
+      difficultyWeight: 1,
+      taper,
+      newStreak: won ? previousStreak : 0,
+      perfect: false,
+    };
+  }
+
   const newStreak = won ? previousStreak + 1 : 0;
 
-  let baseXp = XP_PARTICIPATION + Math.max(0, passed) * XP_PER_TEST;
+  // Fraction of tests passed, so problem size does not change the payout.
+  const share = total > 0 ? Math.min(1, Math.max(0, passed / total)) : 0;
+
+  let baseXp = XP_PARTICIPATION + share * XP_TESTS;
   if (won) baseXp += XP_WIN;
   if (perfect) baseXp += XP_PERFECT;
 
   const multiplier = won ? streakMultiplier(newStreak) : 1;
+  const difficultyWeight = DIFFICULTY_WEIGHT[difficulty] ?? 1;
+  const taper = taperFor(battlesToday);
 
   return {
-    xp: Math.round(baseXp * multiplier),
-    baseXp,
+    xp: Math.round(baseXp * multiplier * difficultyWeight * taper),
+    baseXp: Math.round(baseXp),
     multiplier,
+    difficultyWeight,
+    taper,
     newStreak,
     perfect,
   };
+}
+
+/** 1 for the first FULL_RATE_BATTLES of the day, TAPERED_RATE after. */
+function taperFor(battlesToday: number): number {
+  return battlesToday < FULL_RATE_BATTLES ? 1 : TAPERED_RATE;
 }
 
 /** The rank held at a given XP total. Never returns undefined — 0 XP is Recruit. */

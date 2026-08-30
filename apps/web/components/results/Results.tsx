@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { BattleResultResponse, Side, StandingRow } from "@repo/protocol";
+import type {
+  BattleResultResponse,
+  ProgressionAward,
+  Side,
+  StandingRow,
+} from "@repo/protocol";
 import { rankFor, nextRank, rankProgress } from "@repo/game";
 import { Centered, Spinner } from "../atoms";
 import { AppShell } from "../AppShell";
 import { getBattleResult } from "../../lib/api";
 import { SolutionsPanel } from "./SolutionsPanel";
+import { BadgeRow } from "../ranking/Badges";
 import { selectMe } from "../../lib/battleState";
 import { titleCase } from "../../lib/format";
 import { useProfile } from "../../lib/useProfile";
@@ -311,13 +317,7 @@ function RewardsPanel({
   wins,
   losses,
 }: {
-  award: {
-    xp: number;
-    baseXp: number;
-    multiplier: number;
-    newStreak: number;
-    perfect: boolean;
-  } | null;
+  award: ProgressionAward | null;
   /** Did this player hold a seat? Distinguishes "no award" from "spectated". */
   seated: boolean;
   totalXp: number;
@@ -357,6 +357,22 @@ function RewardsPanel({
                 accent="var(--color-amber-deep)"
               />
             )}
+            {award.difficultyWeight > 1 && (
+              <Row
+                label="Difficulty"
+                value={`×${award.difficultyWeight}`}
+                accent="var(--color-side-b)"
+              />
+            )}
+            {/* Only shown when it actually bit, so a normal session never sees
+                a confusing "×1" line. */}
+            {award.taper < 1 && (
+              <Row
+                label="Daily_taper"
+                value={`×${award.taper}`}
+                accent="var(--color-ink-faint)"
+              />
+            )}
             {award.perfect && (
               <Row
                 label="Flawless"
@@ -365,6 +381,57 @@ function RewardsPanel({
               />
             )}
             <Row label="Win_streak" value={String(award.newStreak)} />
+
+            {/* The rating line is omitted entirely when the battle was
+                unranked, rather than shown as a misleading zero. */}
+            {award.rating && (
+              <div
+                className="mt-1 border-t pt-3"
+                style={{ borderColor: "var(--color-line)" }}
+              >
+                <Row
+                  label="Rating"
+                  value={`${award.rating.after} (${
+                    award.rating.delta >= 0 ? "+" : ""
+                  }${award.rating.delta})`}
+                  accent={
+                    award.rating.delta >= 0
+                      ? "var(--color-good)"
+                      : "var(--color-bad)"
+                  }
+                  bold
+                />
+                {award.rating.tierAfter &&
+                  award.rating.tierAfter !== award.rating.tierBefore && (
+                    <div className="mt-2">
+                      <Row
+                        label={
+                          award.rating.delta >= 0 ? "Promoted" : "Demoted"
+                        }
+                        value={award.rating.tierAfter}
+                        accent="var(--color-accent)"
+                        bold
+                      />
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {award.newBadges.length > 0 && (
+              <div
+                className="mt-1 border-t pt-3"
+                style={{ borderColor: "var(--color-line)" }}
+              >
+                <p className="label">
+                  {award.newBadges.length === 1
+                    ? "Badge unlocked"
+                    : "Badges unlocked"}
+                </p>
+                <div className="mt-2">
+                  <BadgeRow badges={award.newBadges} size="sm" />
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <p

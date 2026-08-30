@@ -12,6 +12,7 @@ import { useSession } from "../../lib/useSession";
 import { useProfile } from "../../lib/useProfile";
 import { modeLabel, titleCase } from "../../lib/format";
 import { SignInGate } from "../../components/SignInGate";
+import { RankedQueue } from "../../components/ranking/RankedQueue";
 
 /** Battle phases that are still joinable / in-flight. */
 const LIVE_STATUSES = new Set(["LOBBY", "COUNTDOWN", "IN_PROGRESS"]);
@@ -54,14 +55,23 @@ export default function ArenaPage() {
           className="mt-2 font-mono text-[0.8rem]"
           style={{ color: "var(--color-ink-dim)" }}
         >
-          Deploy into live combat. Resume a battle already in progress, or open
-          a new room.
+          Deploy into live combat. Queue for a ranked match, resume a battle
+          already in progress, or open a private room.
         </p>
 
         {loaded && (!session || session.isGuest) ? (
           <SignInGate what="deploy into a battle" guest={!!session?.isGuest} />
         ) : (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
+            {/* Ranked matchmaking. Spans both columns: it is the headline
+                route into a battle, and the only one that moves a rating. */}
+            {session && (
+              <section className="lg:col-span-2">
+                <h2 className="label mb-3">Ranked matchmaking</h2>
+                <RankedQueue token={session.token} />
+              </section>
+            )}
+
             {/* Resume live battles */}
             <section>
               <h2 className="label mb-3">Active engagements</h2>

@@ -11,6 +11,7 @@ import { healthRoutes } from "./modules/health/health.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { battlesRoutes } from "./modules/battles/battles.routes.js";
 import { profileRoutes } from "./modules/profile/profile.routes.js";
+import { matchmakingRoutes } from "./modules/matchmaking/matchmaking.routes.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
 import { trackRoutes } from "./modules/track/track.routes.js";
 
@@ -30,6 +31,7 @@ export function createApp(): Express {
   app.use(authRoutes);
   app.use(battlesRoutes);
   app.use(profileRoutes);
+  app.use(matchmakingRoutes);
   app.use(trackRoutes);
   app.use(adminRoutes);
 

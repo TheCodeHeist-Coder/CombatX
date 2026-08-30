@@ -16,6 +16,13 @@ import {
   notFound,
 } from "../../http/errors.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
+import {
+  BADGE_STAT_SELECT,
+  RATING_SELECT,
+  toBadgeViews,
+  toRatingView,
+  type BadgeStatColumns,
+} from "../ranking/ranking.view.js";
 
 /** Columns every profile projection needs. */
 const PROFILE_SELECT = {
@@ -37,11 +44,10 @@ const PROFILE_SELECT = {
   codechef: true,
   hackerrank: true,
   website: true,
-  xp: true,
-  wins: true,
-  losses: true,
   winStreak: true,
-  bestStreak: true,
+  draws: true,
+  ...RATING_SELECT,
+  ...BADGE_STAT_SELECT,
 } as const;
 
 type ProfileRow = {
@@ -63,15 +69,23 @@ type ProfileRow = {
   codechef: string | null;
   hackerrank: string | null;
   website: string | null;
-  xp: number;
-  wins: number;
-  losses: number;
   winStreak: number;
-  bestStreak: number;
-};
+  draws: number;
+} & BadgeStatColumns;
 
-function toProfile(user: ProfileRow): ProfileResponse {
+/**
+ * Shape a User row into the caller's profile.
+ *
+ * Async because the badge shelf is a second table: badges are persisted rather
+ * than derived, so that an award survives a later change to the thresholds.
+ */
+async function toProfile(user: ProfileRow): Promise<ProfileResponse> {
   const avatar = normalizeAvatar(user.avatarId, user.avatarColor, user.id);
+  const badges = await prisma.userBadge.findMany({
+    where: { userId: user.id },
+    select: { badgeKey: true, earnedAt: true },
+    orderBy: { earnedAt: "desc" },
+  });
   return {
     userId: user.id,
     username: user.username,
@@ -94,8 +108,11 @@ function toProfile(user: ProfileRow): ProfileResponse {
     xp: user.xp,
     wins: user.wins,
     losses: user.losses,
+    draws: user.draws,
     winStreak: user.winStreak,
     bestStreak: user.bestStreak,
+    rating: toRatingView(user),
+    badges: toBadgeViews(badges),
   };
 }
 
@@ -113,7 +130,7 @@ export async function getMe(req: AuthedRequest, res: Response): Promise<void> {
 
   if (!user) throw notFound("No such user.");
 
-  res.json(toProfile(user));
+  res.json(await toProfile(user));
 }
 
 /**
@@ -193,7 +210,10 @@ export async function patchMe(
       env.jwtSecret,
     );
 
-    const body: UpdateProfileResponse = { token, profile: toProfile(user) };
+    const body: UpdateProfileResponse = {
+      token,
+      profile: await toProfile(user),
+    };
     res.json(body);
   } catch (err) {
     // Same race as signup: the pre-check in the form can pass and the insert

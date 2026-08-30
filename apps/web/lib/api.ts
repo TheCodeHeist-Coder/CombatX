@@ -8,12 +8,16 @@ import {
   ProfileResponse,
   PublicProfileResponse,
   LeaderboardResponse,
+  BadgeShelfResponse,
+  RatingHistoryResponse,
+  QueueStatusResponse,
   BattleHistoryResponse,
   UpdateProfileResponse,
   JoinBattleResponse,
   type AvatarChoice,
   type CreateBattleRequest,
   type Difficulty,
+  type LeaderboardBoard,
   type Mode,
   type UpdateProfileRequest,
 } from "@repo/protocol";
@@ -206,12 +210,84 @@ export function updateProfile(
   );
 }
 
-/** GET /leaderboard — top operatives. Auth optional (locates your own row). */
-export function fetchLeaderboard(token?: string): Promise<LeaderboardResponse> {
+/**
+ * GET /leaderboard — the ladder. Auth optional (locates your own row).
+ *
+ * `board` picks which question is being asked: "rating" is skill and the
+ * default, "xp" is career volume.
+ */
+export function fetchLeaderboard(
+  token?: string,
+  board: LeaderboardBoard = "rating",
+): Promise<LeaderboardResponse> {
   return request(
-    "/leaderboard",
+    `/leaderboard?board=${board}`,
     { method: "GET", headers: token ? auth(token) : undefined },
     (d) => LeaderboardResponse.parse(d),
+  );
+}
+
+/** GET /users/:username/badges — the full shelf, earned and locked. */
+export function fetchBadgeShelf(
+  username: string,
+  token?: string,
+): Promise<BadgeShelfResponse> {
+  return request(
+    `/users/${encodeURIComponent(username)}/badges`,
+    { headers: token ? auth(token) : {} },
+    (d) => BadgeShelfResponse.parse(d),
+  );
+}
+
+/** GET /users/:username/rating-history — points for the rating graph. */
+export function fetchRatingHistory(
+  username: string,
+  token?: string,
+): Promise<RatingHistoryResponse> {
+  return request(
+    `/users/${encodeURIComponent(username)}/rating-history`,
+    { headers: token ? auth(token) : {} },
+    (d) => RatingHistoryResponse.parse(d),
+  );
+}
+
+// --- Ranked matchmaking ----------------------------------------------------
+
+/** POST /matchmaking/queue — enter the ranked queue. */
+export function joinRankedQueue(
+  token: string,
+  difficulty: Difficulty,
+): Promise<QueueStatusResponse> {
+  return request(
+    "/matchmaking/queue",
+    {
+      method: "POST",
+      headers: auth(token),
+      body: JSON.stringify({ difficulty }),
+    },
+    (d) => QueueStatusResponse.parse(d),
+  );
+}
+
+/** GET /matchmaking/queue — poll for a match. */
+export function fetchQueueStatus(
+  token: string,
+): Promise<QueueStatusResponse> {
+  return request(
+    "/matchmaking/queue",
+    { method: "GET", headers: auth(token) },
+    (d) => QueueStatusResponse.parse(d),
+  );
+}
+
+/** DELETE /matchmaking/queue — leave the queue. */
+export function leaveRankedQueue(
+  token: string,
+): Promise<QueueStatusResponse> {
+  return request(
+    "/matchmaking/queue",
+    { method: "DELETE", headers: auth(token) },
+    (d) => QueueStatusResponse.parse(d),
   );
 }
 
