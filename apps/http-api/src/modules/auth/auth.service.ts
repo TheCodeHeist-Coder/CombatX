@@ -53,6 +53,23 @@ export async function isUsernameAvailable(
 }
 
 /**
+ * The next registration number, for the Pioneer badge.
+ *
+ * Counted over registered accounts only — guests are throwaway identities and
+ * must not consume a founder slot. Deliberately NOT derived from createdAt at
+ * read time: an ordinal assigned once is stable, whereas a derived rank would
+ * silently shift for everyone if a row were ever restored or backdated.
+ *
+ * A race between two simultaneous signups can hand out the same number. That
+ * is acceptable here: the ordinal decides a cosmetic badge, not an identity,
+ * and the alternative (a sequence or a serialisable transaction) is real cost
+ * for a tie that is invisible to both users.
+ */
+async function nextSignupOrdinal(): Promise<number> {
+  return (await prisma.user.count({ where: { isGuest: false } })) + 1;
+}
+
+/**
  * Create an account.
  *
  * Uniqueness is checked up front for a clean field-level error, but the unique
@@ -75,6 +92,7 @@ export async function signup(input: SignupRequest): Promise<AuthResponse> {
         name,
         avatarId: input.avatarId ?? null,
         avatarColor: input.avatarColor ?? null,
+        signupOrdinal: await nextSignupOrdinal(),
       },
     });
     return await toAuthResponse(user);

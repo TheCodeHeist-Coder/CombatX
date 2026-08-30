@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AdminUserRow } from "@repo/protocol";
+import { TIERS } from "@repo/game";
 import { AdminShell } from "../../components/AdminShell";
 import {
   Chip,
@@ -102,8 +103,11 @@ function Users() {
                 <th>User</th>
                 <th>Email</th>
                 <th>Role</th>
+                <th>Tier</th>
+                <th className="text-right">Rating</th>
                 <th className="text-right">XP</th>
                 <th className="text-right">W / L</th>
+                <th className="text-right">Badges</th>
                 <th>Joined</th>
                 <th>Last battle</th>
               </tr>
@@ -127,11 +131,31 @@ function Users() {
                   <td>
                     <RoleChip row={u} />
                   </td>
+                  <td>
+                    {u.tier ? tierLabel(u.tier) : <Dim>unplaced</Dim>}
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {/* Dimmed while provisional: the number exists but is not
+                        yet a claim we stand behind, and the console should
+                        read the same way the player's profile does. */}
+                    <span
+                      style={{
+                        color: u.tier ? "var(--color-ink)" : undefined,
+                        opacity: u.tier ? 1 : 0.55,
+                      }}
+                    >
+                      {u.rating}
+                    </span>
+                    <Dim> ±{u.ratingRd}</Dim>
+                  </td>
                   <td className="text-right tabular-nums">{u.xp}</td>
                   <td className="text-right tabular-nums">
                     <span style={{ color: "var(--color-good)" }}>{u.wins}</span>
                     <Dim> / </Dim>
                     <span style={{ color: "var(--color-bad)" }}>{u.losses}</span>
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {u.badgeCount > 0 ? u.badgeCount : <Dim>—</Dim>}
                   </td>
                   <td>{fmtDate(u.createdAt)}</td>
                   <td>
@@ -140,7 +164,7 @@ function Users() {
                 </tr>
               ))}
               {rows.length === 0 && !loading && (
-                <EmptyRow colSpan={7}>
+                <EmptyRow colSpan={10}>
                   {query
                     ? `No users match “${query}”.`
                     : "No users yet."}
@@ -180,4 +204,12 @@ function fmtDate(iso: string): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/**
+ * The display name for a tier key, read from the same table the player app
+ * uses so the console can never show a different label to the profile.
+ */
+function tierLabel(key: string): string {
+  return TIERS.find((t) => t.key === key)?.label ?? key;
 }

@@ -6,6 +6,12 @@ import {
 } from "@repo/protocol";
 import { notFound } from "../../http/errors.js";
 import { verifyBearer } from "../../middleware/auth.js";
+import {
+  BADGE_STAT_SELECT,
+  RATING_SELECT,
+  toBadgeViews,
+  toRatingView,
+} from "../ranking/ranking.view.js";
 
 /**
  * GET /users/:username — another player's profile.
@@ -45,12 +51,10 @@ export async function getPublicProfile(
       codechef: true,
       hackerrank: true,
       website: true,
-      createdAt: true,
-      xp: true,
-      wins: true,
-      losses: true,
       winStreak: true,
-      bestStreak: true,
+      draws: true,
+      ...RATING_SELECT,
+      ...BADGE_STAT_SELECT,
     },
   });
 
@@ -66,6 +70,14 @@ export async function getPublicProfile(
       throw notFound("No such user.");
     }
   }
+
+  // Badges are read only once the visibility check above has passed, so a
+  // private profile costs one query rather than two.
+  const badges = await prisma.userBadge.findMany({
+    where: { userId: user.id },
+    select: { badgeKey: true, earnedAt: true },
+    orderBy: { earnedAt: "desc" },
+  });
 
   const avatar = normalizeAvatar(user.avatarId, user.avatarColor, user.id);
   const body: PublicProfileResponse = {
@@ -88,8 +100,11 @@ export async function getPublicProfile(
     xp: user.xp,
     wins: user.wins,
     losses: user.losses,
+    draws: user.draws,
     winStreak: user.winStreak,
     bestStreak: user.bestStreak,
+    rating: toRatingView(user),
+    badges: toBadgeViews(badges),
   };
   res.json(body);
 }

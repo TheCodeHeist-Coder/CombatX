@@ -42,6 +42,10 @@ export async function createBattle(
       seed: `${roomCode}-${Date.now()}`,
       hostUserId,
       status: "LOBBY",
+      // Room-code battles are never ranked: the host picks who gets the code,
+      // so any rating movement here could be traded between two accounts.
+      // Ranked battles come only from the matchmaker.
+      isRanked: false,
       teams: { create: [{ side: "A" }, { side: "B" }] },
     },
   });
@@ -87,6 +91,7 @@ export async function getBattleResult(
       mode: battle.mode,
       difficulty: battle.difficulty,
       timeLimitSec: battle.timeLimitSec,
+      isRanked: battle.isRanked,
     },
     winnerSide: battle.winnerSide ?? null,
     reason: battle.finishReason ?? null,

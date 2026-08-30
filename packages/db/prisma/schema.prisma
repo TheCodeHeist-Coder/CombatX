@@ -155,9 +155,13 @@ model User {
 
   // Progression. Awarded by ws-server when a battle finishes; see
   // packages/game/src/progression.ts for the (pure, tested) award rules.
-  eloRating   Int      @default(1200)
+  //
+  // XP measures how MUCH you have fought and only ever rises. Skill is a
+  // separate question, answered by the Glicko-2 fields below. Do not conflate
+  // them: see the note at the top of packages/game/src/progression.ts.
   wins        Int      @default(0)
   losses      Int      @default(0)
+  draws       Int      @default(0)
   xp          Int      @default(0)
   /** Consecutive wins. Reset to 0 on a loss; drives the streak multiplier. */
   winStreak   Int      @default(0)
@@ -165,9 +169,207 @@ model User {
   bestStreak  Int      @default(0)
   lastBattleAt DateTime?
 
+  /**
+   * Glicko-2 skill rating. Zero-sum and able to FALL, which is exactly what
+   * makes it trustworthy where XP is not. See packages/game/src/rating.ts.
+   *
+   * `rating` is the familiar 1500-centred number. `ratingRd` is the deviation
+   * (our uncertainty) and `ratingVolatility` the expected swing; both are part
+   * of the algorithm rather than display values.
+   *
+   * The leaderboard sorts by rating - 2*ratingRd, not by `rating` alone, so a
+   * small lucky sample cannot outrank a proven record.
+   */
+  rating           Float @default(1500)
+  ratingRd         Float @default(350)
+  ratingVolatility Float @default(0.06)
+  /** Battles that actually moved the rating. Drives the provisional gate. */
+  rankedBattles    Int   @default(0)
+  /** Peak rating ever held, for display. Never decreases. */
+  peakRating       Float @default(1500)
+
+  /**
+   * Counters that badges are evaluated against.
+   *
+   * Denormalised deliberately: recomputing "wins where the opponent was 200+
+   * above" from the submission history on every profile view would be a join
+   * across every battle a player ever fought. These are written once, in the
+   * same transaction as the battle result.
+   */
+  upsetWins    Int @default(0)
+  perfectWins  Int @default(0)
+  /** Wins split by problem difficulty. Badges gate on these individually, so
+      a pile of easy wins can never stand in for a hard one. */
+  easyWins     Int @default(0)
+  mediumWins   Int @default(0)
+  hardWins     Int @default(0)
+  /** How many distinct problems this user has won on. Incremented only on a
+      first win for that problem, which the finish handler checks. */
+  distinctProblemsWon Int @default(0)
+
+  /**
+   * 1-based signup order, assigned at registration and never changed. The
+   * Pioneer badge reads this; deriving it from createdAt would silently
+   * re-rank everyone if a row were ever backdated or restored.
+   */
+  signupOrdinal Int @default(0)
+
+  /**
+   * Battles finished today and the day that counter refers to (UTC).
+   *
+   * Two columns rather than a COUNT over Battle: the anti-grind taper runs on
+   * every finish, and a counter read is cheaper than an aggregate over the
+   * player's whole history. `xpDay` lets the counter reset lazily on first use
+   * of a new day instead of needing a scheduled job.
+   */
+  battlesToday Int    @default(0)
+  xpDay        String @default("")
+
   hostedBattles Battle[]      @relation("HostedBattles")
   memberships   TeamMember[]
   submissions   Submission[]
+  badges        UserBadge[]
+  ratingHistory RatingHistory[]
+  seasonStandings SeasonStanding[]
+  queueEntry    MatchQueueEntry?
+
+  // The ladder's sort key. Postgres cannot index an expression through
+  // Prisma, so the leaderboard filters on these and sorts in the query.
+  @@index([rating])
+  @@index([rankedBattles])
+}
+
+/**
+ * A badge a user has earned.
+ *
+ * Persisted rather than derived on read, for two reasons. First, `earnedAt` is
+ * real history and cannot be recovered from current stats. Second, an award is
+ * PERMANENT: if a threshold is later retuned, or a badge is retired from the
+ * table entirely, everyone who earned it keeps it. Definitions live in
+ * packages/game/src/badges.ts; this table only records who holds what.
+ */
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** Matches a `key` in packages/game BADGES. Not an enum: adding a badge
+      should not require a migration. */
+  badgeKey String
+  earnedAt DateTime @default(now())
+  /** The battle that triggered it, when there was one. */
+  battleId String?
+
+  @@unique([userId, badgeKey])
+  @@index([userId])
+  @@index([badgeKey])
+}
+
+/**
+ * One row per rating change, per player.
+ *
+ * This is the audit trail. It answers "why is my rating this number?" with a
+ * specific battle and opponent rather than a shrug, and it is what the rating
+ * graph on a profile is drawn from. Rows are never updated.
+ */
+model RatingHistory {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  battleId String
+
+  ratingBefore Float
+  ratingAfter  Float
+  rdBefore     Float
+  rdAfter      Float
+  /** ratingAfter - ratingBefore, stored so a graph needs no window function. */
+  delta        Float
+  /** The opponent's rating at the time. Null for a multi-opponent battle. */
+  opponentRating Float?
+  /** 1 win, 0 loss, 0.5 draw. */
+  score        Float
+  seasonId     String?
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, battleId])
+  @@index([userId, createdAt])
+  @@index([battleId])
+}
+
+/**
+ * A competitive season.
+ *
+ * Without seasons the ladder is won permanently by whoever joined first, and a
+ * player arriving in month six can see no route to the top. At each boundary
+ * ratings are pulled toward the origin (softReset in packages/game), so the
+ * ordering survives but the spread compresses and the top is reachable again.
+ *
+ * Exactly one row may have `isActive`, enforced by the partial unique index
+ * below.
+ */
+model Season {
+  id        String    @id @default(cuid())
+  name      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  isActive  Boolean   @default(false)
+
+  standings SeasonStanding[]
+
+  @@index([isActive])
+}
+
+/**
+ * A player's final standing in a closed season.
+ *
+ * Written once when a season ends, then immutable. This is what makes a soft
+ * reset acceptable: nobody's record is erased, it is archived, and a profile
+ * can show "Season 1: Beta, #14" forever.
+ */
+model SeasonStanding {
+  id       String @id @default(cuid())
+  seasonId String
+  season   Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rank          Int
+  rating        Float
+  rd            Float
+  /** The tier held at close, e.g. "ALPHA". Denormalised so the archive still
+      reads correctly if the tier thresholds are ever retuned. */
+  tier          String
+  wins          Int
+  losses        Int
+  rankedBattles Int
+  xpEarned      Int   @default(0)
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, rank])
+  @@index([userId])
+}
+
+/**
+ * A player waiting in the ranked queue.
+ *
+ * Ranked battles exist so that rating cannot be farmed. In a room-code battle
+ * you choose your opponent, so two accounts can trade wins; here the SERVER
+ * chooses, which is what makes the number mean anything.
+ *
+ * One row per user (userId is unique), so a double-click cannot enqueue twice.
+ */
+model MatchQueueEntry {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /** Snapshot of the rating at enqueue, so pairing needs no join. */
+  rating     Float
+  difficulty Difficulty
+  mode       Mode     @default(ONE_V_ONE)
+  enqueuedAt DateTime @default(now())
+
+  @@index([mode, difficulty, rating])
+  @@index([enqueuedAt])
 }
 
 model Problem {
@@ -219,11 +421,26 @@ model Battle {
   finishReason      FinishReason?
   createdAt         DateTime      @default(now())
 
+  /**
+   * Whether this battle moves ratings.
+   *
+   * False for room-code battles, which is the whole anti-farming design: you
+   * pick your own opponent there, so any rating movement would be trivially
+   * traded between two accounts. Only battles the matchmaker paired are
+   * ranked. Set at creation and never changed — a battle cannot become ranked
+   * after the players have seen who they are up against.
+   */
+  isRanked          Boolean       @default(false)
+
+  /** The season this battle counted toward, for archived standings. */
+  seasonId          String?
+
   teams       Team[]
   submissions Submission[]
   result      Result?
 
   @@index([status])
+  @@index([isRanked, status])
 }
 
 model Team {

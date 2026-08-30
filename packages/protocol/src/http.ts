@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { AvatarId, AvatarColor } from "./avatars.js";
-import { BattleConfig, StandingRow } from "./domain.js";
+import {
+  BadgeProgressView,
+  BadgeView,
+  BattleConfig,
+  RatingView,
+  StandingRow,
+} from "./domain.js";
 import {
   BattleStatus,
   Difficulty,
@@ -288,8 +294,13 @@ export const ProfileResponse = z.object({
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
+  draws: z.number().int().min(0).default(0),
   winStreak: z.number().int().min(0),
   bestStreak: z.number().int().min(0),
+  /** Glicko-2 standing. Always present; `provisional` says whether to trust it. */
+  rating: RatingView,
+  /** Badges held, newest first. */
+  badges: z.array(BadgeView).default([]),
 });
 export type ProfileResponse = z.infer<typeof ProfileResponse>;
 
@@ -321,8 +332,11 @@ export const PublicProfileResponse = z.object({
   xp: z.number().int().min(0),
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
+  draws: z.number().int().min(0).default(0),
   winStreak: z.number().int().min(0),
   bestStreak: z.number().int().min(0),
+  rating: RatingView,
+  badges: z.array(BadgeView).default([]),
 });
 export type PublicProfileResponse = z.infer<typeof PublicProfileResponse>;
 
@@ -376,15 +390,87 @@ export const LeaderboardEntry = z.object({
   wins: z.number().int().min(0),
   losses: z.number().int().min(0),
   bestStreak: z.number().int().min(0),
+  rating: RatingView,
+  /** The holder's rarest few badges, for a compact row. */
+  badges: z.array(BadgeView).default([]),
 });
 export type LeaderboardEntry = z.infer<typeof LeaderboardEntry>;
 
+/**
+ * Which ladder to return.
+ *
+ * "rating" is the real one and the default: skill, zero-sum, provisional
+ * players withheld. "xp" is career volume, kept because it is a genuinely
+ * different question and a new player can top it by playing rather than by
+ * beating anyone.
+ */
+export const LeaderboardBoard = z.enum(["rating", "xp"]);
+export type LeaderboardBoard = z.infer<typeof LeaderboardBoard>;
+
 export const LeaderboardResponse = z.object({
+  board: LeaderboardBoard,
   entries: z.array(LeaderboardEntry),
   /** The caller's own row, even if outside the returned page. Null if unranked. */
   me: LeaderboardEntry.nullable(),
+  /**
+   * Set when the caller is signed in but withheld from the rating ladder
+   * because their rating is still provisional. The UI shows this instead of
+   * silently omitting them, which would read as a bug.
+   */
+  meProvisional: z.boolean().default(false),
 });
 export type LeaderboardResponse = z.infer<typeof LeaderboardResponse>;
+
+// GET /me/badges — the full shelf, earned and locked, for a profile page.
+export const BadgeShelfResponse = z.object({
+  badges: z.array(BadgeProgressView),
+});
+export type BadgeShelfResponse = z.infer<typeof BadgeShelfResponse>;
+
+// GET /me/rating-history — points for the rating graph, oldest first.
+export const RatingHistoryPoint = z.object({
+  battleId: z.string(),
+  ratingBefore: z.number(),
+  ratingAfter: z.number(),
+  delta: z.number(),
+  score: z.number(),
+  opponentRating: z.number().nullable(),
+  at: z.string(),
+});
+export type RatingHistoryPoint = z.infer<typeof RatingHistoryPoint>;
+
+export const RatingHistoryResponse = z.object({
+  points: z.array(RatingHistoryPoint),
+});
+export type RatingHistoryResponse = z.infer<typeof RatingHistoryResponse>;
+
+// --- Ranked matchmaking ----------------------------------------------------
+//
+// The queue is what makes a rating trustworthy. In a room-code battle the
+// players choose each other, so two accounts can trade wins forever; here the
+// server chooses, and the pairing is not negotiable.
+
+export const QueueJoinRequest = z.object({
+  difficulty: Difficulty,
+});
+export type QueueJoinRequest = z.infer<typeof QueueJoinRequest>;
+
+export const QueueStatusResponse = z.object({
+  /** Whether the caller is currently waiting. */
+  queued: z.boolean(),
+  /** Seconds spent waiting so far. */
+  waitingSec: z.number().int().nonnegative().default(0),
+  difficulty: Difficulty.nullable().default(null),
+  /** How many players are waiting in total, across difficulties. */
+  queueSize: z.number().int().nonnegative().default(0),
+  /**
+   * Set once a match is found. The client navigates to this battle; the room
+   * code is included because the existing battle screen is addressed by it.
+   */
+  matchedBattleId: z.string().nullable().default(null),
+  matchedRoomCode: z.string().nullable().default(null),
+});
+export type QueueStatusResponse = z.infer<typeof QueueStatusResponse>;
 
 // GET /me/battles — the caller's battle history. (Auth required.)
 export const BattleHistoryEntry = z.object({

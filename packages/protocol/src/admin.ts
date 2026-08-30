@@ -57,6 +57,27 @@ export const AdminOverviewResponse = z.object({
     inProgress: z.number().int().min(0),
     today: z.number().int().min(0),
     week: z.number().int().min(0),
+    /** Battles that moved a rating. The rest are room-code battles. */
+    ranked: z.number().int().min(0),
+  }),
+  /**
+   * Ladder health. Worth watching as its own group: a placed population that
+   * stops growing, or a queue that never drains, is the first sign that ranked
+   * play is not working even while total battles look fine.
+   */
+  ranking: z.object({
+    /** Accounts whose rating is settled enough to publish. */
+    placed: z.number().int().min(0),
+    /** Accounts that have played ranked but are still provisional. */
+    placing: z.number().int().min(0),
+    /** Players currently waiting for a match. */
+    queued: z.number().int().min(0),
+    /** Rating of the highest placed player, or null when nobody is placed. */
+    topRating: z.number().int().nullable(),
+    /** How many hold each tier, keyed by tier key. */
+    byTier: z.record(z.string(), z.number().int().min(0)),
+    /** Badge awards handed out in total. */
+    badgesAwarded: z.number().int().min(0),
   }),
   submissions: z.object({
     total: z.number().int().min(0),
@@ -96,6 +117,13 @@ export const AdminUserRow = z.object({
   xp: z.number().int(),
   wins: z.number().int(),
   losses: z.number().int(),
+  /** Glicko-2 standing, so the console can spot rating anomalies. */
+  rating: z.number().int(),
+  ratingRd: z.number().int(),
+  rankedBattles: z.number().int(),
+  /** The tier key, or null while the rating is still provisional. */
+  tier: z.string().nullable(),
+  badgeCount: z.number().int().min(0).default(0),
   createdAt: z.string(),
   lastBattleAt: z.string().nullable(),
 });
