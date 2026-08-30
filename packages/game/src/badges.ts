@@ -99,14 +99,43 @@ export interface Tier {
 }
 
 /**
+ * How many ranked battles always place a player, whatever their record.
+ *
+ * The RD gate alone is not enough. A player who wins every battle drives their
+ * expected score toward 95%, so each further win carries almost no information
+ * and their deviation stops falling — measured, it is still 104 after sixty
+ * straight wins. Under a pure RD rule an unbeaten player would stay "Unranked"
+ * forever, which is exactly backwards.
+ *
+ * So placement is EITHER a settled deviation OR this many battles fought. The
+ * count is deliberately close to where a mixed record converges anyway (13),
+ * so it changes nothing for an ordinary player and only rescues the extremes.
+ */
+export const PLACEMENT_BATTLES = 12;
+
+/**
+ * Is this player's rating publishable?
+ *
+ * `rankedBattles` is optional so existing callers that only have a rating
+ * state keep working; without it this is the deviation test alone.
+ */
+export function isPlaced(state: RatingState, rankedBattles?: number): boolean {
+  if (!isProvisional(state.rd)) return true;
+  return (rankedBattles ?? 0) >= PLACEMENT_BATTLES;
+}
+
+/**
  * The tier held at a given rating state.
  *
  * Returns null while the rating is still provisional: we have not seen enough
  * battles to make a claim about someone's skill, and a tier badge IS a claim.
  * The UI shows "Unranked" for this, which is honest rather than flattering.
  */
-export function tierFor(state: RatingState): Tier | null {
-  if (isProvisional(state.rd)) return null;
+export function tierFor(
+  state: RatingState,
+  rankedBattles?: number,
+): Tier | null {
+  if (!isPlaced(state, rankedBattles)) return null;
   const effective = conservativeRating(state);
   let held: Tier = TIERS[0];
   for (const t of TIERS) if (effective >= t.minRating) held = t;
@@ -114,8 +143,11 @@ export function tierFor(state: RatingState): Tier | null {
 }
 
 /** The next tier up, or null at the ceiling (or while provisional). */
-export function nextTier(state: RatingState): Tier | null {
-  if (isProvisional(state.rd)) return null;
+export function nextTier(
+  state: RatingState,
+  rankedBattles?: number,
+): Tier | null {
+  if (!isPlaced(state, rankedBattles)) return null;
   const effective = conservativeRating(state);
   return TIERS.find((t) => t.minRating > effective) ?? null;
 }
@@ -125,10 +157,13 @@ export function nextTier(state: RatingState): Tier | null {
  * Returns 1 at the top tier so a progress bar reads as complete, and 0 while
  * provisional since there is no tier to progress from yet.
  */
-export function tierProgress(state: RatingState): number {
-  const current = tierFor(state);
+export function tierProgress(
+  state: RatingState,
+  rankedBattles?: number,
+): number {
+  const current = tierFor(state, rankedBattles);
   if (!current) return 0;
-  const next = nextTier(state);
+  const next = nextTier(state, rankedBattles);
   if (!next) return 1;
   const span = next.minRating - current.minRating;
   if (span <= 0) return 1;

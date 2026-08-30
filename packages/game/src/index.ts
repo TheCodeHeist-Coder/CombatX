@@ -5,3 +5,5 @@ export * from "./lobby.js";
 export * from "./progression.js";
 export * from "./rating.js";
 export * from "./badges.js";
+export * from "./badgeRules.js";
+export * from "./badgeDefaults.js";

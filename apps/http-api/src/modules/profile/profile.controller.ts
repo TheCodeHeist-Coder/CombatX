@@ -19,10 +19,11 @@ import type { AuthedRequest } from "../../middleware/auth.js";
 import {
   BADGE_STAT_SELECT,
   RATING_SELECT,
-  toBadgeViews,
+  toBadgeViewsFromRules,
   toRatingView,
   type BadgeStatColumns,
 } from "../ranking/ranking.view.js";
+import { listRules } from "../ranking/badgeRules.service.js";
 
 /** Columns every profile projection needs. */
 const PROFILE_SELECT = {
@@ -45,7 +46,6 @@ const PROFILE_SELECT = {
   hackerrank: true,
   website: true,
   winStreak: true,
-  draws: true,
   ...RATING_SELECT,
   ...BADGE_STAT_SELECT,
 } as const;
@@ -81,11 +81,14 @@ type ProfileRow = {
  */
 async function toProfile(user: ProfileRow): Promise<ProfileResponse> {
   const avatar = normalizeAvatar(user.avatarId, user.avatarColor, user.id);
-  const badges = await prisma.userBadge.findMany({
-    where: { userId: user.id },
-    select: { badgeKey: true, earnedAt: true },
-    orderBy: { earnedAt: "desc" },
-  });
+  const [badges, rules] = await Promise.all([
+    prisma.userBadge.findMany({
+      where: { userId: user.id },
+      select: { badgeKey: true, earnedAt: true },
+      orderBy: { earnedAt: "desc" },
+    }),
+    listRules(),
+  ]);
   return {
     userId: user.id,
     username: user.username,
@@ -112,7 +115,7 @@ async function toProfile(user: ProfileRow): Promise<ProfileResponse> {
     winStreak: user.winStreak,
     bestStreak: user.bestStreak,
     rating: toRatingView(user),
-    badges: toBadgeViews(badges),
+    badges: toBadgeViewsFromRules(rules, badges),
   };
 }
 

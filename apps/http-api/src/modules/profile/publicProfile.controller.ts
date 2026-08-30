@@ -9,9 +9,10 @@ import { verifyBearer } from "../../middleware/auth.js";
 import {
   BADGE_STAT_SELECT,
   RATING_SELECT,
-  toBadgeViews,
+  toBadgeViewsFromRules,
   toRatingView,
 } from "../ranking/ranking.view.js";
+import { listRules } from "../ranking/badgeRules.service.js";
 
 /**
  * GET /users/:username — another player's profile.
@@ -52,7 +53,6 @@ export async function getPublicProfile(
       hackerrank: true,
       website: true,
       winStreak: true,
-      draws: true,
       ...RATING_SELECT,
       ...BADGE_STAT_SELECT,
     },
@@ -73,11 +73,14 @@ export async function getPublicProfile(
 
   // Badges are read only once the visibility check above has passed, so a
   // private profile costs one query rather than two.
-  const badges = await prisma.userBadge.findMany({
-    where: { userId: user.id },
-    select: { badgeKey: true, earnedAt: true },
-    orderBy: { earnedAt: "desc" },
-  });
+  const [badges, rules] = await Promise.all([
+    prisma.userBadge.findMany({
+      where: { userId: user.id },
+      select: { badgeKey: true, earnedAt: true },
+      orderBy: { earnedAt: "desc" },
+    }),
+    listRules(),
+  ]);
 
   const avatar = normalizeAvatar(user.avatarId, user.avatarColor, user.id);
   const body: PublicProfileResponse = {
@@ -104,7 +107,7 @@ export async function getPublicProfile(
     winStreak: user.winStreak,
     bestStreak: user.bestStreak,
     rating: toRatingView(user),
-    badges: toBadgeViews(badges),
+    badges: toBadgeViewsFromRules(rules, badges),
   };
   res.json(body);
 }

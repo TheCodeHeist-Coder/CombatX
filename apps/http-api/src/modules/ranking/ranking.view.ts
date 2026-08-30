@@ -9,14 +9,20 @@
 
 import {
   badgeByKey,
-  badgeProgress,
   conservativeRating,
-  describeBadge,
-  isProvisional,
+  isPlaced,
   tierFor,
   tierProgress,
   type BadgeContext,
   type RatingState,
+} from "@repo/game";
+import {
+  describeBadge,
+  ruleMet,
+  ruleProgress,
+  TIERS,
+  type BadgeRule,
+  type RuleContext,
 } from "@repo/game";
 import type {
   BadgeProgressView,
@@ -46,6 +52,7 @@ export const RATING_SELECT = {
 export const BADGE_STAT_SELECT = {
   wins: true,
   losses: true,
+  draws: true,
   xp: true,
   bestStreak: true,
   upsetWins: true,
@@ -76,17 +83,20 @@ export function toRatingState(row: RatingColumns): RatingState {
  */
 export function toRatingView(row: RatingColumns): RatingView {
   const state = toRatingState(row);
-  const tier = tierFor(state);
+  const tier = tierFor(state, row.rankedBattles);
   return {
     rating: Math.round(state.rating),
     rd: Math.round(state.rd),
     conservative: Math.round(conservativeRating(state)),
-    provisional: isProvisional(state.rd),
+    // "Provisional" is the inverse of placed, not the raw RD test: a player
+    // who has fought the placement quota is published even if their deviation
+    // is still wide (see isPlaced — an unbeaten record never settles).
+    provisional: !isPlaced(state, row.rankedBattles),
     rankedBattles: row.rankedBattles,
     peakRating: Math.round(row.peakRating),
     tier: tier?.key ?? null,
     tierLabel: tier?.label ?? null,
-    tierProgress: tierProgress(state),
+    tierProgress: tierProgress(state, row.rankedBattles),
   };
 }
 
@@ -94,6 +104,7 @@ export function toRatingView(row: RatingColumns): RatingView {
 export interface BadgeStatColumns extends RatingColumns {
   wins: number;
   losses: number;
+  draws: number;
   xp: number;
   bestStreak: number;
   upsetWins: number;
@@ -134,6 +145,42 @@ export function toBadgeContext(
   };
 }
 
+/**
+ * Assemble the RuleContext the admin-editable rules evaluate against.
+ *
+ * Separate from toBadgeContext, which feeds the legacy hard-coded evaluator.
+ * Both read the same columns; this one also carries `draws` and the tier index
+ * that declarative rules can test.
+ */
+export function toRuleContext(
+  row: BadgeStatColumns,
+  now = new Date(),
+): RuleContext {
+  const rating = toRatingState(row);
+  const tier = tierFor(rating);
+  return {
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    xp: row.xp,
+    bestStreak: row.bestStreak,
+    rankedBattles: row.rankedBattles,
+    upsetWins: row.upsetWins,
+    perfectWins: row.perfectWins,
+    easyWins: row.easyWins,
+    mediumWins: row.mediumWins,
+    hardWins: row.hardWins,
+    distinctProblemsWon: row.distinctProblemsWon,
+    signupOrdinal: row.signupOrdinal,
+    accountAgeDays: Math.max(
+      0,
+      Math.floor((now.getTime() - row.createdAt.getTime()) / MS_PER_DAY),
+    ),
+    rating,
+    tierIndex: tier ? TIERS.findIndex((t) => t.key === tier.key) : -1,
+  };
+}
+
 /** A persisted badge row. */
 export interface BadgeRow {
   badgeKey: string;
@@ -161,30 +208,74 @@ export function toBadgeViews(rows: readonly BadgeRow[]): BadgeView[] {
 /**
  * The full shelf: every badge, with earned state and progress.
  *
- * Earned state comes from the PERSISTED rows, not from re-evaluating the
- * definitions, so a badge stays earned even if its threshold is later raised.
- * Progress still comes from the live context, because a locked badge's bar
- * should track the player's current standing.
+ * Driven by the admin-editable RULES, so a badge renamed or retuned in the
+ * console shows up here immediately.
+ *
+ * Earned state comes from the PERSISTED rows first, not only from re-running
+ * the rules: a badge stays earned even if its threshold was later raised. An
+ * award is a historical fact, and revoking it because an operator retuned a
+ * number would punish a player for someone else's decision. The recalculate
+ * action in the console is the deliberate way to re-apply rules.
  */
 export function toBadgeShelf(
-  context: BadgeContext,
+  rules: readonly BadgeRule[],
+  context: RuleContext,
   held: readonly BadgeRow[],
 ): BadgeProgressView[] {
   const heldAt = new Map(held.map((r) => [r.badgeKey, r.earnedAt]));
-  return badgeProgress(context).map((b) => {
-    const earnedAt = heldAt.get(b.key);
-    return {
-      key: b.key,
-      label: b.label,
-      description: b.description,
-      category: b.category,
-      rarity: b.rarity,
-      glyph: b.glyph,
-      earnedAt: earnedAt ? earnedAt.toISOString() : null,
-      earned: earnedAt !== undefined || b.earned,
-      progress: b.progress,
-    };
-  });
+
+  return rules
+    .filter((r) => r.enabled)
+    .map((rule) => {
+      const earnedAt = heldAt.get(rule.key);
+      return {
+        key: rule.key,
+        label: rule.label,
+        description: rule.description,
+        category: rule.category,
+        rarity: rule.rarity,
+        glyph: rule.glyph,
+        earnedAt: earnedAt ? earnedAt.toISOString() : null,
+        earned: earnedAt !== undefined || ruleMet(rule, context),
+        progress: ruleProgress(rule, context),
+      };
+    });
+}
+
+/**
+ * Stored badge rows -> wire views, using the admin-editable rules for the
+ * label and description so a rename in the console is reflected everywhere.
+ *
+ * A held badge whose rule was deleted falls back to the built-in definition,
+ * and is skipped only if neither exists — an award must not render blank.
+ */
+export function toBadgeViewsFromRules(
+  rules: readonly BadgeRule[],
+  rows: readonly BadgeRow[],
+): BadgeView[] {
+  const byKey = new Map(rules.map((r) => [r.key, r]));
+  const out: BadgeView[] = [];
+
+  for (const row of rows) {
+    const rule = byKey.get(row.badgeKey);
+    if (rule) {
+      out.push({
+        key: rule.key,
+        label: rule.label,
+        description: rule.description,
+        category: rule.category,
+        rarity: rule.rarity,
+        glyph: rule.glyph,
+        earnedAt: row.earnedAt.toISOString(),
+      });
+      continue;
+    }
+    const builtin = badgeByKey(row.badgeKey);
+    if (builtin) {
+      out.push({ ...describeBadge(builtin), earnedAt: row.earnedAt.toISOString() });
+    }
+  }
+  return out;
 }
 
 /** Rarity order, strongest first — for trimming a leaderboard row's badges. */

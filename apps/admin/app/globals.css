@@ -159,6 +159,34 @@
     color: var(--color-ink-ghost);
   }
 
+  /*
+   * Selects.
+   *
+   * A native select paints its own arrow using the OS control colours, which
+   * on this dark console reads as a bright chip in the corner of every field.
+   * Stripping the appearance and drawing the chevron as a background SVG keeps
+   * a select visually identical to a text field.
+   *
+   * The right padding leaves room for that chevron so a long option label
+   * cannot run underneath it.
+   */
+  select.field {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23767e8e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    cursor: pointer;
+  }
+
+  /* The dropdown list itself is drawn by the OS, so it needs its own colours
+     or it renders as white-on-white in a dark browser theme. */
+  select.field option {
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;

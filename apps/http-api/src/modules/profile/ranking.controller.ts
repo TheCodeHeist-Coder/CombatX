@@ -9,9 +9,10 @@ import { verifyBearer } from "../../middleware/auth.js";
 import {
   BADGE_STAT_SELECT,
   RATING_SELECT,
-  toBadgeContext,
   toBadgeShelf,
+  toRuleContext,
 } from "../ranking/ranking.view.js";
+import { listRules } from "../ranking/badgeRules.service.js";
 
 /** How many rating points a graph gets. Enough for a season's shape. */
 const HISTORY_LIMIT = 100;
@@ -54,8 +55,12 @@ export async function getBadgeShelf(
     select: { badgeKey: true, earnedAt: true },
   });
 
+  // Read the admin-editable rules, so a badge retuned in the console shows
+  // its new threshold and progress here immediately.
+  const rules = await listRules();
+
   const body: BadgeShelfResponse = {
-    badges: toBadgeShelf(toBadgeContext(user), held),
+    badges: toBadgeShelf(rules, toRuleContext(user), held),
   };
   res.json(body);
 }

@@ -6,15 +6,16 @@ import {
   type LeaderboardResponse,
 } from "@repo/protocol";
 import { prisma } from "@repo/db";
-import { PROVISIONAL_RD } from "@repo/game";
+import { PLACEMENT_BATTLES, PROVISIONAL_RD, type BadgeRule } from "@repo/game";
 import { verifyBearer } from "../../middleware/auth.js";
 import {
   BADGE_STAT_SELECT,
   RATING_SELECT,
-  toBadgeViews,
+  toBadgeViewsFromRules,
   toRatingView,
   topBadges,
 } from "../ranking/ranking.view.js";
+import { listRules } from "../ranking/badgeRules.service.js";
 
 const PAGE_SIZE = 25;
 
@@ -38,7 +39,12 @@ async function fetchRows(args: Parameters<typeof prisma.user.findMany>[0]) {
 }
 
 /** Shape a User row into a leaderboard entry at a given 1-based rank. */
-function toEntry(u: Row, rank: number, badges: BadgeRows): LeaderboardEntry {
+function toEntry(
+  u: Row,
+  rank: number,
+  badges: BadgeRows,
+  rules: readonly BadgeRule[],
+): LeaderboardEntry {
   const avatar = normalizeAvatar(u.avatarId, u.avatarColor, u.id);
   return {
     rank,
@@ -53,7 +59,7 @@ function toEntry(u: Row, rank: number, badges: BadgeRows): LeaderboardEntry {
     losses: u.losses,
     bestStreak: u.bestStreak,
     rating: toRatingView(u),
-    badges: topBadges(toBadgeViews(badges.get(u.id) ?? [])),
+    badges: topBadges(toBadgeViewsFromRules(rules, badges.get(u.id) ?? [])),
   };
 }
 
@@ -108,10 +114,19 @@ export async function getLeaderboard(
 
   const where =
     board === "rating"
-      ? // A placed rating means the deviation has come down far enough to
-        // publish. Without this gate the top of the ladder would be whoever
-        // most recently got lucky in their first three battles.
-        { ...base, ratingRd: { lte: PROVISIONAL_RD }, rankedBattles: { gt: 0 } }
+      ? // A placed rating means either the deviation has come down far enough
+        // to publish, OR the player has simply fought the placement quota.
+        // Both are needed: the RD gate keeps a lucky 3-0 start off the ladder,
+        // and the battle count rescues an unbeaten player whose deviation
+        // never settles because every win is expected (see isPlaced).
+        {
+          ...base,
+          rankedBattles: { gt: 0 },
+          OR: [
+            { ratingRd: { lte: PROVISIONAL_RD } },
+            { rankedBattles: { gte: PLACEMENT_BATTLES } },
+          ],
+        }
       : {
           ...base,
           OR: [{ xp: { gt: 0 } }, { wins: { gt: 0 } }, { losses: { gt: 0 } }],
@@ -137,8 +152,11 @@ export async function getLeaderboard(
         ];
 
   const top = await fetchRows({ where, orderBy, take: PAGE_SIZE });
-  const badges = await badgesFor(top.map((u) => u.id));
-  const entries = top.map((u, i) => toEntry(u, i + 1, badges));
+  const [badges, rules] = await Promise.all([
+    badgesFor(top.map((u) => u.id)),
+    listRules(),
+  ]);
+  const entries = top.map((u, i) => toEntry(u, i + 1, badges, rules));
 
   // The caller's own row, if they are signed in.
   let mine: LeaderboardEntry | null = null;
@@ -158,7 +176,9 @@ export async function getLeaderboard(
       if (self) {
         const placed =
           board === "rating"
-            ? self.ratingRd <= PROVISIONAL_RD && self.rankedBattles > 0
+            ? self.rankedBattles > 0 &&
+              (self.ratingRd <= PROVISIONAL_RD ||
+                self.rankedBattles >= PLACEMENT_BATTLES)
             : self.xp > 0 || self.wins > 0 || self.losses > 0;
 
         if (placed) {
@@ -182,7 +202,7 @@ export async function getLeaderboard(
                   },
           });
           const selfBadges = await badgesFor([self.id]);
-          mine = toEntry(self, above + 1, selfBadges);
+          mine = toEntry(self, above + 1, selfBadges, rules);
         } else if (board === "rating") {
           // Signed in, but not yet placed. Say so rather than silently
           // omitting them, which reads as a bug.

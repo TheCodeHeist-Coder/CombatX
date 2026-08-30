@@ -1,7 +1,7 @@
 "use client";
 
 import type { BadgeProgressView, BadgeView, RatingView } from "@repo/protocol";
-import { TIERS } from "@repo/game";
+import { PLACEMENT_BATTLES, TIERS } from "@repo/game";
 import { BadgeMedal, TierMedal, type MedalTone } from "./Medal";
 import { CRESTS, TIER_CRESTS } from "./crests";
 
@@ -184,6 +184,8 @@ export function TierCrest({
   const tone = rating.tier ? TIER_TONE.get(rating.tier) : undefined;
   const art = rating.tier ? TIER_CRESTS[rating.tier] : null;
 
+  const remaining = Math.max(0, PLACEMENT_BATTLES - rating.rankedBattles);
+
   return (
     <div className="flex items-center gap-3.5">
       {art && tone && rating.tier ? (
@@ -194,19 +196,36 @@ export function TierCrest({
           title={`${rating.tierLabel} — ${art.animal}`}
         />
       ) : (
-        <div
-          className="flex shrink-0 items-center justify-center rounded-[10px] border font-mono font-bold"
-          style={{
-            width: size,
-            height: size,
-            borderColor: "var(--color-line-strong)",
-            background: "var(--color-surface-2)",
-            color: "var(--color-ink-ghost)",
-            fontSize: size * 0.32,
-          }}
-          aria-hidden
-        >
-          ?
+        /*
+         * Not yet placed.
+         *
+         * Shows the lowest tier's medal drawn faintly rather than a bare "?".
+         * A blank box tells a new player nothing except that they have
+         * nothing; a ghosted medal shows them the thing they are working
+         * toward, and reads as "not yet" rather than "empty".
+         */
+        <div className="relative shrink-0" style={{ width: size, height: size }}>
+          <TierMedal
+            tierKey="IOTA"
+            tone={
+              TIER_TONE.get("IOTA") ?? {
+                base: "#6b7280",
+                rimLight: "#9aa3b0",
+                rimDark: "#3f4650",
+              }
+            }
+            size={size}
+            title="Not yet placed"
+          />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: "var(--color-surface)",
+              opacity: 0.62,
+              borderRadius: size * 0.16,
+            }}
+            aria-hidden
+          />
         </div>
       )}
 
@@ -223,20 +242,56 @@ export function TierCrest({
             style={{ color: "var(--color-ink-faint)" }}
           >
             {rating.provisional
-              ? `${rating.rankedBattles} ranked ${
-                  rating.rankedBattles === 1 ? "battle" : "battles"
-                } — still placing`
+              ? remaining > 0
+                ? `${remaining} more ranked ${
+                    remaining === 1 ? "battle" : "battles"
+                  } to place`
+                : "Placing after your next battle"
               : `${rating.rating} rating`}
           </p>
         )}
-        {art && (
-          <p
-            className="font-mono text-[0.64rem] leading-tight"
-            style={{ color: "var(--color-ink-ghost)" }}
-          >
-            {art.animal}
-          </p>
-        )}
+        <p
+          className="font-mono text-[0.64rem] leading-tight"
+          style={{ color: "var(--color-ink-ghost)" }}
+        >
+          {art
+            ? art.animal
+            : `${rating.rankedBattles} of ${PLACEMENT_BATTLES} fought`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How far through placement a player is, 0..1.
+ *
+ * Counts battles rather than tracking the rating deviation on purpose: a
+ * player needs to know how much further to go, and "your deviation is 248"
+ * answers a question nobody asked.
+ */
+export function PlacementProgress({ rating }: { rating: RatingView }) {
+  if (!rating.provisional) return null;
+
+  const done = Math.min(rating.rankedBattles, PLACEMENT_BATTLES);
+  const pct = Math.round((done / PLACEMENT_BATTLES) * 100);
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between font-mono text-[0.65rem]">
+        <span style={{ color: "var(--color-ink-faint)" }}>Placement</span>
+        <span style={{ color: "var(--color-ink-ghost)" }}>
+          {done} / {PLACEMENT_BATTLES}
+        </span>
+      </div>
+      <div
+        className="mt-1 h-1.5 overflow-hidden rounded-full"
+        style={{ background: "var(--color-surface-3)" }}
+      >
+        <div
+          className="h-full rounded-full transition-[width]"
+          style={{ width: `${pct}%`, background: "var(--color-primary)" }}
+        />
       </div>
     </div>
   );

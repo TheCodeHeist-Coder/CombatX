@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  isPlaced,
+  PLACEMENT_BATTLES,
   BADGES,
   badgeByKey,
   badgeProgress,
@@ -13,7 +15,12 @@ import {
   tierProgress,
   type BadgeContext,
 } from "./badges.js";
-import { INITIAL_RATING, type RatingState } from "./rating.js";
+import {
+  INITIAL_RATING,
+  isProvisional,
+  rateOneOnOne,
+  type RatingState,
+} from "./rating.js";
 
 /** A settled rating at a given number, past the provisional gate. */
 const at = (rating: number): RatingState => ({ rating, rd: 45, volatility: 0.06 });
@@ -276,3 +283,64 @@ test("binary badges report null progress rather than a fake fraction", () => {
 function has(c: BadgeContext, key: string): boolean {
   return evaluateBadges(c).some((b) => b.key === key);
 }
+
+// --- Placement -------------------------------------------------------------
+
+test("a wide deviation alone leaves a player unplaced", () => {
+  assert.equal(isPlaced(INITIAL_RATING), false);
+  assert.equal(tierFor(INITIAL_RATING, 0), null);
+});
+
+test("a settled deviation places a player regardless of battle count", () => {
+  // The ordinary path: enough mixed results for the rating to converge.
+  assert.equal(isPlaced(at(1500), 3), true);
+  assert.ok(tierFor(at(1500), 3));
+});
+
+/**
+ * The regression this rule exists for.
+ *
+ * An unbeaten player's expected score approaches 95%, so each further win
+ * carries almost no information and their deviation stops falling — measured,
+ * it is still ~104 after sixty straight wins. Under a deviation-only gate they
+ * would stay "Unranked" forever, which is exactly backwards for the strongest
+ * player on the site.
+ */
+test("an unbeaten player places on battle count once their RD stalls", () => {
+  const settledOpponent: RatingState = { rating: 1500, rd: 50, volatility: 0.06 };
+  let state = INITIAL_RATING;
+  for (let i = 0; i < 30; i += 1) {
+    state = rateOneOnOne(state, settledOpponent, 1).after;
+  }
+
+  assert.ok(isProvisional(state.rd), "RD really has not settled");
+  assert.equal(isPlaced(state), false, "the deviation gate alone would refuse");
+  assert.equal(isPlaced(state, 30), true, "the battle count rescues them");
+  assert.ok(tierFor(state, 30), "and they hold a real tier");
+});
+
+test("placement needs the full quota, not one battle short", () => {
+  const wide: RatingState = { rating: 1700, rd: 200, volatility: 0.06 };
+  assert.equal(isPlaced(wide, PLACEMENT_BATTLES - 1), false);
+  assert.equal(isPlaced(wide, PLACEMENT_BATTLES), true);
+});
+
+test("nextTier and tierProgress agree with tierFor about placement", () => {
+  const wide: RatingState = { rating: 1700, rd: 200, volatility: 0.06 };
+
+  // Unplaced: no tier, no next tier, no progress.
+  assert.equal(tierFor(wide, 0), null);
+  assert.equal(nextTier(wide, 0), null);
+  assert.equal(tierProgress(wide, 0), 0);
+
+  // Placed by count: all three must now agree there IS a tier.
+  assert.ok(tierFor(wide, PLACEMENT_BATTLES));
+  const progress = tierProgress(wide, PLACEMENT_BATTLES);
+  assert.ok(progress >= 0 && progress <= 1);
+});
+
+test("omitting the battle count keeps the old deviation-only behaviour", () => {
+  // Existing callers that only have a rating state must not silently change.
+  assert.equal(tierFor(INITIAL_RATING), null);
+  assert.ok(tierFor(at(1500)));
+});

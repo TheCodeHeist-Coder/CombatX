@@ -26,6 +26,7 @@ import { clearSession, saveSession } from "../../lib/session";
 import { SignInGate } from "../../components/SignInGate";
 import {
   BadgeShelf,
+  PlacementProgress,
   TierCrest,
   TierProgress,
 } from "../../components/ranking/Badges";
@@ -205,7 +206,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell session={session} profile={profile}>
-      <div className="mx-auto w-full max-w-2xl px-5 py-8 sm:px-7">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-7">
         <p className="eyebrow">Profile</p>
         <h1 className="mt-2 text-2xl font-bold">Settings</h1>
 
@@ -213,277 +214,32 @@ export default function SettingsPage() {
           <SignInGate what="manage your profile" guest={!!session?.isGuest} />
         ) : (
           <>
-            <section className="panel mt-6 p-5">
-              <h2 className="text-base font-bold">Your identity</h2>
-              <p
-                className="mt-1.5 font-mono text-[0.75rem]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                Opponents see your username in the lobby and beside your code
-                during a battle. Your name, if you set one, shows beneath it.
-              </p>
-
-              <div className="mt-4 flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="username" className="label">
-                    Username
-                  </label>
-                  <input
-                    id="username"
-                    className="field"
-                    value={username}
-                    maxLength={20}
-                    onChange={(e) => {
-                      setUsername(e.target.value);
-                      setSaved(false);
-                    }}
-                    disabled={!profile || busy}
-                    autoComplete="off"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                  />
-                  {usernameHint && (
-                    <p
-                      className="font-mono text-[0.68rem]"
-                      style={{
-                        color:
-                          !usernameValid || taken
-                            ? "var(--color-bad)"
-                            : "var(--color-good)",
-                      }}
-                    >
-                      {usernameHint}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="name" className="label">
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    className="field"
-                    placeholder="Optional"
-                    value={name}
-                    maxLength={60}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setSaved(false);
-                    }}
-                    disabled={!profile || busy}
-                    autoComplete="name"
-                  />
-                  <p
-                    className="font-mono text-[0.68rem]"
-                    style={{ color: "var(--color-ink-faint)" }}
-                  >
-                    Leave blank to show only your username.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="label">Email</span>
-                  <p className="font-mono text-[0.8rem]">
-                    {profile?.email ?? "—"}
-                  </p>
-                  <p
-                    className="font-mono text-[0.68rem]"
-                    style={{ color: "var(--color-ink-faint)" }}
-                  >
-                    Used to log in. Changing it is not supported yet.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="panel mt-4 p-5">
-              <h2 className="text-base font-bold">Your look</h2>
-              <p
-                className="mt-1.5 font-mono text-[0.75rem]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                Upload a photo, or pick one of the characters below. A photo
-                takes precedence while you have one.
-              </p>
-
-              {avatar && (
-                <>
-                  <div className="mt-4 flex items-center gap-4">
-                    <UserAvatar
-                      identity={{
-                        username,
-                        avatarId: avatar.avatarId,
-                        avatarColor: avatar.avatarColor,
-                        imageUrl,
-                      }}
-                      size={64}
-                      rounded={10}
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => fileRef.current?.click()}
-                        disabled={busy}
-                      >
-                        {imageUrl ? "Change photo" : "Upload photo"}
-                      </button>
-                      {imageUrl && (
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => {
-                            setImageUrl(null);
-                            setSaved(false);
-                          }}
-                          disabled={busy}
-                        >
-                          Remove photo
-                        </button>
-                      )}
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => pickPhoto(e.target.files?.[0])}
-                      />
-                    </div>
-                  </div>
-
-                  <div
-                    className="mt-5 rounded-[10px] border p-4"
-                    style={{
-                      borderColor: "var(--color-line)",
-                      background: "var(--color-surface-2)",
-                    }}
-                  >
-                    {imageUrl && (
-                      <p
-                        className="mb-3 font-mono text-[0.68rem]"
-                        style={{ color: "var(--color-ink-faint)" }}
-                      >
-                        Your photo is shown instead of this character. Remove it
-                        to go back to the pixel art.
-                      </p>
-                    )}
-                    <AvatarPicker
-                      avatarId={avatar.avatarId}
-                      color={avatar.avatarColor}
-                      onChange={(next) => {
-                        setAvatar(next);
-                        setSaved(false);
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-
-            </section>
-
-            <section className="panel mt-4 p-5">
-              <h2 className="text-base font-bold">Profile visibility</h2>
-              <p
-                className="mt-1.5 font-mono text-[0.75rem]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                A public profile can be opened by anyone who clicks your avatar
-                or username. A private one is visible only to you.
-              </p>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <Choice
-                  checked={isPublic}
-                  onSelect={() => {
-                    setIsPublic(true);
-                    setSaved(false);
-                  }}
-                  title="Public"
-                  detail="Anyone can open your profile and see your about, links and record."
-                />
-                <Choice
-                  checked={!isPublic}
-                  onSelect={() => {
-                    setIsPublic(false);
-                    setSaved(false);
-                  }}
-                  title="Private"
-                  detail="Only you can open your profile. Your username and character still appear in battles and on the leaderboard."
-                />
-              </div>
-
-              {profile?.isPublic && (
-                <Link
-                  href={`/u/${profile.username}`}
-                  className="btn btn-ghost mt-4"
-                >
-                  View my public profile
-                </Link>
-              )}
-            </section>
-
-            <section className="panel mt-4 p-5">
-              <h2 className="text-base font-bold">About you</h2>
-              <p
-                className="mt-1.5 font-mono text-[0.75rem]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                Shown on your profile.{" "}
-                {isPublic
-                  ? "Your profile is public, so anyone can read this."
-                  : "Your profile is private, so only you can see this for now."}
-              </p>
-
-              <div className="mt-4 flex flex-col gap-1.5">
-                <label htmlFor="bio" className="label">
-                  Bio
-                </label>
-                <textarea
-                  id="bio"
-                  className="field min-h-24 py-2"
-                  placeholder="A few lines about you — what you build, what you are learning."
-                  value={bio}
-                  maxLength={500}
-                  onChange={(e) => {
-                    setBio(e.target.value);
-                    setSaved(false);
-                  }}
-                  disabled={!profile || busy}
-                />
+            {/* Identity and visibility are both short panels, and they ask
+                related questions — who you are, and who may see it. Pairing
+                them costs one row instead of two. */}
+            <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+              <section className="panel p-5">
+                <h2 className="text-base font-bold">Your identity</h2>
                 <p
-                  className="self-end font-mono text-[0.68rem]"
+                  className="mt-1.5 font-mono text-[0.75rem]"
                   style={{ color: "var(--color-ink-faint)" }}
                 >
-                  {bio.length}/500
+                  Opponents see your username in the lobby and beside your code
+                  during a battle. Your name, if you set one, shows beneath it.
                 </p>
-              </div>
 
-              <h3 className="mt-4 text-[0.9rem] font-bold">Links</h3>
-              <p
-                className="mt-1 font-mono text-[0.7rem]"
-                style={{ color: "var(--color-ink-faint)" }}
-              >
-                Handles only, not full URLs.
-              </p>
-
-              <div className="mt-3 flex flex-col gap-3">
-                {PROFILE_LINKS.map((l) => (
-                  <div key={l.key} className="flex flex-col gap-1.5">
-                    <label htmlFor={l.key} className="label">
-                      {l.label}
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="username" className="label">
+                      Username
                     </label>
                     <input
-                      id={l.key}
+                      id="username"
                       className="field"
-                      placeholder={l.placeholder}
-                      value={links[l.key] ?? ""}
-                      maxLength={l.max}
+                      value={username}
+                      maxLength={20}
                       onChange={(e) => {
-                        setLinks((prev) => ({
-                          ...prev,
-                          [l.key]: e.target.value,
-                        }));
+                        setUsername(e.target.value);
                         setSaved(false);
                       }}
                       disabled={!profile || busy}
@@ -491,30 +247,283 @@ export default function SettingsPage() {
                       autoCapitalize="none"
                       spellCheck={false}
                     />
+                    {usernameHint && (
+                      <p
+                        className="font-mono text-[0.68rem]"
+                        style={{
+                          color:
+                            !usernameValid || taken
+                              ? "var(--color-bad)"
+                              : "var(--color-good)",
+                        }}
+                      >
+                        {usernameHint}
+                      </p>
+                    )}
                   </div>
-                ))}
 
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="website" className="label">
-                    Website
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="name" className="label">
+                      Name
+                    </label>
+                    <input
+                      id="name"
+                      className="field"
+                      placeholder="Optional"
+                      value={name}
+                      maxLength={60}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        setSaved(false);
+                      }}
+                      disabled={!profile || busy}
+                      autoComplete="name"
+                    />
+                    <p
+                      className="font-mono text-[0.68rem]"
+                      style={{ color: "var(--color-ink-faint)" }}
+                    >
+                      Leave blank to show only your username.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <span className="label">Email</span>
+                    <p className="font-mono text-[0.8rem]">
+                      {profile?.email ?? "—"}
+                    </p>
+                    <p
+                      className="font-mono text-[0.68rem]"
+                      style={{ color: "var(--color-ink-faint)" }}
+                    >
+                      Used to log in. Changing it is not supported yet.
+                    </p>
+                  </div>
+                </div>
+              </section>
+              <section className="panel p-5">
+                <h2 className="text-base font-bold">Profile visibility</h2>
+                <p
+                  className="mt-1.5 font-mono text-[0.75rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  A public profile can be opened by anyone who clicks your avatar
+                  or username. A private one is visible only to you.
+                </p>
+
+                <div className="mt-4 flex flex-col gap-2">
+                  <Choice
+                    checked={isPublic}
+                    onSelect={() => {
+                      setIsPublic(true);
+                      setSaved(false);
+                    }}
+                    title="Public"
+                    detail="Anyone can open your profile and see your about, links and record."
+                  />
+                  <Choice
+                    checked={!isPublic}
+                    onSelect={() => {
+                      setIsPublic(false);
+                      setSaved(false);
+                    }}
+                    title="Private"
+                    detail="Only you can open your profile. Your username and character still appear in battles and on the leaderboard."
+                  />
+                </div>
+
+                {profile?.isPublic && (
+                  <Link
+                    href={`/u/${profile.username}`}
+                    className="btn btn-ghost mt-4"
+                  >
+                    View my public profile
+                  </Link>
+                )}
+              </section>
+            </div>
+
+            {/* The avatar picker is a fixed-height grid and "About you" is a
+                stack of short fields, so side by side they fill each other's
+                dead space instead of each leaving a column empty. */}
+            <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+              <section className="panel p-5">
+                <h2 className="text-base font-bold">Your look</h2>
+                <p
+                  className="mt-1.5 font-mono text-[0.75rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  Upload a photo, or pick one of the characters below. A photo
+                  takes precedence while you have one.
+                </p>
+
+                {avatar && (
+                  <>
+                    <div className="mt-4 flex items-center gap-4">
+                      <UserAvatar
+                        identity={{
+                          username,
+                          avatarId: avatar.avatarId,
+                          avatarColor: avatar.avatarColor,
+                          imageUrl,
+                        }}
+                        size={64}
+                        rounded={10}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => fileRef.current?.click()}
+                          disabled={busy}
+                        >
+                          {imageUrl ? "Change photo" : "Upload photo"}
+                        </button>
+                        {imageUrl && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => {
+                              setImageUrl(null);
+                              setSaved(false);
+                            }}
+                            disabled={busy}
+                          >
+                            Remove photo
+                          </button>
+                        )}
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => pickPhoto(e.target.files?.[0])}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className="mt-5 rounded-[10px] border p-4"
+                      style={{
+                        borderColor: "var(--color-line)",
+                        background: "var(--color-surface-2)",
+                      }}
+                    >
+                      {imageUrl && (
+                        <p
+                          className="mb-3 font-mono text-[0.68rem]"
+                          style={{ color: "var(--color-ink-faint)" }}
+                        >
+                          Your photo is shown instead of this character. Remove it
+                          to go back to the pixel art.
+                        </p>
+                      )}
+                      <AvatarPicker
+                        avatarId={avatar.avatarId}
+                        color={avatar.avatarColor}
+                        onChange={(next) => {
+                          setAvatar(next);
+                          setSaved(false);
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+
+              </section>
+              <section className="panel p-5">
+                <h2 className="text-base font-bold">About you</h2>
+                <p
+                  className="mt-1.5 font-mono text-[0.75rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  Shown on your profile.{" "}
+                  {isPublic
+                    ? "Your profile is public, so anyone can read this."
+                    : "Your profile is private, so only you can see this for now."}
+                </p>
+
+                <div className="mt-4 flex flex-col gap-1.5">
+                  <label htmlFor="bio" className="label">
+                    Bio
                   </label>
-                  <input
-                    id="website"
-                    className="field"
-                    placeholder="https://example.com"
-                    value={website}
-                    maxLength={200}
+                  <textarea
+                    id="bio"
+                    className="field min-h-24 py-2"
+                    placeholder="A few lines about you — what you build, what you are learning."
+                    value={bio}
+                    maxLength={500}
                     onChange={(e) => {
-                      setWebsite(e.target.value);
+                      setBio(e.target.value);
                       setSaved(false);
                     }}
                     disabled={!profile || busy}
-                    autoComplete="url"
-                    spellCheck={false}
                   />
+                  <p
+                    className="self-end font-mono text-[0.68rem]"
+                    style={{ color: "var(--color-ink-faint)" }}
+                  >
+                    {bio.length}/500
+                  </p>
                 </div>
-              </div>
-            </section>
+
+                <h3 className="mt-4 text-[0.9rem] font-bold">Links</h3>
+                <p
+                  className="mt-1 font-mono text-[0.7rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  Handles only, not full URLs.
+                </p>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {PROFILE_LINKS.map((l) => (
+                    <div key={l.key} className="flex flex-col gap-1.5">
+                      <label htmlFor={l.key} className="label">
+                        {l.label}
+                      </label>
+                      <input
+                        id={l.key}
+                        className="field"
+                        placeholder={l.placeholder}
+                        value={links[l.key] ?? ""}
+                        maxLength={l.max}
+                        onChange={(e) => {
+                          setLinks((prev) => ({
+                            ...prev,
+                            [l.key]: e.target.value,
+                          }));
+                          setSaved(false);
+                        }}
+                        disabled={!profile || busy}
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                      />
+                    </div>
+                  ))}
+
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="website" className="label">
+                      Website
+                    </label>
+                    <input
+                      id="website"
+                      className="field"
+                      placeholder="https://example.com"
+                      value={website}
+                      maxLength={200}
+                      onChange={(e) => {
+                        setWebsite(e.target.value);
+                        setSaved(false);
+                      }}
+                      disabled={!profile || busy}
+                      autoComplete="url"
+                      spellCheck={false}
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
 
             {/*
               One save bar for every editable section above it. It sticks to
@@ -560,35 +569,61 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {profile && (
-              <section className="panel mt-4 p-5">
-                <h2 className="text-base font-bold">Standing</h2>
-                <div className="mt-4 flex flex-col gap-4">
-                  <TierCrest rating={profile.rating} />
-                  <TierProgress rating={profile.rating} />
-                </div>
-                {profile.rating.provisional && (
-                  <p
-                    className="mt-3 font-mono text-[0.72rem] leading-relaxed"
-                    style={{ color: "var(--color-ink-faint)" }}
-                  >
-                    Your rating is still settling. It appears on the ladder once
-                    enough ranked battles have been fought to be sure of it —
-                    room-code battles do not count toward this.
-                  </p>
-                )}
-              </section>
-            )}
+            {/* Standing and Progression sit side by side above md: both are
+                short, read-only panels, and stacking them was a third of the
+                page's scroll length for no benefit. */}
+            <div className="mt-4 grid items-start gap-4 md:grid-cols-2">
+              {profile && (
+                <section className="panel p-5">
+                  <h2 className="text-base font-bold">Standing</h2>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <TierCrest rating={profile.rating} />
+                    {/* One of these renders, never both: placement while
+                        unplaced, tier progress once placed. */}
+                    <PlacementProgress rating={profile.rating} />
+                    <TierProgress rating={profile.rating} />
+                  </div>
 
-            <section className="panel mt-4 p-5">
-              <h2 className="text-base font-bold">Progression</h2>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label="XP" value={profile?.xp} />
-                <Stat label="Wins" value={profile?.wins} />
-                <Stat label="Losses" value={profile?.losses} />
-                <Stat label="Best streak" value={profile?.bestStreak} />
-              </div>
-            </section>
+                  {profile.rating.provisional ? (
+                    <div className="mt-4">
+                      <p
+                        className="font-mono text-[0.72rem] leading-relaxed"
+                        style={{ color: "var(--color-ink-faint)" }}
+                      >
+                        {profile.rating.rankedBattles === 0
+                          ? "Win ranked battles to earn a tier — Iota through to Alpha. Room-code battles do not count."
+                          : "Keep going and your tier appears here. Room-code battles do not count toward placement."}
+                      </p>
+                      {/* The panel is otherwise a dead end for a new player:
+                          it says what they lack and offers no way to fix it. */}
+                      <Link href="/arena" className="btn btn-primary mt-3">
+                        {profile.rating.rankedBattles === 0
+                          ? "Find a ranked match"
+                          : "Play a ranked battle"}
+                      </Link>
+                    </div>
+                  ) : (
+                    <p
+                      className="mt-4 font-mono text-[0.72rem] leading-relaxed"
+                      style={{ color: "var(--color-ink-faint)" }}
+                    >
+                      Peak {profile.rating.peakRating} ·{" "}
+                      {profile.rating.rankedBattles} ranked battles fought.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              <section className="panel p-5">
+                <h2 className="text-base font-bold">Progression</h2>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <Stat label="XP" value={profile?.xp} />
+                  <Stat label="Wins" value={profile?.wins} />
+                  <Stat label="Losses" value={profile?.losses} />
+                  <Stat label="Best streak" value={profile?.bestStreak} />
+                </div>
+              </section>
+            </div>
 
             {shelf && (
               <section className="panel mt-4 p-5">
