@@ -33,8 +33,7 @@ export default function ArchivePage() {
   return (
     <AppShell session={session} profile={profile}>
       <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7">
-        <p className="eyebrow">Sector // archive</p>
-        <h1 className="mt-2 font-mono text-2xl font-bold uppercase tracking-tight">
+        <h1 className="mt-2 wordmark text-2xl font-bold uppercase tracking-wide">
           Archive
         </h1>
         <p
