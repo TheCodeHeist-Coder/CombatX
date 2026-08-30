@@ -15,12 +15,16 @@
 
 import {
   computeAward,
-  newlyEarned,
+  describeBadge,
   rateOneOnOne,
+  ruleMet,
+  TIERS,
   tierFor,
   UPSET_GAP,
+  type BadgeRule,
   type RatingState,
 } from "@repo/game";
+import { activeRules } from "./badgeRules.js";
 import { prisma, type Prisma } from "@repo/db";
 import type {
   Difficulty,
@@ -62,6 +66,7 @@ const PLAYER_SELECT = {
   peakRating: true,
   wins: true,
   losses: true,
+  draws: true,
   upsetWins: true,
   perfectWins: true,
   easyWins: true,
@@ -150,6 +155,10 @@ export async function applyProgression(
       firstWinOn.set(w.userId, priorWins === 0);
     }
   }
+
+  // Admin-editable rules, cached in badgeRules.ts. Read once per battle
+  // rather than per player.
+  const rules = await activeRules();
 
   const awards: ProgressionAward[] = [];
   // Prisma's $transaction is overloaded; the array form needs an explicit
@@ -293,7 +302,10 @@ export async function applyProgression(
       now,
     });
 
-    const fresh = newlyEarned(projected, heldByUser.get(seat.userId) ?? []);
+    const alreadyHeld = new Set(heldByUser.get(seat.userId) ?? []);
+    const fresh = rules
+      .filter((r) => !alreadyHeld.has(r.key) && ruleMet(r, projected))
+      .map(toBadgeView);
     for (const badge of fresh) {
       writes.push(
         prisma.userBadge.create({
@@ -376,10 +388,24 @@ function stateOf(row: PlayerRow): RatingState {
  * updates, so the database still holds the pre-battle values. Getting this
  * wrong would delay every badge by exactly one battle.
  */
+/** A stored rule, flattened for the wire. */
+function toBadgeView(rule: BadgeRule) {
+  return describeBadge({
+    key: rule.key,
+    label: rule.label,
+    description: rule.description,
+    category: rule.category as never,
+    rarity: rule.rarity as never,
+    glyph: rule.glyph,
+    earned: () => true,
+  });
+}
+
 function project(
   before: {
     wins: number;
     losses: number;
+    draws: number;
     xp: number;
     bestStreak: number;
     upsetWins: number;
@@ -410,19 +436,23 @@ function project(
   },
 ) {
   const win = d.won ? 1 : 0;
+  const rating = d.ratingAfter
+    ? {
+        rating: d.ratingAfter.rating,
+        rd: d.ratingAfter.rd,
+        volatility: before.ratingVolatility,
+      }
+    : stateOf(before);
+  const tier = tierFor(rating);
   return {
     wins: before.wins + win,
     losses: before.losses + (!d.won && !d.drew ? 1 : 0),
+    draws: before.draws + (d.drew ? 1 : 0),
     xp: before.xp + d.award.xp,
     bestStreak: d.newBestStreak,
     rankedBattles: d.rankedBattlesAfter,
-    rating: d.ratingAfter
-      ? {
-          rating: d.ratingAfter.rating,
-          rd: d.ratingAfter.rd,
-          volatility: before.ratingVolatility,
-        }
-      : stateOf(before),
+    rating,
+    tierIndex: tier ? TIERS.findIndex((t) => t.key === tier.key) : -1,
     upsetWins: before.upsetWins + (d.upset ? 1 : 0),
     perfectWins: before.perfectWins + (d.won && d.perfect ? 1 : 0),
     easyWins: before.easyWins + (d.won && d.difficulty === "EASY" ? 1 : 0),

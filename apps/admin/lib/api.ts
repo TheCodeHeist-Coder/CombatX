@@ -1,4 +1,10 @@
 import {
+  AdminBadgesResponse,
+  AdminBadgePreviewResponse,
+  AdminBadgeRecalcResponse,
+  type AdminBadgeCondition,
+  type AdminBadgeCreate,
+  type AdminBadgeInput,
   AdminBattlesResponse,
   AdminLoginResponse,
   AdminOverviewResponse,
@@ -155,4 +161,86 @@ export function deleteProblem(token: string, id: string): Promise<void> {
     method: "DELETE",
     headers: auth(token),
   });
+}
+
+// --- Badge rules -----------------------------------------------------------
+
+/** GET /admin/badges */
+export function fetchBadges(token: string): Promise<AdminBadgesResponse> {
+  return request("/admin/badges", { headers: auth(token) }, (d) =>
+    AdminBadgesResponse.parse(d),
+  );
+}
+
+/** POST /admin/badges — define a new badge. Returns the refreshed table. */
+export function createBadge(
+  token: string,
+  input: AdminBadgeCreate,
+): Promise<AdminBadgesResponse> {
+  return request(
+    "/admin/badges",
+    { method: "POST", headers: auth(token), body: JSON.stringify(input) },
+    (d) => AdminBadgesResponse.parse(d),
+  );
+}
+
+/** PUT /admin/badges/:key — edit everything except the key. */
+export function updateBadge(
+  token: string,
+  key: string,
+  input: AdminBadgeInput,
+): Promise<AdminBadgesResponse> {
+  return request(
+    `/admin/badges/${encodeURIComponent(key)}`,
+    { method: "PUT", headers: auth(token), body: JSON.stringify(input) },
+    (d) => AdminBadgesResponse.parse(d),
+  );
+}
+
+/** DELETE /admin/badges/:key — refused while anyone holds it. */
+export function deleteBadge(
+  token: string,
+  key: string,
+): Promise<AdminBadgesResponse> {
+  return request(
+    `/admin/badges/${encodeURIComponent(key)}`,
+    { method: "DELETE", headers: auth(token) },
+    (d) => AdminBadgesResponse.parse(d),
+  );
+}
+
+/** POST /admin/badges/seed — restore any missing shipped defaults. */
+export function seedBadges(token: string): Promise<AdminBadgesResponse> {
+  return request(
+    "/admin/badges/seed",
+    { method: "POST", headers: auth(token) },
+    (d) => AdminBadgesResponse.parse(d),
+  );
+}
+
+/** POST /admin/badges/preview — how many players would these conditions match? */
+export function previewBadge(
+  token: string,
+  conditions: AdminBadgeCondition[],
+): Promise<AdminBadgePreviewResponse> {
+  return request(
+    "/admin/badges/preview",
+    {
+      method: "POST",
+      headers: auth(token),
+      body: JSON.stringify({ conditions }),
+    },
+    (d) => AdminBadgePreviewResponse.parse(d),
+  );
+}
+
+/** POST /admin/badges/recalculate — re-apply every rule to every player. */
+export function recalculateBadges(
+  token: string,
+): Promise<AdminBadgeRecalcResponse> {
+  return request(
+    "/admin/badges/recalculate",
+    { method: "POST", headers: auth(token) },
+    (d) => AdminBadgeRecalcResponse.parse(d),
+  );
 }

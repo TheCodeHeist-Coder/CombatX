@@ -265,6 +265,54 @@ model UserBadge {
 }
 
 /**
+ * An admin-editable badge definition.
+ *
+ * Badges started as a hard-coded table in packages/game. They live here now so
+ * an operator can retune a threshold, rename a badge or retire one without a
+ * deploy — the console writes these rows and the award pass reads them.
+ *
+ * The CONDITIONS are stored as data, never as code: a rule is a metric, a
+ * comparator and a threshold (see packages/game/src/badgeRules.ts). Storing an
+ * expression an admin could edit would mean executing admin-authored code on
+ * the server, which is not a trade worth making for a badge.
+ *
+ * Seeded from DEFAULT_BADGE_RULES on first run. Once seeded these rows are the
+ * authority: a later release changing the defaults must not silently revert an
+ * operator's tuning.
+ */
+model BadgeRule {
+  id       String @id @default(cuid())
+  /** Stable identifier. Matches UserBadge.badgeKey, so renaming the LABEL is
+      free but changing the key would orphan every award — the API refuses it. */
+  key      String @unique
+  label    String
+  description String
+  category String
+  rarity   String
+  /** Which animal crest to draw, from the art table in the web app. */
+  artKey   String
+  glyph    String
+
+  /**
+   * The conditions, as a JSON array of { metric, comparator, threshold }.
+   * ANDed together. Validated against the closed metric list on write, so a
+   * malformed rule cannot reach the evaluator.
+   */
+  conditions Json
+
+  /** Index of the condition that drives the progress bar; null for none. */
+  progressFrom Int?
+  /** A disabled rule stays in the table but is never awarded or shown. */
+  enabled      Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled, sortOrder])
+}
+
+/**
  * One row per rating change, per player.
  *
  * This is the audit trail. It answers "why is my rating this number?" with a

@@ -288,3 +288,18 @@ export function IconPlus() {
     </svg>
   );
 }
+
+/** A rosette, for the Badges section. */
+export function IconAward() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="8" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M5.4 9.4 4 14l4-1.8L12 14l-1.4-4.6"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

@@ -232,3 +232,121 @@ export const AdminProblemDetail = z.object({
   ),
 });
 export type AdminProblemDetail = z.infer<typeof AdminProblemDetail>;
+
+// --- Badge rules -----------------------------------------------------------
+//
+// Badges are admin-editable. A rule is DATA — a metric, a comparator and a
+// threshold — never an expression, so nothing an admin types is ever executed.
+// The metric list is closed and mirrored from @repo/game, which means a
+// malformed or unknown metric is rejected at the edge by Zod rather than
+// reaching the evaluator.
+
+export const BadgeMetricEnum = z.enum([
+  "wins", "losses", "draws", "xp", "bestStreak", "rankedBattles",
+  "upsetWins", "perfectWins", "easyWins", "mediumWins", "hardWins",
+  "distinctProblemsWon", "accountAgeDays", "signupOrdinal",
+  "rating", "conservativeRating", "tierIndex", "placed", "winRate",
+]);
+export type BadgeMetricEnum = z.infer<typeof BadgeMetricEnum>;
+
+export const BadgeComparatorEnum = z.enum(["gte", "lte"]);
+export type BadgeComparatorEnum = z.infer<typeof BadgeComparatorEnum>;
+
+export const BadgeCategoryEnum = z.enum([
+  "MILESTONE", "DIFFICULTY", "SKILL", "STREAK", "PIONEER",
+]);
+export type BadgeCategoryEnum = z.infer<typeof BadgeCategoryEnum>;
+
+export const BadgeRarityEnum = z.enum([
+  "COMMON", "UNCOMMON", "RARE", "LEGENDARY",
+]);
+export type BadgeRarityEnum = z.infer<typeof BadgeRarityEnum>;
+
+export const AdminBadgeCondition = z.object({
+  metric: BadgeMetricEnum,
+  comparator: BadgeComparatorEnum,
+  /** Bounded so a typo cannot create a rule no player could ever satisfy. */
+  threshold: z.number().min(0).max(1_000_000),
+});
+export type AdminBadgeCondition = z.infer<typeof AdminBadgeCondition>;
+
+/**
+ * What the console sends when creating or editing a badge.
+ *
+ * `key` is absent: it is set once at creation and never editable, because
+ * UserBadge rows reference it. Renaming a badge changes its LABEL, which is
+ * free; changing the key would orphan every award already handed out.
+ */
+export const AdminBadgeInput = z.object({
+  label: z.string().min(1, "A name is required").max(40),
+  description: z.string().min(1, "A description is required").max(200),
+  category: BadgeCategoryEnum,
+  rarity: BadgeRarityEnum,
+  /** Which animal crest to draw. Validated against the art list by the client. */
+  artKey: z.string().min(1).max(60),
+  glyph: z.string().min(1).max(2),
+  conditions: z
+    .array(AdminBadgeCondition)
+    .min(1, "A badge needs at least one condition")
+    .max(6, "Six conditions is plenty"),
+  progressFrom: z.number().int().min(0).max(5).nullable(),
+  enabled: z.boolean(),
+  sortOrder: z.number().int().min(0).max(100_000),
+});
+export type AdminBadgeInput = z.infer<typeof AdminBadgeInput>;
+
+/** Creating a badge also needs a key, which is then permanent. */
+export const AdminBadgeCreate = AdminBadgeInput.extend({
+  key: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[A-Z][A-Z0-9_]*$/, "Use CAPITALS_AND_UNDERSCORES"),
+});
+export type AdminBadgeCreate = z.infer<typeof AdminBadgeCreate>;
+
+export const AdminBadgeRow = AdminBadgeCreate.extend({
+  /** How many players currently hold this badge. */
+  holders: z.number().int().min(0),
+  /** A one-line, human-readable rendering of the conditions. */
+  summary: z.string(),
+});
+export type AdminBadgeRow = z.infer<typeof AdminBadgeRow>;
+
+export const AdminBadgesResponse = z.object({
+  rows: z.array(AdminBadgeRow),
+  /** True when the table has never been seeded, so the console can offer to. */
+  empty: z.boolean(),
+});
+export type AdminBadgesResponse = z.infer<typeof AdminBadgesResponse>;
+
+/**
+ * The result of re-running every rule over every player.
+ *
+ * Editing a threshold does not retroactively award anything on its own — the
+ * award pass runs when a battle finishes. This endpoint is the explicit
+ * "apply it now" action, and it reports what actually changed so an operator
+ * can see the blast radius of their edit.
+ */
+export const AdminBadgeRecalcResponse = z.object({
+  usersScanned: z.number().int().min(0),
+  awarded: z.number().int().min(0),
+  revoked: z.number().int().min(0),
+  /** Per-badge counts of what was handed out, keyed by badge key. */
+  awardedByBadge: z.record(z.string(), z.number().int()),
+});
+export type AdminBadgeRecalcResponse = z.infer<typeof AdminBadgeRecalcResponse>;
+
+/** A preview of how many players a rule would match, before saving it. */
+export const AdminBadgePreviewRequest = z.object({
+  conditions: z.array(AdminBadgeCondition).min(1).max(6),
+});
+export type AdminBadgePreviewRequest = z.infer<typeof AdminBadgePreviewRequest>;
+
+export const AdminBadgePreviewResponse = z.object({
+  /** How many non-guest accounts satisfy these conditions right now. */
+  matches: z.number().int().min(0),
+  totalUsers: z.number().int().min(0),
+  summary: z.string(),
+});
+export type AdminBadgePreviewResponse = z.infer<typeof AdminBadgePreviewResponse>;
