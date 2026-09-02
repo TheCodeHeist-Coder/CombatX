@@ -33,6 +33,15 @@ import { applyProgression } from "./progression.js";
 import { Broadcaster } from "./broadcaster.js";
 
 /**
+ * How long a problem stays off-limits to a player who has already fought it.
+ *
+ * Two days. Long enough that a session — or a run of sessions over a weekend —
+ * never repeats, short enough that a modest problem bank keeps recycling
+ * instead of being permanently used up.
+ */
+const REPEAT_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
  * Authoritative, in-memory state and lifecycle for ONE battle. Everything the
  * game needs to make decisions lives here; Postgres is written through as the
  * durable record. Wall-clock time is the server's — client timers are cosmetic.
@@ -240,11 +249,56 @@ export class BattleRoom {
     this.countdownTimer = null;
     if (this.status !== "COUNTDOWN") return; // cancelled meanwhile
 
-    // Deterministically pick a problem of the room's difficulty (seed=battleId).
-    const candidates = await prisma.problem.findMany({
+    /*
+     * Pick a problem of the room's difficulty that the seated players have not
+     * already fought.
+     *
+     * A repeat is not merely dull: a player who has seen the problem can paste
+     * their previous solution and win on the first submission, which hands the
+     * battle to whoever happened to draw a familiar question rather than to
+     * whoever codes better.
+     *
+     * The seen-set is per BATTLE, not per player: a problem either side has
+     * met is excluded, because an advantage to one player is exactly the
+     * unfairness this avoids.
+     *
+     * The window is REPEAT_COOLDOWN_MS rather than forever. A permanent
+     * exclusion sounds stricter but is worse: every player eventually exhausts
+     * the bank and then sees repeats anyway, only now the fallback fires
+     * constantly and the exclusion has stopped meaning anything. A rolling
+     * window keeps the guarantee honest — nothing you fought in the last two
+     * days — and lets the pool recycle.
+     *
+     * Falls back to the full pool when everything in the window has been seen,
+     * because a repeat beats refusing to start the battle.
+     */
+    const seatedIds = [...this.seats.values()].map((s) => s.userId);
+    const all = await prisma.problem.findMany({
       where: { difficulty: this.config.difficulty },
       select: { id: true },
     });
+
+    const since = new Date(Date.now() - REPEAT_COOLDOWN_MS);
+    const seen = seatedIds.length
+      ? new Set(
+          (
+            await prisma.battle.findMany({
+              where: {
+                id: { not: this.battleId },
+                assignedProblemId: { not: null },
+                createdAt: { gte: since },
+                teams: {
+                  some: { members: { some: { userId: { in: seatedIds } } } },
+                },
+              },
+              select: { assignedProblemId: true },
+            })
+          ).map((b) => b.assignedProblemId as string),
+        )
+      : new Set<string>();
+
+    const fresh = all.filter((p) => !seen.has(p.id));
+    const candidates = fresh.length > 0 ? fresh : all;
     const picked = seededPick(candidates, this.seed);
     if (!picked) {
       this.status = "LOBBY";
