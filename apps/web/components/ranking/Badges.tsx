@@ -67,6 +67,17 @@ const TIER_TONE = new Map<string, MedalTone>(
 const TIER_COLOR = new Map<string, string>(TIERS.map((t) => [t.key, t.color]));
 
 /**
+ * The medal tone for a tier key, for callers outside this file.
+ *
+ * Exported so the landing page can draw the ladder with the SAME tones the
+ * profile does. Falls back to the lowest tier on an unknown key, matching how
+ * the rest of this file treats a tier it does not recognise.
+ */
+export function TIER_TONE_FOR(key: string): MedalTone {
+  return TIER_TONE.get(key) ?? TIER_TONE.get(TIERS[0].key)!;
+}
+
+/**
  * One badge: the medal, with its name beneath.
  *
  * `title` carries the full description rather than a custom tooltip — it is
