@@ -22,14 +22,29 @@ import { generateRoomCode } from "../../roomCode.js";
 /**
  * How far apart two ratings may be, in points, and still be paired.
  *
- * Starts tight so early matches are close, then widens with waiting time: a
- * player at an extreme rating would otherwise wait forever for a mirror. The
- * widening is linear and capped, so the worst case is a match that is
- * lopsided rather than a queue that never resolves.
+ * The band is SYMMETRIC: a 1100-rated player meets roughly 850-1350. Centring
+ * it matters more than its width. An uneven band — narrow below, wide above —
+ * would make the average player the underdog in most of their matches, and
+ * since rating is zero-sum that pushes the middle of the ladder steadily
+ * downward for no reason anyone could see.
+ *
+ * It opens at ±250 immediately rather than starting tight and creeping there:
+ * a queue this size has no spare density to be fussy with.
+ *
+ * It still widens with waiting time, because a player at an extreme rating
+ * would otherwise wait forever for a mirror that may not exist. The cap is
+ * ±450: beyond that a match stops being competitive, and Glicko-2 already pays
+ * almost nothing for beating someone far weaker, so a lopsided pairing wastes
+ * both players' time.
+ *
+ * The trade-off is explicit: with a cap this tight, a player at the very top
+ * or bottom of the ladder can sit in the queue indefinitely when nobody near
+ * them is online. That is the right failure — waiting is recoverable, a
+ * meaningless match is not.
  */
-const BASE_TOLERANCE = 100;
-const TOLERANCE_PER_SEC = 8;
-const MAX_TOLERANCE = 900;
+const BASE_TOLERANCE = 250;
+const TOLERANCE_PER_SEC = 4;
+const MAX_TOLERANCE = 450;
 
 /** Default battle length for a ranked match, in seconds. */
 const RANKED_TIME_LIMIT_SEC = 900;
