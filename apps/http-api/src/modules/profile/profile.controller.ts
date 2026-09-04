@@ -84,7 +84,7 @@ async function toProfile(user: ProfileRow): Promise<ProfileResponse> {
   const [badges, rules] = await Promise.all([
     prisma.userBadge.findMany({
       where: { userId: user.id },
-      select: { badgeKey: true, earnedAt: true },
+      select: { badgeKey: true, earnedAt: true, count: true },
       orderBy: { earnedAt: "desc" },
     }),
     listRules(),

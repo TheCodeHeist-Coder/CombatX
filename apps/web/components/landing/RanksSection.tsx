@@ -218,6 +218,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "COMMON",
     glyph: "I",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "HAT_TRICK",
@@ -227,6 +228,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "COMMON",
     glyph: "3",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "HARD_LINER",
@@ -236,6 +238,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "UNCOMMON",
     glyph: "h",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "FLAWLESS",
@@ -245,6 +248,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "UNCOMMON",
     glyph: "*",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "CRUCIBLE",
@@ -254,6 +258,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "RARE",
     glyph: "H",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "GIANT_SLAYER",
@@ -263,6 +268,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "RARE",
     glyph: "^",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "IMMORTAL",
@@ -272,6 +278,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "LEGENDARY",
     glyph: "!",
     earnedAt: null,
+    count: 1,
   },
   {
     key: "PIONEER",
@@ -281,6 +288,7 @@ const SAMPLE_BADGES: BadgeView[] = [
     rarity: "LEGENDARY",
     glyph: "1",
     earnedAt: null,
+    count: 1,
   },
 ];
 

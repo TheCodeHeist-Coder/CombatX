@@ -34,6 +34,7 @@ interface StoredRule {
   glyph: string;
   conditions: unknown;
   progressFrom: number | null;
+  repeatEvery: number | null;
   enabled: boolean;
   sortOrder: number;
 }
@@ -80,6 +81,7 @@ function toRule(row: StoredRule): BadgeRule {
     glyph: row.glyph,
     conditions: parseConditions(row.conditions),
     progressFrom: row.progressFrom,
+    repeatEvery: row.repeatEvery,
     enabled: row.enabled,
     sortOrder: row.sortOrder,
   };
@@ -88,7 +90,7 @@ function toRule(row: StoredRule): BadgeRule {
 const SELECT = {
   key: true, label: true, description: true, category: true, rarity: true,
   artKey: true, glyph: true, conditions: true, progressFrom: true,
-  enabled: true, sortOrder: true,
+  repeatEvery: true, enabled: true, sortOrder: true,
 } as const;
 
 /** Insert the shipped defaults. Idempotent — skips keys already present. */
@@ -107,6 +109,7 @@ export async function seedDefaults(): Promise<number> {
       // union; the shape is already the validated BadgeCondition[].
       conditions: r.conditions as unknown as object[],
       progressFrom: r.progressFrom,
+      repeatEvery: r.repeatEvery,
       enabled: r.enabled, sortOrder: r.sortOrder,
     })),
   });
@@ -173,6 +176,7 @@ export async function listRulesForAdmin(): Promise<{
       glyph: r.glyph,
       conditions: r.conditions as AdminBadgeRow["conditions"],
       progressFrom: r.progressFrom,
+      repeatEvery: r.repeatEvery,
       enabled: r.enabled,
       sortOrder: r.sortOrder,
       holders: holders.get(r.key) ?? 0,

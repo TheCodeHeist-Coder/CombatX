@@ -63,20 +63,20 @@ function toEntry(
   };
 }
 
-type BadgeRows = Map<string, { badgeKey: string; earnedAt: Date }[]>;
+type BadgeRows = Map<string, { badgeKey: string; earnedAt: Date; count: number }[]>;
 
 /** Fetch the badges for a page of users in one query. */
 async function badgesFor(userIds: string[]): Promise<BadgeRows> {
   if (userIds.length === 0) return new Map();
   const rows = await prisma.userBadge.findMany({
     where: { userId: { in: userIds } },
-    select: { userId: true, badgeKey: true, earnedAt: true },
+    select: { userId: true, badgeKey: true, earnedAt: true, count: true },
     orderBy: { earnedAt: "desc" },
   });
   const map: BadgeRows = new Map();
   for (const r of rows) {
     const list = map.get(r.userId) ?? [];
-    list.push({ badgeKey: r.badgeKey, earnedAt: r.earnedAt });
+    list.push({ badgeKey: r.badgeKey, earnedAt: r.earnedAt, count: r.count });
     map.set(r.userId, list);
   }
   return map;

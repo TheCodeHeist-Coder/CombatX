@@ -52,6 +52,26 @@ function rarity(key: string): Rarity {
 }
 
 /**
+ * The honours tone — gold, regardless of the badge's rarity.
+ *
+ * CONTRIBUTION badges deliberately step outside the rarity colour scheme.
+ * Every other medal answers "how rare is this?"; these answer "this player
+ * built something the rest of us play", which is a different axis. Colouring
+ * them by rarity would file them back in with the fighting badges.
+ */
+const HONOUR_TONE: MedalTone = {
+  base: "#d9a441",
+  rimLight: "#ffe9a8",
+  rimDark: "#8a6414",
+};
+const HONOUR_FG = "#f0c766";
+
+/** Is this a badge given for authoring rather than for fighting? */
+function isHonour(category: string): boolean {
+  return category === "CONTRIBUTION";
+}
+
+/**
  * Tier tones, built from the single source of truth in @repo/game.
  *
  * Keyed by plain string because the tier arrives over the wire as one: an
@@ -96,8 +116,13 @@ export function Badge({
   /** Optional multiplier bubble for a repeatable achievement. */
   tier?: number;
 }) {
+  const honour = isHonour(badge.category);
   const r = rarity(badge.rarity);
-  const px = size === "lg" ? 80 : size === "sm" ? 34 : 64;
+  const tone = honour ? HONOUR_TONE : r.tone;
+  const fg = honour ? HONOUR_FG : r.fg;
+  // A wreathed medal needs a little more room to read, and the ornate viewBox
+  // scales its contents down to make space for the laurel.
+  const px = (size === "lg" ? 80 : size === "sm" ? 34 : 64) * (honour ? 1.18 : 1);
 
   const description = locked
     ? `${badge.label} — ${badge.description} (not yet earned)`
@@ -114,10 +139,11 @@ export function Badge({
       {CRESTS[badge.key] ? (
         <BadgeMedal
           badgeKey={badge.key}
-          tone={r.tone}
+          tone={tone}
           size={px}
           muted={locked}
           tier={tier}
+          ornate={honour}
           title={description}
         />
       ) : (
@@ -128,9 +154,9 @@ export function Badge({
           style={{
             width: px,
             height: px,
-            borderColor: locked ? "var(--color-line)" : r.tone.rimDark,
+            borderColor: locked ? "var(--color-line)" : tone.rimDark,
             background: locked ? "transparent" : "var(--color-surface-3)",
-            color: locked ? "var(--color-ink-ghost)" : r.fg,
+            color: locked ? "var(--color-ink-ghost)" : fg,
             fontSize: px * 0.34,
           }}
           aria-hidden
@@ -144,7 +170,7 @@ export function Badge({
           className="text-center font-mono leading-tight"
           style={{
             fontSize: "0.62rem",
-            color: locked ? "var(--color-ink-ghost)" : r.fg,
+            color: locked ? "var(--color-ink-ghost)" : fg,
           }}
         >
           {badge.label}
@@ -384,7 +410,9 @@ export function BadgeShelf({ badges }: { badges: BadgeProgressView[] }) {
         ) : (
           <div className="mt-3.5 flex flex-wrap items-start gap-3">
             {earned.map((b) => (
-              <Badge key={b.key} badge={b} />
+              // `tier` drives the "x2" bubble. Only a repeatable badge ever
+              // reports a count above 1, so ordinary badges are unaffected.
+              <Badge key={b.key} badge={b} tier={b.count} />
             ))}
           </div>
         )}

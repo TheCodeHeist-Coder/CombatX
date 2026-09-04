@@ -16,7 +16,13 @@ import {
   PageHeader,
   Spinner,
 } from "../../components/atoms";
-import { fetchProblems, deleteProblem, AdminApiError } from "../../lib/api";
+import {
+  fetchProblems,
+  deleteProblem,
+  approveProblem,
+  rejectProblem,
+  AdminApiError,
+} from "../../lib/api";
 import { useAdminSession } from "../../lib/useAdminSession";
 
 export default function ProblemsPage() {
@@ -33,11 +39,15 @@ function Problems() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Pending first: an unreviewed submission is the only thing on this page
+  // that is actually waiting on the admin.
+  const [filter, setFilter] = useState<string>("ALL");
+  const [notice, setNotice] = useState<string | null>(null);
 
   function load() {
     if (!session) return;
     setLoading(true);
-    fetchProblems(session.token)
+    fetchProblems(session.token, filter)
       .then((d) => {
         setRows(d.rows);
         setError(null);
@@ -52,7 +62,7 @@ function Problems() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [session]);
+  useEffect(load, [session, filter]);
 
   async function remove(row: AdminProblemRow) {
     if (!session) return;
@@ -67,6 +77,49 @@ function Problems() {
       load();
     } catch (err) {
       setError(err instanceof AdminApiError ? err.message : "Could not delete.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function approve(id: string, title: string) {
+    if (!session) return;
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await approveProblem(session.token, id);
+      const medals = res.awarded
+        .map((a) => `${a.label} x${a.count}`)
+        .join(", ");
+      setNotice(
+        medals
+          ? `Approved "${title}". Author earned ${medals}.`
+          : `Approved "${title}".`,
+      );
+      load();
+    } catch (e) {
+      setError(e instanceof AdminApiError ? e.message : "Could not approve.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function reject(id: string, title: string) {
+    if (!session) return;
+    // A reason is required by the server; asking here means the admin is not
+    // told "REASON_REQUIRED" after the fact.
+    const note = window.prompt(
+      `Why is "${title}" being sent back? The author reads this verbatim.`,
+    );
+    if (note === null) return;
+    setBusyId(id);
+    setError(null);
+    try {
+      await rejectProblem(session.token, id, note);
+      setNotice(`Sent "${title}" back to its author.`);
+      load();
+    } catch (e) {
+      setError(e instanceof AdminApiError ? e.message : "Could not reject.");
     } finally {
       setBusyId(null);
     }
@@ -87,6 +140,31 @@ function Problems() {
       />
 
       {error && <ErrorBanner message={error} />}
+      {notice && (
+        <p
+          className="font-mono text-[0.76rem]"
+          style={{ color: "var(--color-good)" }}
+        >
+          {notice}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {["ALL", "PENDING", "APPROVED", "REJECTED"].map((f) => (
+          <button
+            key={f}
+            className="btn btn-ghost px-3! py-1.5! text-[0.7rem]!"
+            onClick={() => setFilter(f)}
+            style={
+              filter === f
+                ? { borderColor: "var(--color-accent)", color: "var(--color-accent)" }
+                : undefined
+            }
+          >
+            {f.toLowerCase()}
+          </button>
+        ))}
+      </div>
 
       <div className="panel panel-lit overflow-hidden">
         <div className="overflow-x-auto">
@@ -94,6 +172,8 @@ function Problems() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Status</th>
+                <th>Author</th>
                 <th>Difficulty</th>
                 <th>Languages</th>
                 <th className="text-right">Tests</th>
@@ -113,6 +193,16 @@ function Problems() {
                     >
                       {p.title}
                     </Link>
+                  </td>
+                  <td>
+                    <StatusChip value={p.status} />
+                  </td>
+                  <td>
+                    {p.authorName ? (
+                      p.authorName
+                    ) : (
+                      <Dim>arena</Dim>
+                    )}
                   </td>
                   <td>
                     <DifficultyChip value={p.difficulty} />
@@ -136,6 +226,26 @@ function Problems() {
                   </td>
                   <td>
                     <div className="flex justify-end gap-2">
+                      {p.status !== "APPROVED" && (
+                        <button
+                          className="btn btn-primary px-2.5! py-1! text-[0.66rem]!"
+                          disabled={busyId === p.id}
+                          onClick={() => approve(p.id, p.title)}
+                          title="Publish it into the rotation"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {p.status === "PENDING" && (
+                        <button
+                          className="btn btn-ghost px-2.5! py-1! text-[0.66rem]!"
+                          disabled={busyId === p.id}
+                          onClick={() => reject(p.id, p.title)}
+                          title="Send it back with a reason"
+                        >
+                          Reject
+                        </button>
+                      )}
                       <Link
                         href={`/problems/${p.id}`}
                         className="btn btn-ghost px-2.5! py-1! text-[0.66rem]!"
@@ -160,7 +270,7 @@ function Problems() {
                 </tr>
               ))}
               {rows.length === 0 && !loading && (
-                <EmptyRow colSpan={7}>
+                <EmptyRow colSpan={9}>
                   <span className="flex flex-col items-center gap-3">
                     <span style={{ color: "var(--color-ink-ghost)" }}>
                       <IconDoc />
@@ -184,6 +294,18 @@ function Problems() {
       </div>
     </div>
   );
+}
+
+/** Review state as a coloured chip. */
+function StatusChip({ value }: { value: AdminProblemRow["status"] }) {
+  const map: Record<string, { color: string; text: string }> = {
+    DRAFT: { color: "var(--color-ink-ghost)", text: "draft" },
+    PENDING: { color: "var(--color-warn)", text: "pending" },
+    APPROVED: { color: "var(--color-good)", text: "live" },
+    REJECTED: { color: "var(--color-bad)", text: "rejected" },
+  };
+  const s = map[value] ?? map.APPROVED!;
+  return <Chip color={s.color}>{s.text}</Chip>;
 }
 
 function DifficultyChip({ value }: { value: string }) {

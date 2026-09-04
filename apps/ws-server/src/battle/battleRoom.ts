@@ -273,8 +273,15 @@ export class BattleRoom {
      * because a repeat beats refusing to start the battle.
      */
     const seatedIds = [...this.seats.values()].map((s) => s.userId);
+    /*
+     * APPROVED only. This is the single gate between a community submission
+     * and live play: a problem someone submitted five minutes ago is PENDING
+     * until an admin reads it, and must never be handed to a ranked battle
+     * unreviewed. Widening this `where` is how unvetted content — or a
+     * deliberately broken test suite — would reach players.
+     */
     const all = await prisma.problem.findMany({
-      where: { difficulty: this.config.difficulty },
+      where: { difficulty: this.config.difficulty, status: "APPROVED" },
       select: { id: true },
     });
 

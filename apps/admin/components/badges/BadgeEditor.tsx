@@ -63,6 +63,9 @@ export function BadgeEditor({
   const [progressFrom, setProgressFrom] = useState<number | null>(
     initial?.progressFrom ?? 0,
   );
+  const [repeatEvery, setRepeatEvery] = useState<number | null>(
+    initial?.repeatEvery ?? null,
+  );
 
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -317,6 +320,49 @@ export function BadgeEditor({
                   ))}
                 </select>
               </Field>
+
+              {/*
+                Repeatable badges. Only meaningful alongside a progress bar,
+                because the multiplier counts the SAME metric the bar tracks —
+                so the control is hidden when there is nothing to count.
+              */}
+              {progressFrom !== null && (
+                <div className="mt-3.5">
+                  <Field
+                    label="Repeatable"
+                    hint="Award another copy every N. Shows as x2, x3 on the medal."
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={repeatEvery !== null}
+                        onChange={(e) =>
+                          setRepeatEvery(e.target.checked ? 1 : null)
+                        }
+                      />
+                      {repeatEvery !== null && (
+                        <input
+                          className="field max-w-24"
+                          type="number"
+                          min={1}
+                          value={repeatEvery}
+                          onChange={(e) =>
+                            setRepeatEvery(Math.max(1, Number(e.target.value)))
+                          }
+                        />
+                      )}
+                      <span
+                        className="font-mono text-[0.68rem]"
+                        style={{ color: "var(--color-ink-ghost)" }}
+                      >
+                        {repeatEvery === null
+                          ? "Held once."
+                          : `One copy per ${repeatEvery}.`}
+                      </span>
+                    </div>
+                  </Field>
+                </div>
+              )}
             </div>
           </section>
         </div>
@@ -444,6 +490,7 @@ export function BadgeEditor({
               glyph: glyph || label.charAt(0).toUpperCase() || "X",
               conditions,
               progressFrom,
+              repeatEvery,
               enabled,
               sortOrder,
             })
@@ -479,6 +526,7 @@ export interface Draft {
   glyph: string;
   conditions: AdminBadgeCondition[];
   progressFrom: number | null;
+  repeatEvery: number | null;
   enabled: boolean;
   sortOrder: number;
 }

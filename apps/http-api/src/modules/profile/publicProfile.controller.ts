@@ -76,7 +76,7 @@ export async function getPublicProfile(
   const [badges, rules] = await Promise.all([
     prisma.userBadge.findMany({
       where: { userId: user.id },
-      select: { badgeKey: true, earnedAt: true },
+      select: { badgeKey: true, earnedAt: true, count: true },
       orderBy: { earnedAt: "desc" },
     }),
     listRules(),

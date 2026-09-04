@@ -52,6 +52,8 @@ export const BADGE_METRICS = [
   "placed",
   /** Wins as a percentage of decided battles, 0-100. */
   "winRate",
+  /** Problems this user authored that an admin approved. */
+  "approvedProblemsAuthored",
 ] as const;
 
 export type BadgeMetric = (typeof BADGE_METRICS)[number];
@@ -77,6 +79,7 @@ export const METRIC_LABELS: Record<BadgeMetric, string> = {
   tierIndex: "Tier reached (0 = lowest)",
   placed: "Has a placed rating (1 = yes)",
   winRate: "Win rate %",
+  approvedProblemsAuthored: "Approved problems authored",
 };
 
 /**
@@ -120,6 +123,15 @@ export interface BadgeRule {
    * "halfway to having signed up early" is meaningless.
    */
   progressFrom: number | null;
+  /**
+   * For a REPEATABLE badge: how much of the progress metric earns one more
+   * copy, rendered as the "x2" bubble on the medal. Null for an ordinary
+   * badge, which is held once or not at all.
+   *
+   * Only meaningful alongside a `gte` condition at `progressFrom` — a rule
+   * that cannot ramp cannot repeat.
+   */
+  repeatEvery: number | null;
   /** Hidden rules stay in the table but are not awarded or shown. */
   enabled: boolean;
   /** Display order on the shelf, ascending. */
@@ -145,6 +157,8 @@ export interface RuleContext {
   rating: RatingState;
   /** Index of the held tier, or -1 when provisional. */
   tierIndex: number;
+  /** Problems authored by this user that an admin approved. */
+  approvedProblemsAuthored: number;
 }
 
 /** Read one metric out of a context. */
@@ -168,6 +182,8 @@ export function readMetric(metric: BadgeMetric, c: RuleContext): number {
     case "conservativeRating": return conservativeRating(c.rating);
     case "tierIndex": return c.tierIndex;
     case "placed": return isProvisional(c.rating.rd) ? 0 : 1;
+    case "approvedProblemsAuthored":
+      return c.approvedProblemsAuthored;
     case "winRate": {
       const decided = c.wins + c.losses;
       return decided === 0 ? 0 : (c.wins / decided) * 100;
@@ -220,6 +236,26 @@ export function ruleProgress(rule: BadgeRule, c: RuleContext): number | null {
   if (cond.comparator === "lte") return conditionMet(cond, c) ? 1 : 0;
   if (cond.threshold <= 0) return 1;
   return Math.min(1, Math.max(0, readMetric(cond.metric, c) / cond.threshold));
+}
+
+/**
+ * How many times a rule has been earned.
+ *
+ * 0 means not yet; 1 is an ordinary held badge; 2+ only ever comes from a
+ * repeatable rule and is what the medal renders as "x2".
+ *
+ * Deliberately separate from `ruleMet` rather than replacing it: every
+ * existing badge is boolean, and a caller that only asks "do they hold this?"
+ * should not have to reason about levels.
+ */
+export function ruleLevel(rule: BadgeRule, c: RuleContext): number {
+  if (!ruleMet(rule, c)) return 0;
+  if (rule.repeatEvery === null || rule.repeatEvery <= 0) return 1;
+  const cond = rule.progressFrom === null ? undefined : rule.conditions[rule.progressFrom];
+  // Without a ramping condition to count against, a repeatable rule still
+  // awards once rather than silently multiplying.
+  if (!cond || cond.comparator !== "gte") return 1;
+  return Math.max(1, Math.floor(readMetric(cond.metric, c) / rule.repeatEvery));
 }
 
 /** A one-line, human-readable summary of a rule, for the admin table. */

@@ -71,3 +71,12 @@ export type PresenceStatus = z.infer<typeof PresenceStatus>;
  */
 export const TestKind = z.enum(["SAMPLE", "HIDDEN"]);
 export type TestKind = z.infer<typeof TestKind>;
+
+/**
+ * Review state of a problem. Mirrors the Prisma enum.
+ *
+ * Only APPROVED problems are ever selected for a battle; the arena filters on
+ * this, so a PENDING submission cannot leak into ranked play.
+ */
+export const ProblemStatus = z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]);
+export type ProblemStatus = z.infer<typeof ProblemStatus>;

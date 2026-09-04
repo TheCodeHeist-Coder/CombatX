@@ -52,7 +52,7 @@ export async function getBadgeShelf(
 
   const held = await prisma.userBadge.findMany({
     where: { userId: user.id },
-    select: { badgeKey: true, earnedAt: true },
+    select: { badgeKey: true, earnedAt: true, count: true },
   });
 
   // Read the admin-editable rules, so a badge retuned in the console shows

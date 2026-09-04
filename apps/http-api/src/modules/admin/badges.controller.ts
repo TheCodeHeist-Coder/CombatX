@@ -147,7 +147,7 @@ export async function postAdminBadgePreview(
   const probe: BadgeRule = {
     key: "__preview", label: "", description: "", category: "MILESTONE",
     rarity: "COMMON", artKey: "", glyph: "", conditions,
-    progressFrom: null, enabled: true, sortOrder: 0,
+    progressFrom: null, repeatEvery: null, enabled: true, sortOrder: 0,
   };
 
   const body: AdminBadgePreviewResponse = {
@@ -246,6 +246,7 @@ async function loadRuleContexts(): Promise<
       bestStreak: true, rankedBattles: true, upsetWins: true, perfectWins: true,
       easyWins: true, mediumWins: true, hardWins: true,
       distinctProblemsWon: true, signupOrdinal: true, createdAt: true,
+      approvedProblems: true,
       rating: true, ratingRd: true, ratingVolatility: true,
     },
   });
@@ -266,6 +267,7 @@ async function loadRuleContexts(): Promise<
         easyWins: u.easyWins, mediumWins: u.mediumWins, hardWins: u.hardWins,
         distinctProblemsWon: u.distinctProblemsWon,
         signupOrdinal: u.signupOrdinal,
+        approvedProblemsAuthored: u.approvedProblems,
         accountAgeDays: Math.max(
           0,
           Math.floor((now - u.createdAt.getTime()) / 86_400_000),

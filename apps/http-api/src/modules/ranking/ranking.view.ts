@@ -63,6 +63,7 @@ export const BADGE_STAT_SELECT = {
   distinctProblemsWon: true,
   signupOrdinal: true,
   createdAt: true,
+  approvedProblems: true,
 } as const;
 
 /** Prisma columns -> the pure RatingState the game package works in. */
@@ -115,6 +116,7 @@ export interface BadgeStatColumns extends RatingColumns {
   distinctProblemsWon: number;
   signupOrdinal: number;
   createdAt: Date;
+  approvedProblems: number;
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -142,6 +144,7 @@ export function toBadgeContext(
       0,
       Math.floor((now.getTime() - row.createdAt.getTime()) / MS_PER_DAY),
     ),
+    approvedProblemsAuthored: row.approvedProblems,
   };
 }
 
@@ -176,6 +179,7 @@ export function toRuleContext(
       0,
       Math.floor((now.getTime() - row.createdAt.getTime()) / MS_PER_DAY),
     ),
+    approvedProblemsAuthored: row.approvedProblems,
     rating,
     tierIndex: tier ? TIERS.findIndex((t) => t.key === tier.key) : -1,
   };
@@ -185,6 +189,15 @@ export function toRuleContext(
 export interface BadgeRow {
   badgeKey: string;
   earnedAt: Date;
+  /**
+   * Times earned, for a repeatable badge — the "x2" on the medal.
+   *
+   * REQUIRED, not optional. Making it optional let four call sites select the
+   * row without it and silently report every badge as x1; the compiler had
+   * nothing to object to. A required field means forgetting the column is a
+   * build error instead of a wrong number on a profile.
+   */
+  count: number;
 }
 
 /**
@@ -200,7 +213,11 @@ export function toBadgeViews(rows: readonly BadgeRow[]): BadgeView[] {
   for (const row of rows) {
     const def = badgeByKey(row.badgeKey);
     if (!def) continue;
-    out.push({ ...describeBadge(def), earnedAt: row.earnedAt.toISOString() });
+    out.push({
+      ...describeBadge(def),
+      earnedAt: row.earnedAt.toISOString(),
+      count: row.count ?? 1,
+    });
   }
   return out;
 }
@@ -223,6 +240,7 @@ export function toBadgeShelf(
   held: readonly BadgeRow[],
 ): BadgeProgressView[] {
   const heldAt = new Map(held.map((r) => [r.badgeKey, r.earnedAt]));
+  const heldCount = new Map(held.map((r) => [r.badgeKey, r.count ?? 1]));
 
   return rules
     .filter((r) => r.enabled)
@@ -238,6 +256,7 @@ export function toBadgeShelf(
         earnedAt: earnedAt ? earnedAt.toISOString() : null,
         earned: earnedAt !== undefined || ruleMet(rule, context),
         progress: ruleProgress(rule, context),
+        count: heldCount.get(rule.key) ?? 1,
       };
     });
 }
@@ -267,12 +286,17 @@ export function toBadgeViewsFromRules(
         rarity: rule.rarity,
         glyph: rule.glyph,
         earnedAt: row.earnedAt.toISOString(),
+        count: row.count ?? 1,
       });
       continue;
     }
     const builtin = badgeByKey(row.badgeKey);
     if (builtin) {
-      out.push({ ...describeBadge(builtin), earnedAt: row.earnedAt.toISOString() });
+      out.push({
+        ...describeBadge(builtin),
+        earnedAt: row.earnedAt.toISOString(),
+        count: row.count ?? 1,
+      });
     }
   }
   return out;

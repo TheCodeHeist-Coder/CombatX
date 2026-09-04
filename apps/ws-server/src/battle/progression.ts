@@ -77,6 +77,7 @@ const PLAYER_SELECT = {
   battlesToday: true,
   xpDay: true,
   createdAt: true,
+  approvedProblems: true,
 } as const;
 
 /** UTC day key for the anti-grind counter. */
@@ -329,7 +330,13 @@ export async function applyProgression(
       perfect: award.perfect,
       totalXp: before.xp + award.xp,
       rating: ratingDelta,
-      newBadges: fresh.map((b) => ({ ...b, earnedAt: now.toISOString() })),
+      // count 1: the battle path only ever awards a badge for the first time.
+      // Repeatable badges are authoring ones, granted by http-api at approval.
+      newBadges: fresh.map((b) => ({
+        ...b,
+        earnedAt: now.toISOString(),
+        count: 1,
+      })),
     });
   }
 
@@ -420,6 +427,7 @@ function project(
     ratingVolatility: number;
     rankedBattles: number;
     createdAt: Date;
+    approvedProblems: number;
   },
   d: {
     award: { xp: number };
@@ -465,5 +473,9 @@ function project(
       0,
       Math.floor((d.now.getTime() - before.createdAt.getTime()) / MS_PER_DAY),
     ),
+    // A battle cannot change how many problems someone has authored, so this
+    // carries through untouched. Authoring badges are awarded at approval
+    // time by http-api, not here.
+    approvedProblemsAuthored: before.approvedProblems,
   };
 }
