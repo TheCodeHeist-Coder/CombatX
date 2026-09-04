@@ -23,6 +23,12 @@ import {
   postAdminBadgeSeed,
   putAdminBadge,
 } from "./badges.controller.js";
+import {
+  getAdminSeasonStandings,
+  getAdminSeasons,
+  postAdminSeason,
+  postAdminSeasonEnd,
+} from "./seasons.controller.js";
 
 /**
  * Super-admin routes.
@@ -56,6 +62,16 @@ guardedAdminRoutes.post(
   asyncHandler(postRejectProblem),
 );
 guardedAdminRoutes.get("/problems/:id", asyncHandler(getAdminProblem));
+
+// Seasons. "/seasons" is literal and registered before any "/seasons/:id"
+// pattern, matching the ordering rule the badge routes document above.
+guardedAdminRoutes.get("/seasons", asyncHandler(getAdminSeasons));
+guardedAdminRoutes.post("/seasons", asyncHandler(postAdminSeason));
+guardedAdminRoutes.get(
+  "/seasons/:id/standings",
+  asyncHandler(getAdminSeasonStandings),
+);
+guardedAdminRoutes.post("/seasons/:id/end", asyncHandler(postAdminSeasonEnd));
 guardedAdminRoutes.put("/problems/:id", asyncHandler(putAdminProblem));
 guardedAdminRoutes.delete("/problems/:id", asyncHandler(deleteAdminProblem));
 

@@ -303,3 +303,32 @@ export function IconAward() {
     </svg>
   );
 }
+
+/** A calendar with a cycle arrow — a season: a bounded, repeating period. */
+export function IconSeason() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect
+        x="1.8"
+        y="3"
+        width="12.4"
+        height="11.2"
+        rx="1.6"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M1.8 6.4h12.4M5.2 1.8v2.4M10.8 1.8v2.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M6 10.6a2.2 2.2 0 0 1 3.9-1.3M10 11.4a2.2 2.2 0 0 1-3.9 1.3"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

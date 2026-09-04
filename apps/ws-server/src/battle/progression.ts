@@ -25,6 +25,7 @@ import {
   type RatingState,
 } from "@repo/game";
 import { activeRules } from "./badgeRules.js";
+import { activeSeasonId } from "./season.js";
 import { prisma, type Prisma } from "@repo/db";
 import type {
   Difficulty,
@@ -160,6 +161,9 @@ export async function applyProgression(
   // Admin-editable rules, cached in badgeRules.ts. Read once per battle
   // rather than per player.
   const rules = await activeRules();
+  // Resolved once per battle, not per player: every seat in a battle is in
+  // the same season by definition.
+  const seasonId = await activeSeasonId();
 
   const awards: ProgressionAward[] = [];
   // Prisma's $transaction is overloaded; the array form needs an explicit
@@ -242,6 +246,7 @@ export async function applyProgression(
               delta: change.after.rating - change.before.rating,
               opponentRating: opponent.rating,
               score,
+              seasonId,
             },
           }),
         );
