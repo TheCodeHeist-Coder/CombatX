@@ -526,3 +526,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The leagues join-code field. A bare <input> inside a bonded control, so it
+   has no .field class to inherit a placeholder colour from. */
+.league-code::placeholder {
+  color: var(--color-ink-ghost);
+  letter-spacing: 0.22em;
+}

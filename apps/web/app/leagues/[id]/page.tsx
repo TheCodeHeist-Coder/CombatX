@@ -1,0 +1,357 @@
+"use client";
+
+import { use, useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { CreateFixtureInput, LeagueDetailResponse } from "@repo/protocol";
+import { AppShell } from "../../../components/AppShell";
+import { ErrorBanner, Spinner } from "../../../components/atoms";
+import {
+  BackToLeagues,
+  FormatChip,
+  JoinCode,
+  LeagueLogo,
+  LeagueStatusChip,
+  VisibilityChip,
+} from "../../../components/leagues/LeagueBits";
+import { TeamsPanel } from "../../../components/leagues/TeamsPanel";
+import { FixturesPanel } from "../../../components/leagues/FixturesPanel";
+import { ScheduleMatch } from "../../../components/leagues/ScheduleMatch";
+import {
+  ApiCallError,
+  cancelLeagueFixture,
+  createLeagueFixture,
+  createLeagueTeam,
+  fetchLeague,
+  joinLeagueTeam,
+  leaveLeagueTeam,
+  startLeagueLeg,
+  updateLeague,
+} from "../../../lib/api";
+import { useSession } from "../../../lib/useSession";
+import { useProfile } from "../../../lib/useProfile";
+
+/**
+ * One league: its teams, its matches, and the host's controls.
+ *
+ * EVERY MUTATION REFETCHES
+ * ------------------------
+ * Joining a team changes the standings, the fixture eligibility and your own
+ * row all at once, and kicking off a leg changes a fixture's status. Patching
+ * the local copy would mean re-deriving all of that on the client, in a
+ * second implementation of rules the server already owns. A refetch is one
+ * indexed query and cannot disagree with the server.
+ */
+export default function LeaguePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const { session, loaded } = useSession();
+  const { profile } = useProfile(session);
+  const router = useRouter();
+
+  const [detail, setDetail] = useState<LeagueDetailResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [working, setWorking] = useState<string | null>(null);
+  const [scheduling, setScheduling] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      setDetail(await fetchLeague(id, session?.token));
+      setError(null);
+    } catch (e) {
+      setError(
+        e instanceof ApiCallError ? e.message : "Could not load the league.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [id, session]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    void load();
+  }, [loaded, load]);
+
+  /** Run a mutation, surface its error, and refetch. */
+  async function act(key: string, fn: () => Promise<unknown>) {
+    setWorking(key);
+    setError(null);
+    try {
+      await fn();
+      await load();
+    } catch (e) {
+      setError(
+        e instanceof ApiCallError ? e.message : "That did not work.",
+      );
+    } finally {
+      setWorking(null);
+    }
+  }
+
+  const token = session && !session.isGuest ? session.token : null;
+
+  async function startLeg(fixtureId: string, legId: string) {
+    if (!token) return;
+    setWorking(legId);
+    setError(null);
+    try {
+      const { battleId } = await startLeagueLeg(token, id, fixtureId, legId);
+      // Straight into the room. The host is a participant in most leagues,
+      // and even when they are not, they want to see it has actually opened.
+      router.push(`/battle/${battleId}`);
+    } catch (e) {
+      setError(
+        e instanceof ApiCallError ? e.message : "Could not start the match.",
+      );
+      setWorking(null);
+    }
+  }
+
+  return (
+    <AppShell session={session} profile={profile}>
+      <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7">
+        {busy ? (
+          <div className="flex justify-center py-20">
+            <Spinner />
+          </div>
+        ) : !detail ? (
+          <>
+            <BackToLeagues />
+            <div className="mt-4">
+              <ErrorBanner message={error ?? "League not found."} />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* --- header --- */}
+            <div className="flex flex-wrap items-start gap-4">
+              <LeagueLogo
+                name={detail.league.name}
+                logoUrl={detail.league.logoUrl}
+                size={64}
+              />
+              <div className="min-w-0 flex-1">
+                <BackToLeagues />
+                <h1 className="mt-2 text-2xl font-bold">
+                  {detail.league.name}
+                </h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <LeagueStatusChip value={detail.league.status} />
+                  <VisibilityChip value={detail.league.visibility} />
+                  <FormatChip teamSize={detail.league.teamSize} />
+                  <span
+                    className="font-mono text-[0.68rem]"
+                    style={{ color: "var(--color-ink-faint)" }}
+                  >
+                    run by {detail.league.hostName}
+                  </span>
+                </div>
+              </div>
+
+              {/* The code is only ever sent to someone involved — see the
+                  service, which nulls it for everyone else. */}
+              {detail.league.joinCode && (
+                <JoinCode code={detail.league.joinCode} />
+              )}
+            </div>
+
+            {/*
+              A called-off league still shows its teams and whatever was
+              played, so without this banner the page reads as live and a
+              player could sit waiting for a match that will never start.
+            */}
+            {detail.league.status === "CANCELLED" && (
+              <div
+                className="mt-4 rounded-[8px] border p-3"
+                style={{
+                  borderColor: "var(--color-bad)",
+                  background:
+                    "color-mix(in srgb, var(--color-bad) 8%, transparent)",
+                }}
+              >
+                <p
+                  className="font-mono text-[0.74rem]"
+                  style={{ color: "var(--color-bad)" }}
+                >
+                  This league was called off. No further matches will be
+                  played; everything already played is kept below.
+                </p>
+              </div>
+            )}
+
+            {detail.league.description && (
+              <p
+                className="mt-4 max-w-3xl font-mono text-[0.76rem] leading-[1.9]"
+                style={{ color: "var(--color-ink-dim)" }}
+              >
+                {detail.league.description}
+              </p>
+            )}
+
+            {/* --- host controls --- */}
+            {detail.isHost && (
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                {!scheduling && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setScheduling(true)}
+                    disabled={
+                      detail.league.status === "FINISHED" ||
+                      detail.league.status === "CANCELLED"
+                    }
+                  >
+                    + Schedule a match
+                  </button>
+                )}
+                {detail.league.status === "OPEN" && (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() =>
+                      void act("status", () =>
+                        updateLeague(token!, id, { status: "RUNNING" }),
+                      )
+                    }
+                    title="Stop new teams from registering"
+                  >
+                    Close registration
+                  </button>
+                )}
+                {detail.league.status === "RUNNING" && (
+                  <>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() =>
+                        void act("status", () =>
+                          updateLeague(token!, id, { status: "OPEN" }),
+                        )
+                      }
+                    >
+                      Reopen registration
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Finish this league? The standings become final.",
+                          )
+                        ) {
+                          void act("status", () =>
+                            updateLeague(token!, id, { status: "FINISHED" }),
+                          );
+                        }
+                      }}
+                    >
+                      Finish league
+                    </button>
+                  </>
+                )}
+
+                {/*
+                  Calling a league off is distinct from finishing it: an
+                  abandoned league has no champion, so filing it as finished
+                  would put a winner on something nobody won. Offered in both
+                  live states, because a league can be abandoned before a
+                  single match is played.
+                */}
+                {(detail.league.status === "OPEN" ||
+                  detail.league.status === "RUNNING") && (
+                  <button
+                    className="btn btn-ghost"
+                    style={{ color: "var(--color-bad)" }}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Call off this league? It stops accepting teams and matches. Results already played are kept.",
+                        )
+                      ) {
+                        void act("status", () =>
+                          updateLeague(token!, id, { status: "CANCELLED" }),
+                        );
+                      }
+                    }}
+                  >
+                    Cancel league
+                  </button>
+                )}
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-5">
+                <ErrorBanner message={error} />
+              </div>
+            )}
+
+            {scheduling && token && (
+              <div className="mt-5">
+                <ScheduleMatch
+                  teams={detail.teams}
+                  token={token}
+                  busy={working === "fixture"}
+                  onCancel={() => setScheduling(false)}
+                  onCreate={async (input: CreateFixtureInput) => {
+                    await act("fixture", () =>
+                      createLeagueFixture(token, id, input),
+                    );
+                    setScheduling(false);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* --- matches --- */}
+            <div className="mt-8">
+              <div className="mb-3 flex items-baseline gap-3">
+                <h2 className="text-[1.05rem] font-bold">Matches</h2>
+                <span
+                  className="font-mono text-[0.7rem]"
+                  style={{ color: "var(--color-ink-faint)" }}
+                >
+                  {detail.fixtures.length}
+                </span>
+              </div>
+              <FixturesPanel
+                detail={detail}
+                isHost={detail.isHost}
+                myTeamId={detail.myTeamId}
+                working={working}
+                onStartLeg={startLeg}
+                onCancel={(fixtureId) =>
+                  act(fixtureId, () =>
+                    cancelLeagueFixture(token!, id, fixtureId),
+                  )
+                }
+              />
+            </div>
+
+            {/* --- teams --- */}
+            <div className="mt-10">
+              <TeamsPanel
+                detail={detail}
+                session={session}
+                working={working}
+                onCreate={(name) =>
+                  act("create", () =>
+                    createLeagueTeam(token!, id, { name }),
+                  )
+                }
+                onJoin={(teamId) =>
+                  act(teamId, () => joinLeagueTeam(token!, id, teamId))
+                }
+                onLeave={(teamId, userId) =>
+                  act(teamId, () =>
+                    leaveLeagueTeam(token!, id, teamId, userId),
+                  )
+                }
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </AppShell>
+  );
+}

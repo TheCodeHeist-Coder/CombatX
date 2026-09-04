@@ -115,6 +115,18 @@ export class BattleRoom {
   private winnerSide: Side | null = null;
   private finishReason: FinishReason | null = null;
 
+  /**
+   * Seats decided before anyone connected — userId -> (side, slot).
+   *
+   * A league fixture writes its two rosters to Team/TeamMember at kick-off,
+   * because the teams are already known and asking eight people to find the
+   * right chair in a lobby is both tedious and a real chance to end up on the
+   * wrong side. Loaded once on the first attach; empty for every ordinary
+   * battle, which seats itself in the lobby as before.
+   */
+  private assignedSeats: Map<string, { side: Side; slot: number }> | null =
+    null;
+
   private countdownTimer: NodeJS.Timeout | null = null;
   private tickTimer: NodeJS.Timeout | null = null;
   private endTimer: NodeJS.Timeout | null = null;
@@ -165,6 +177,9 @@ export class BattleRoom {
   attach(conn: Connection): void {
     let seat = this.seats.get(conn.userId);
     if (!seat) {
+      // A pre-assigned seat (league fixture) puts the player straight onto
+      // their team; everyone else arrives unseated and picks in the lobby.
+      const assigned = this.assignedSeats?.get(conn.userId) ?? null;
       seat = {
         userId: conn.userId,
         username: conn.username,
@@ -172,8 +187,8 @@ export class BattleRoom {
         avatarId: conn.avatarId,
         avatarColor: conn.avatarColor,
         imageUrl: conn.imageUrl,
-        side: null,
-        slot: null,
+        side: assigned?.side ?? null,
+        slot: assigned?.slot ?? null,
         ready: false,
         presence: "ONLINE",
       };
@@ -298,6 +313,29 @@ export class BattleRoom {
     if (this.status !== "COUNTDOWN") return; // cancelled meanwhile
 
     /*
+     * A problem the creator already chose wins outright.
+     *
+     * This is how a league host pins a specific problem to a fixture leg: the
+     * battle row is written with assignedProblemId set, and the whole
+     * selection below is skipped. Both teams then meet exactly the problem
+     * the host scheduled, which is the point of scheduling one.
+     *
+     * It deliberately bypasses the repeat cooldown. A host who picks a
+     * problem has said which problem they want, and silently substituting a
+     * different one because somebody played it on Tuesday would make a
+     * published fixture list a lie. The cooldown protects the RANDOM path,
+     * where nobody chose.
+     *
+     * Still gated on APPROVED: a pin is a preference, never an escape from
+     * review.
+     */
+    const preassigned = await this.preassignedProblem();
+    if (preassigned) {
+      await this.startWithProblem(preassigned);
+      return;
+    }
+
+    /*
      * Pick a problem of the room's difficulty that the seated players have not
      * already fought.
      *
@@ -367,8 +405,45 @@ export class BattleRoom {
       return;
     }
 
+    await this.startWithProblem(picked.id);
+  }
+
+  /**
+   * The problem this battle was created with, if it was created with one.
+   *
+   * Only a league fixture leg sets this today: an ordinary battle and a
+   * rematch are both written with a null and choose at kick-off.
+   *
+   * Returns null when the pinned problem is no longer APPROVED — a problem
+   * can be rejected or withdrawn between scheduling and kick-off, and falling
+   * back to the ordinary picker is far better than refusing to start a match
+   * that people have turned up for.
+   */
+  private async preassignedProblem(): Promise<string | null> {
+    const row = await prisma.battle.findUnique({
+      where: { id: this.battleId },
+      select: { assignedProblemId: true },
+    });
+    const id = row?.assignedProblemId ?? null;
+    if (!id) return null;
+
+    const problem = await prisma.problem.findFirst({
+      where: { id, status: "APPROVED" },
+      select: { id: true },
+    });
+    return problem?.id ?? null;
+  }
+
+  /**
+   * Reveal a chosen problem, stamp the clock, and go IN_PROGRESS.
+   *
+   * Shared by both routes into a live battle — the pinned problem and the
+   * picked one — so the two cannot drift. Everything after the choice is
+   * identical, and it is the part that must not be got subtly wrong twice.
+   */
+  private async startWithProblem(problemId: string): Promise<void> {
     const problemRow = await prisma.problem.findUniqueOrThrow({
-      where: { id: picked.id },
+      where: { id: problemId },
       include: { testCases: true },
     });
     this.problem = toPublicProblem(problemRow, problemRow.testCases);
@@ -383,7 +458,7 @@ export class BattleRoom {
       where: { id: this.battleId },
       data: {
         status: "IN_PROGRESS",
-        assignedProblemId: picked.id,
+        assignedProblemId: problemId,
         serverStartAt: new Date(start),
         serverEndAt: new Date(end),
       },
@@ -488,6 +563,34 @@ export class BattleRoom {
         });
       }
     });
+  }
+
+  /**
+   * Load seats that were decided before the room existed.
+   *
+   * Called by the registry when the room is built, so `attach` — which is
+   * synchronous — can consult the result without awaiting anything.
+   *
+   * Only meaningful in the LOBBY. Once a battle is IN_PROGRESS the same
+   * Team rows are the record of who actually played, and restoreSeats owns
+   * reading them; loading them here as well would be harmless but confusing.
+   */
+  async loadAssignedSeats(): Promise<void> {
+    if (this.status !== "LOBBY") return;
+
+    const teams = await prisma.team.findMany({
+      where: { battleId: this.battleId },
+      include: { members: { select: { userId: true, slot: true } } },
+    });
+    if (teams.length === 0) return;
+
+    const map = new Map<string, { side: Side; slot: number }>();
+    for (const team of teams) {
+      for (const member of team.members) {
+        map.set(member.userId, { side: team.side, slot: member.slot });
+      }
+    }
+    this.assignedSeats = map;
   }
 
   /** Load persisted seats into memory (used only on cold hydration). */

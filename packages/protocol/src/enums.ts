@@ -80,3 +80,63 @@ export type TestKind = z.infer<typeof TestKind>;
  */
 export const ProblemStatus = z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]);
 export type ProblemStatus = z.infer<typeof ProblemStatus>;
+
+/**
+ * Who may join a league. Mirrors the Prisma enum.
+ *
+ * A PUBLIC league is listed on the leagues page and anyone may form a team.
+ * A PRIVATE one is unlisted and reachable only with its join code.
+ */
+export const LeagueVisibility = z.enum(["PUBLIC", "PRIVATE"]);
+export type LeagueVisibility = z.infer<typeof LeagueVisibility>;
+
+/**
+ * A league's lifecycle. The host advances it by hand.
+ *
+ * CANCELLED is not FINISHED: an abandoned league has no champion, so filing
+ * it as finished would claim a winner nobody won.
+ */
+export const LeagueStatus = z.enum([
+  "DRAFT",
+  "OPEN",
+  "RUNNING",
+  "FINISHED",
+  "CANCELLED",
+]);
+export type LeagueStatus = z.infer<typeof LeagueStatus>;
+
+/** The stage a fixture belongs to. */
+export const LeagueRound = z.enum([
+  "GROUP",
+  "QUARTER_FINAL",
+  "SEMI_FINAL",
+  "FINAL",
+]);
+export type LeagueRound = z.infer<typeof LeagueRound>;
+
+/** How far a fixture has got. */
+export const FixtureStatus = z.enum([
+  "SCHEDULED",
+  "LIVE",
+  "COMPLETED",
+  "CANCELLED",
+]);
+export type FixtureStatus = z.infer<typeof FixtureStatus>;
+
+/**
+ * The battle Mode a league of the given team size plays at.
+ *
+ * League team size and battle mode are the same number wearing two hats, and
+ * this is the single place that conversion happens. Indexed by team size so a
+ * caller with `league.teamSize` needs no switch of its own.
+ */
+export const TEAM_SIZE_MODE: Record<number, Mode> = {
+  1: "ONE_V_ONE",
+  2: "TWO_V_TWO",
+  3: "THREE_V_THREE",
+  4: "FOUR_V_FOUR",
+};
+
+/** Smallest and largest team a league may be configured for. */
+export const MIN_LEAGUE_TEAM_SIZE = 1;
+export const MAX_LEAGUE_TEAM_SIZE = 4;

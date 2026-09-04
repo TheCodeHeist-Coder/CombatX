@@ -14,6 +14,7 @@ import { profileRoutes } from "./modules/profile/profile.routes.js";
 import { matchmakingRoutes } from "./modules/matchmaking/matchmaking.routes.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
 import { problemRoutes } from "./modules/problems/problems.routes.js";
+import { leagueRoutes } from "./modules/leagues/leagues.routes.js";
 import { trackRoutes } from "./modules/track/track.routes.js";
 
 /**
@@ -34,6 +35,7 @@ export function createApp(): Express {
   app.use(profileRoutes);
   app.use(matchmakingRoutes);
   app.use(problemRoutes);
+  app.use(leagueRoutes);
   app.use(trackRoutes);
   app.use(adminRoutes);
 
