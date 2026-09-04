@@ -169,6 +169,9 @@ export function Badge({
         <figcaption
           className="text-center font-mono leading-tight"
           style={{
+            // The ornate viewBox is taller than the plain one, which pushes
+            // its caption down; pull it back so a mixed row aligns.
+            marginTop: honour ? "-0.5rem" : undefined,
             fontSize: "0.62rem",
             color: locked ? "var(--color-ink-ghost)" : fg,
           }}
