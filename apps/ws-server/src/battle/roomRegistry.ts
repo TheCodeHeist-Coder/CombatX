@@ -86,6 +86,10 @@ export class RoomRegistry {
     });
     this.rooms.set(battle.id, room);
 
+    // Seats a league fixture assigned when it created the battle. A no-op for
+    // an ordinary battle, which has no Team rows until it starts.
+    await room.loadAssignedSeats();
+
     // A battle that was mid-fight when its room fell out of memory keeps its
     // problem and clock only in the DB. Restore them so a reconnecting player
     // lands in a live arena rather than a permanent "revealing the problem".

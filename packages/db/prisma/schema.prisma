@@ -262,6 +262,11 @@ model User {
   seasonStandings SeasonStanding[]
   queueEntry    MatchQueueEntry?
 
+  // Leagues. `hostedLeagues` are the ones this user runs; `leagueMemberships`
+  // are the teams they play in. A user can do both, in different leagues.
+  hostedLeagues     League[]         @relation("HostedLeagues")
+  leagueMemberships LeagueTeamMember[]
+
   // The ladder's sort key. Postgres cannot index an expression through
   // Prisma, so the leaderboard filters on these and sorts in the query.
   @@index([rating])
@@ -495,6 +500,8 @@ model Problem {
 
   testCases TestCase[]
   battles   Battle[]
+  /** League fixture legs that pinned this problem. */
+  leagueLegs LeagueFixtureLeg[] @relation("LeagueLegProblem")
 
   @@index([difficulty])
   // Battle selection filters on both, in this order.
@@ -550,6 +557,8 @@ model Battle {
   teams       Team[]
   submissions Submission[]
   result      Result?
+  /** Set when this battle is a leg of a league fixture rather than a duel. */
+  leagueLeg   LeagueFixtureLeg? @relation("LeagueLegBattle")
 
   @@index([status])
   @@index([isRanked, status])
@@ -631,4 +640,274 @@ model PageView {
   @@index([createdAt])
   @@index([visitorId])
   @@index([path])
+}
+
+// =============================================================================
+// Leagues
+// =============================================================================
+//
+// A league is a player-run tournament: someone creates one, people join and
+// form teams, and the host pairs those teams into matches that are played on
+// the ordinary battle engine.
+//
+// WHY LEAGUE TEAMS ARE NOT `Team`
+// -------------------------------
+// `Team` is a seat allocation inside ONE battle — it is created with the
+// battle, holds a Side, and dies with it. A league team is a standing roster
+// that exists before any match and outlives every one it plays. Overloading
+// `Team` would mean a roster with a meaningless `side` and a mandatory
+// `battleId` pointing at nothing. They are different nouns, so they are
+// different tables; a fixture is what maps one onto the other.
+
+/**
+ * Who may join a league.
+ *
+ * PUBLIC leagues are listed and anyone may form a team. PRIVATE leagues are
+ * unlisted and reachable only with the join code. The code exists for both —
+ * it is the shareable handle — but only a PRIVATE league depends on it for
+ * access.
+ */
+enum LeagueVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+/**
+ * A league's lifecycle.
+ *
+ * DRAFT    — being set up; not yet accepting teams.
+ * OPEN     — accepting teams. Matches may already be scheduled.
+ * RUNNING  — registration closed by the host; matches continue.
+ * FINISHED — the host has called it; the standings are final.
+ * CANCELLED— called off before it could finish.
+ *
+ * The host moves it along by hand rather than the system inferring it: a
+ * league can legitimately sit half-played for a week, and guessing "this
+ * looks finished" would close leagues out from under people.
+ *
+ * CANCELLED is deliberately distinct from FINISHED and from deletion. A
+ * league that was abandoned did not produce a champion, so recording it as
+ * finished would put a winner on something nobody won; deleting it would
+ * erase matches people actually played. It stops accepting teams and matches
+ * while staying readable.
+ *
+ * The declaration ORDER is load-bearing: the browse list sorts by status, so
+ * the states people can still act on come before the archived ones.
+ */
+enum LeagueStatus {
+  DRAFT
+  OPEN
+  RUNNING
+  FINISHED
+  CANCELLED
+}
+
+/**
+ * The stage a fixture belongs to.
+ *
+ * Present from the start even though stage 1 only schedules GROUP matches, so
+ * that adding the bracket later is new rows rather than a migration of every
+ * existing fixture.
+ */
+enum LeagueRound {
+  GROUP
+  QUARTER_FINAL
+  SEMI_FINAL
+  FINAL
+}
+
+/** How far a fixture has got. */
+enum FixtureStatus {
+  /** Created by the host; no leg has been played. */
+  SCHEDULED
+  /** At least one leg played, the tie not yet decided. */
+  LIVE
+  /** Decided — `winnerTeamId` is set (or it was a draw). */
+  COMPLETED
+  /** The host called it off. */
+  CANCELLED
+}
+
+model League {
+  id          String           @id @default(cuid())
+  name        String
+  description String           @default("")
+
+  /**
+   * The league's logo, stored the same way a profile photo is: a downscaled
+   * square JPEG as a data URL. See apps/web/lib/image.ts for why there is no
+   * object store yet, and why this column takes a real URL unchanged the day
+   * one arrives.
+   */
+  logoUrl     String?
+
+  /** Shareable handle. Unique, unambiguous alphabet, same generator as rooms. */
+  joinCode    String           @unique
+
+  visibility  LeagueVisibility @default(PUBLIC)
+  status      LeagueStatus     @default(OPEN)
+
+  /**
+   * How many players make up one team, 1-4.
+   *
+   * Fixed at creation and never edited: teams are formed against this number,
+   * so lowering it later would leave existing rosters over-sized and raising
+   * it would silently make already-full teams incomplete.
+   *
+   * It also decides the battle Mode a fixture runs at — teamSize 2 plays as
+   * TWO_V_TWO — which is why the range matches MODE_TEAM_SIZE exactly.
+   */
+  teamSize    Int              @default(1)
+
+  /** Cap on registered teams. Null means no cap. */
+  maxTeams    Int?
+
+  hostUserId  String
+  host        User             @relation("HostedLeagues", fields: [hostUserId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  /** Set when the host finishes the league; the standings freeze here. */
+  finishedAt  DateTime?
+
+  teams    LeagueTeam[]
+  fixtures LeagueFixture[]
+
+  // The public listing filters on both and orders by recency.
+  @@index([visibility, status])
+  @@index([hostUserId])
+}
+
+/**
+ * A standing roster inside one league.
+ *
+ * `name` is unique per league so a scoreboard reading "Team Rocket vs Team
+ * Rocket" is impossible.
+ */
+model LeagueTeam {
+  id       String @id @default(cuid())
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  name     String
+  /** Optional team crest, stored like the league logo. */
+  logoUrl  String?
+
+  /** Whoever created the team. They may rename it and remove members. */
+  captainUserId String
+
+  createdAt DateTime @default(now())
+
+  members      LeagueTeamMember[]
+  homeFixtures LeagueFixture[]    @relation("HomeTeam")
+  awayFixtures LeagueFixture[]    @relation("AwayTeam")
+  wonFixtures  LeagueFixture[]    @relation("FixtureWinner")
+
+  @@unique([leagueId, name])
+  @@index([leagueId])
+}
+
+model LeagueTeamMember {
+  id     String     @id @default(cuid())
+  teamId String
+  team   LeagueTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId String
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  // One row per player per team...
+  @@unique([teamId, userId])
+  // ...and this index is what makes "is this player already in a team in this
+  // league?" a cheap query. The league-wide uniqueness itself cannot be a
+  // constraint here because leagueId lives on the parent, so the service
+  // enforces it — see leagues.service joinTeam.
+  @@index([userId])
+}
+
+/**
+ * One scheduled tie between two teams.
+ *
+ * WHY A FIXTURE IS NOT A BATTLE
+ * -----------------------------
+ * The host may set several problems for a tie, and it plays as a series: one
+ * battle per problem, and the team that wins the most legs wins the tie. So a
+ * fixture is the tie, and `legs` are the battles that decide it. A single
+ * -problem fixture is simply a series of one.
+ */
+model LeagueFixture {
+  id       String @id @default(cuid())
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+
+  round    LeagueRound   @default(GROUP)
+  status   FixtureStatus @default(SCHEDULED)
+
+  homeTeamId String
+  homeTeam   LeagueTeam @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeamId String
+  awayTeam   LeagueTeam @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Cascade)
+
+  /**
+   * Per-leg clock, in seconds. Set by the host; falls back to the problem's
+   * own default when they do not care.
+   */
+  timeLimitSec Int @default(1800)
+
+  /**
+   * Difficulty for legs the host left to chance.
+   *
+   * Only consulted for a leg with no problem set. A fully-specified fixture
+   * never reads it.
+   */
+  difficulty Difficulty @default(MEDIUM)
+
+  /** Set once the tie is decided. Null while SCHEDULED or LIVE, or on a draw. */
+  winnerTeamId String?
+  winnerTeam   LeagueTeam? @relation("FixtureWinner", fields: [winnerTeamId], references: [id], onDelete: SetNull)
+
+  scheduledAt DateTime?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  legs LeagueFixtureLeg[]
+
+  @@index([leagueId, round])
+  @@index([leagueId, status])
+}
+
+/**
+ * One problem within a fixture — a single battle.
+ *
+ * `problemId` is nullable and that is the "let the system choose" case: the
+ * leg is created without one and the battle engine picks at kick-off, under
+ * the same repeat-cooldown rules an ordinary battle uses. A host who picked a
+ * problem gets exactly that problem.
+ *
+ * `battleId` is null until the leg is actually started, which is what makes a
+ * fixture schedulable in advance without holding open an empty battle room.
+ */
+model LeagueFixtureLeg {
+  id        String        @id @default(cuid())
+  fixtureId String
+  fixture   LeagueFixture @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+
+  /** 1-based position in the series, so leg 2 is always leg 2. */
+  ordinal   Int
+
+  /** The host's chosen problem, or null to let the engine pick. */
+  problemId String?
+  problem   Problem? @relation("LeagueLegProblem", fields: [problemId], references: [id], onDelete: SetNull)
+
+  /** The battle that played this leg. Null until kick-off. */
+  battleId  String?  @unique
+  battle    Battle?  @relation("LeagueLegBattle", fields: [battleId], references: [id], onDelete: SetNull)
+
+  /** Which team won this leg. Null while unplayed or on a draw. */
+  winnerTeamId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([fixtureId, ordinal])
+  @@index([fixtureId])
 }

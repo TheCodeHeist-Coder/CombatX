@@ -19,6 +19,17 @@ import {
   MyProblemDetail,
   DuplicateCheckResponse,
   SubmitProblemResponse,
+  LeagueListResponse,
+  LeagueDetailResponse,
+  LeagueCard,
+  LeagueTeamView,
+  LeagueFixtureView,
+  LeagueProblemOptionsResponse,
+  StartLegResponse,
+  type CreateFixtureInput,
+  type CreateLeagueInput,
+  type CreateTeamInput,
+  type UpdateLeagueInput,
   type CommunityProblemInput,
   type DuplicateCheckRequest,
   type AvatarChoice,
@@ -411,4 +422,182 @@ export function withdrawMyProblem(token: string, id: string): Promise<void> {
     method: "DELETE",
     headers: auth(token),
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Leagues                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reading a league is open, but reads DIFFERENTLY when signed in: the join
+ * code and "my leagues" only come back for someone actually involved. So the
+ * token is optional on these rather than required, and passing it is what
+ * upgrades the response.
+ */
+function maybeAuth(token?: string | null): Record<string, string> {
+  return token ? auth(token) : {};
+}
+
+/** GET /leagues — public leagues, plus the caller's own when signed in. */
+export function fetchLeagues(token?: string | null): Promise<LeagueListResponse> {
+  return request(
+    "/leagues",
+    { headers: maybeAuth(token) },
+    (d) => LeagueListResponse.parse(d),
+  );
+}
+
+/** GET /leagues/:id — one league's dashboard. */
+export function fetchLeague(
+  id: string,
+  token?: string | null,
+): Promise<LeagueDetailResponse> {
+  return request(
+    `/leagues/${encodeURIComponent(id)}`,
+    { headers: maybeAuth(token) },
+    (d) => LeagueDetailResponse.parse(d),
+  );
+}
+
+/** POST /leagues/lookup — resolve a join code. */
+export function lookupLeague(
+  joinCode: string,
+  token?: string | null,
+): Promise<LeagueDetailResponse> {
+  return request(
+    "/leagues/lookup",
+    {
+      method: "POST",
+      headers: maybeAuth(token),
+      body: JSON.stringify({ joinCode }),
+    },
+    (d) => LeagueDetailResponse.parse(d),
+  );
+}
+
+/** POST /leagues — create one. */
+export function createLeague(
+  token: string,
+  input: CreateLeagueInput,
+): Promise<LeagueCard> {
+  return request(
+    "/leagues",
+    { method: "POST", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueCard.parse(d),
+  );
+}
+
+/** PUT /leagues/:id — host edits it. */
+export function updateLeague(
+  token: string,
+  id: string,
+  input: UpdateLeagueInput,
+): Promise<LeagueCard> {
+  return request(
+    `/leagues/${encodeURIComponent(id)}`,
+    { method: "PUT", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueCard.parse(d),
+  );
+}
+
+/** DELETE /leagues/:id */
+export function deleteLeague(token: string, id: string): Promise<void> {
+  return request(`/leagues/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: auth(token),
+  });
+}
+
+/** POST /leagues/:id/teams — found a team. */
+export function createLeagueTeam(
+  token: string,
+  leagueId: string,
+  input: CreateTeamInput,
+): Promise<LeagueTeamView> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/teams`,
+    { method: "POST", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueTeamView.parse(d),
+  );
+}
+
+/** POST /leagues/:id/teams/:teamId/join */
+export function joinLeagueTeam(
+  token: string,
+  leagueId: string,
+  teamId: string,
+): Promise<LeagueTeamView> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/teams/${encodeURIComponent(teamId)}/join`,
+    { method: "POST", headers: auth(token) },
+    (d) => LeagueTeamView.parse(d),
+  );
+}
+
+/** DELETE /leagues/:id/teams/:teamId/members/:userId — leave or remove. */
+export function leaveLeagueTeam(
+  token: string,
+  leagueId: string,
+  teamId: string,
+  userId: string,
+): Promise<void> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE", headers: auth(token) },
+  );
+}
+
+/** GET /leagues/problem-options — problems a host may pin. Titles only. */
+export function fetchLeagueProblemOptions(
+  token: string,
+): Promise<LeagueProblemOptionsResponse> {
+  return request(
+    "/leagues/problem-options",
+    { headers: auth(token) },
+    (d) => LeagueProblemOptionsResponse.parse(d),
+  );
+}
+
+/** POST /leagues/:id/fixtures — schedule a tie. */
+export function createLeagueFixture(
+  token: string,
+  leagueId: string,
+  input: CreateFixtureInput,
+): Promise<LeagueFixtureView> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/fixtures`,
+    { method: "POST", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueFixtureView.parse(d),
+  );
+}
+
+/** DELETE /leagues/:id/fixtures/:fixtureId — call a tie off. */
+export function cancelLeagueFixture(
+  token: string,
+  leagueId: string,
+  fixtureId: string,
+): Promise<void> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/fixtures/${encodeURIComponent(fixtureId)}`,
+    { method: "DELETE", headers: auth(token) },
+  );
+}
+
+/**
+ * POST .../legs/:legId/start — kick off a leg.
+ *
+ * Idempotent server-side: a leg already under way returns its existing battle,
+ * so a double-click cannot open two rooms for one match.
+ */
+export function startLeagueLeg(
+  token: string,
+  leagueId: string,
+  fixtureId: string,
+  legId: string,
+): Promise<StartLegResponse> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/fixtures/${encodeURIComponent(fixtureId)}/legs/${encodeURIComponent(legId)}/start`,
+    { method: "POST", headers: auth(token) },
+    (d) => StartLegResponse.parse(d),
+  );
 }

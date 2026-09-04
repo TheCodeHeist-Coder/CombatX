@@ -21,6 +21,7 @@ interface NavItem {
 const TOP_NAV: NavItem[] = [
   { label: "Lobby", href: "/" },
   { label: "Arena", href: "/arena" },
+  { label: "Leagues", href: "/leagues" },
   { label: "Rankings", href: "/rankings" },
   { label: "Archive", href: "/archive" },
   { label: "Intel", href: "/intel" },
