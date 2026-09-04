@@ -68,6 +68,10 @@ export class ConnectionHandler {
         }
         return;
       }
+      case "battle:rematch": {
+        const err = await this.room.rematch(this.conn.userId, msg.action);
+        return this.reply(msg.reqId, err);
+      }
       case "battle:leave":
         ack(this.ws, msg.reqId);
         this.onClose();

@@ -66,6 +66,19 @@ export const SubmitReq = z.object({
   source: z.string().max(100_000),
 });
 
+/**
+ * Offer, accept or withdraw a rematch after a battle has finished.
+ *
+ * One message rather than three: the three actions share a shape and differ
+ * only in intent, and a single case in the room keeps the state machine in one
+ * readable place.
+ */
+export const RematchReq = z.object({
+  t: z.literal("battle:rematch"),
+  reqId: z.string(),
+  action: z.enum(["OFFER", "ACCEPT", "DECLINE"]),
+});
+
 export const LeaveReq = z.object({
   t: z.literal("battle:leave"),
   reqId: z.string(),
@@ -84,6 +97,7 @@ export const ClientMessage = z.discriminatedUnion("t", [
   ReadyReq,
   StartReq,
   SubmitReq,
+  RematchReq,
   LeaveReq,
   PingReq,
 ]);
@@ -188,6 +202,28 @@ export const BattleFinishedEvent = z.object({
 });
 
 /** Out-of-band error not tied to a specific request. */
+/**
+ * The state of a rematch negotiation, broadcast to everyone in the room.
+ *
+ * `offeredBy` lists the userIds who have said yes. When every seated player
+ * appears there, the server creates the new battle and sends `battleId`, which
+ * is the client's cue to navigate.
+ *
+ * Broadcasting the whole state rather than "X offered" events means a client
+ * that reconnects mid-negotiation is immediately correct, with no replay.
+ */
+export const RematchStateMsg = z.object({
+  t: z.literal("battle:rematch-state"),
+  /** Users who currently want a rematch. */
+  offeredBy: z.array(z.string()).default([]),
+  /** Users who have declined; a decline ends the negotiation. */
+  declinedBy: z.array(z.string()).default([]),
+  /** How many players must agree — the seats that were filled. */
+  needed: z.number().int().min(0),
+  /** Set once everyone agreed: the new battle to join. */
+  battleId: z.string().nullable().default(null),
+});
+
 export const ServerErrorEvent = z.object({
   t: z.literal("error"),
   code: z.string(),
@@ -208,6 +244,7 @@ export const ServerMessage = z.discriminatedUnion("t", [
   ProgressEvent,
   PresenceEvent,
   BattleFinishedEvent,
+  RematchStateMsg,
   ServerErrorEvent,
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;

@@ -47,6 +47,19 @@ export interface BattleState {
   lastError: string | null;
   /** XP/streak awarded when the battle finished; empty until then. */
   awards: ProgressionAward[];
+  /**
+   * The rematch negotiation after a battle ends.
+   *
+   * Null until the server says anything, so "nobody has asked yet" is
+   * distinguishable from "asked and everyone declined".
+   */
+  rematch: {
+    offeredBy: string[];
+    declinedBy: string[];
+    needed: number;
+    /** Set once everyone agreed: the battle to navigate to. */
+    battleId: string | null;
+  } | null;
 }
 
 export const initialBattleState: BattleState = {
@@ -58,6 +71,7 @@ export const initialBattleState: BattleState = {
   progress: [],
   ownSubmissions: [],
   countdownMs: null,
+  rematch: null,
   lastError: null,
   awards: [],
 };
@@ -174,6 +188,16 @@ export function reduceBattle(
         awards: msg.awards ?? [],
       };
 
+    case "battle:rematch-state":
+      return {
+        ...state,
+        rematch: {
+          offeredBy: msg.offeredBy,
+          declinedBy: msg.declinedBy,
+          needed: msg.needed,
+          battleId: msg.battleId,
+        },
+      };
     case "error":
       return { ...state, lastError: msg.message };
 
