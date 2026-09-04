@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
   CreateFixtureInput,
@@ -200,9 +201,24 @@ export default function LeaguePage({
 
               {/* The code is only ever sent to someone involved — see the
                   service, which nulls it for everyone else. */}
-              {detail.league.joinCode && (
-                <JoinCode code={detail.league.joinCode} />
-              )}
+              <span className="flex shrink-0 items-center gap-2.5">
+                {/*
+                  The visual view of the competition. Offered to everyone, not
+                  just the host: "where are we and who plays next" is mostly a
+                  participant's question.
+                */}
+                <Link
+                  href={`/leagues/${id}/bracket`}
+                  className="btn btn-ghost"
+                  title="See the whole tournament as a bracket"
+                >
+                  <IconBracket />
+                  Tournament flow
+                </Link>
+                {detail.league.joinCode && (
+                  <JoinCode code={detail.league.joinCode} />
+                )}
+              </span>
             </div>
 
             {/*
@@ -504,5 +520,21 @@ export default function LeaguePage({
         )}
       </div>
     </AppShell>
+  );
+}
+
+
+/** A bracket glyph: two ties converging into one. */
+function IconBracket() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M1.5 3h3.5v8H1.5M5 7h3.5M8.5 5.5v3h4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

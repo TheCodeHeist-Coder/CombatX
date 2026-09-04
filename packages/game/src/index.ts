@@ -8,3 +8,4 @@ export * from "./badges.js";
 export * from "./badgeRules.js";
 export * from "./badgeDefaults.js";
 export * from "./leagueStandings.js";
+export * from "./leagueBracket.js";
