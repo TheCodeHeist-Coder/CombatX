@@ -2,6 +2,7 @@ import { prisma } from "@repo/db";
 import {
   TEAM_SIZE_MODE,
   type CreateFixtureInput,
+  type LeagueRound,
   type LeagueFixtureView,
   type LeagueLegView,
   type LeagueProblemOption,
@@ -454,7 +455,10 @@ const FIXTURE_INCLUDE = {
 
 type FixtureRow = {
   id: string;
-  round: "GROUP" | "QUARTER_FINAL" | "SEMI_FINAL" | "FINAL";
+  // The enum, not a hand-written union: spelling the rounds out here meant a
+  // new round (TIEBREAK) failed to compile at every call site instead of
+  // simply being supported.
+  round: LeagueRound;
   status: "SCHEDULED" | "LIVE" | "COMPLETED" | "CANCELLED";
   homeTeamId: string;
   awayTeamId: string;

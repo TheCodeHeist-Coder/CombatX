@@ -703,6 +703,18 @@ enum LeagueStatus {
 }
 
 /**
+ * How a league decides which teams advance out of a round.
+ *
+ * TOP_N     — the best N in the table go through. The usual format.
+ * WIN_COUNT — everyone with at least N wins goes through, however many that
+ *             turns out to be. Can qualify five teams, or none.
+ */
+enum QualificationMode {
+  TOP_N
+  WIN_COUNT
+}
+
+/**
  * The stage a fixture belongs to.
  *
  * Present from the start even though stage 1 only schedules GROUP matches, so
@@ -711,6 +723,16 @@ enum LeagueStatus {
  */
 enum LeagueRound {
   GROUP
+  /**
+   * A play-off between teams that finished level at the qualification line.
+   *
+   * Its own round for a reason: a decider must NOT be counted in the group
+   * table it exists to resolve. Filing it as GROUP would change the very
+   * points and leg difference that made the teams level, so the table would
+   * shift underneath the decider as soon as it was played — and could even
+   * separate the teams the other way, contradicting its own result.
+   */
+  TIEBREAK
   QUARTER_FINAL
   SEMI_FINAL
   FINAL
@@ -761,6 +783,18 @@ model League {
 
   /** Cap on registered teams. Null means no cap. */
   maxTeams    Int?
+
+  /**
+   * How teams advance out of the group stage.
+   *
+   * Nullable because a league does not have to be a knockout — plenty will
+   * just be a table of matches with no bracket at all, and forcing a rule on
+   * those would mean inventing one they never asked for. The host sets it
+   * when (and if) they decide to run a knockout.
+   */
+  qualifyMode  QualificationMode?
+  /** Places for TOP_N; required wins for WIN_COUNT. */
+  qualifyValue Int?
 
   hostUserId  String
   host        User             @relation("HostedLeagues", fields: [hostUserId], references: [id], onDelete: Cascade)

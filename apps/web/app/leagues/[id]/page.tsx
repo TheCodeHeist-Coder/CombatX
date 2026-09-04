@@ -2,7 +2,11 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CreateFixtureInput, LeagueDetailResponse } from "@repo/protocol";
+import type {
+  CreateFixtureInput,
+  LeagueDetailResponse,
+  LeagueStandingsResponse,
+} from "@repo/protocol";
 import { AppShell } from "../../../components/AppShell";
 import { ErrorBanner, Spinner } from "../../../components/atoms";
 import {
@@ -16,6 +20,8 @@ import {
 import { TeamsPanel } from "../../../components/leagues/TeamsPanel";
 import { FixturesPanel } from "../../../components/leagues/FixturesPanel";
 import { ScheduleMatch } from "../../../components/leagues/ScheduleMatch";
+import { StandingsTable } from "../../../components/leagues/StandingsTable";
+import { RoundDraw } from "../../../components/leagues/RoundDraw";
 import {
   ApiCallError,
   cancelLeagueFixture,
@@ -24,6 +30,9 @@ import {
   fetchLeague,
   joinLeagueTeam,
   leaveLeagueTeam,
+  fetchLeagueStandings,
+  generateLeagueRound,
+  scheduleLeagueTiebreak,
   startLeagueLeg,
   updateLeague,
 } from "../../../lib/api";
@@ -52,6 +61,9 @@ export default function LeaguePage({
   const router = useRouter();
 
   const [detail, setDetail] = useState<LeagueDetailResponse | null>(null);
+  const [standings, setStandings] = useState<LeagueStandingsResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
@@ -59,7 +71,15 @@ export default function LeaguePage({
 
   const load = useCallback(async () => {
     try {
-      setDetail(await fetchLeague(id, session?.token));
+      // Both in one round trip's worth of waiting: the table and the fixtures
+      // are read from the same settled state, so fetching them separately in
+      // sequence could show a match as decided in one and pending in the other.
+      const [d, s] = await Promise.all([
+        fetchLeague(id, session?.token),
+        fetchLeagueStandings(id, session?.token),
+      ]);
+      setDetail(d);
+      setStandings(s);
       setError(null);
     } catch (e) {
       setError(
@@ -302,6 +322,77 @@ export default function LeaguePage({
                 />
               </div>
             )}
+
+            {/*
+              The champion, announced.
+
+              A league that has been won should say so at the top, not leave
+              it to be inferred from a highlighted row further down. This is
+              the whole point of running the tournament.
+            */}
+            {standings?.championTeamName && (
+              <div
+                className="mt-6 rounded-[10px] border p-4 text-center"
+                style={{
+                  borderColor: "var(--color-amber)",
+                  background:
+                    "color-mix(in srgb, var(--color-amber) 10%, transparent)",
+                }}
+              >
+                <p
+                  className="font-mono text-[0.64rem] uppercase tracking-[0.2em]"
+                  style={{ color: "var(--color-amber)" }}
+                >
+                  Champion
+                </p>
+                <p className="mt-1.5 text-[1.3rem] font-bold">
+                  {standings.championTeamName}
+                </p>
+              </div>
+            )}
+
+            {/* --- standings --- */}
+            {standings && standings.rows.length > 0 && (
+              <div className="mt-8">
+                <div className="mb-3 flex items-baseline gap-3">
+                  <h2 className="text-[1.05rem] font-bold">Standings</h2>
+                  <span
+                    className="font-mono text-[0.7rem]"
+                    style={{ color: "var(--color-ink-faint)" }}
+                  >
+                    group stage
+                  </span>
+                </div>
+                <StandingsTable
+                  standings={standings}
+                  myTeamId={detail.myTeamId}
+                />
+              </div>
+            )}
+
+            {/* --- knockout controls, host only --- */}
+            {detail.isHost &&
+              token &&
+              standings &&
+              detail.league.status !== "CANCELLED" && (
+                <div className="mt-6">
+                  <RoundDraw
+                    standings={standings}
+                    busy={working === "round"}
+                    onSetRule={(rule) =>
+                      act("round", () =>
+                        updateLeague(token, id, { qualification: rule }),
+                      )
+                    }
+                    onDraw={() =>
+                      act("round", () => generateLeagueRound(token, id))
+                    }
+                    onScheduleTiebreak={() =>
+                      act("round", () => scheduleLeagueTiebreak(token, id))
+                    }
+                  />
+                </div>
+              )}
 
             {/* --- matches --- */}
             <div className="mt-8">

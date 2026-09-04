@@ -26,6 +26,8 @@ import {
   LeagueFixtureView,
   LeagueProblemOptionsResponse,
   StartLegResponse,
+  LeagueStandingsResponse,
+  type GenerateRoundInput,
   type CreateFixtureInput,
   type CreateLeagueInput,
   type CreateTeamInput,
@@ -600,4 +602,52 @@ export function startLeagueLeg(
     { method: "POST", headers: auth(token) },
     (d) => StartLegResponse.parse(d),
   );
+}
+
+/** GET /leagues/:id/standings — the table, and what happens next. */
+export function fetchLeagueStandings(
+  leagueId: string,
+  token?: string | null,
+): Promise<LeagueStandingsResponse> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/standings`,
+    { headers: maybeAuth(token) },
+    (d) => LeagueStandingsResponse.parse(d),
+  );
+}
+
+/**
+ * POST /leagues/:id/rounds — draw the next knockout round.
+ *
+ * Host only. The server refuses while any match that could change who
+ * qualifies is still unplayed, so this cannot jump the gun.
+ */
+export function generateLeagueRound(
+  token: string,
+  leagueId: string,
+  input: GenerateRoundInput = {},
+): Promise<{ round: string; created: number; byeTeamId: string | null }> {
+  return request(`/leagues/${encodeURIComponent(leagueId)}/rounds`, {
+    method: "POST",
+    headers: auth(token),
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * POST /leagues/:id/tiebreak — schedule a decider for a level cut.
+ *
+ * The way past an unbreakable tie: the tied teams play for the place rather
+ * than the software picking between them.
+ */
+export function scheduleLeagueTiebreak(
+  token: string,
+  leagueId: string,
+  input: GenerateRoundInput = {},
+): Promise<{ created: number }> {
+  return request(`/leagues/${encodeURIComponent(leagueId)}/tiebreak`, {
+    method: "POST",
+    headers: auth(token),
+    body: JSON.stringify(input),
+  });
 }

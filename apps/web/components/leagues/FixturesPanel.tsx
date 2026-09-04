@@ -332,6 +332,7 @@ function LegRow({
 
 const ROUND_LABEL: Record<LeagueFixtureView["round"], string> = {
   GROUP: "group",
+  TIEBREAK: "decider",
   QUARTER_FINAL: "quarter-final",
   SEMI_FINAL: "semi-final",
   FINAL: "final",

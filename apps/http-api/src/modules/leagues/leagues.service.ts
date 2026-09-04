@@ -141,6 +141,11 @@ export async function updateLeague(
       ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
       ...(input.visibility !== undefined && { visibility: input.visibility }),
       ...(input.maxTeams !== undefined && { maxTeams: input.maxTeams }),
+      // Null clears the rule, turning a knockout back into a plain table.
+      ...(input.qualification !== undefined && {
+        qualifyMode: input.qualification?.mode ?? null,
+        qualifyValue: input.qualification?.value ?? null,
+      }),
       ...(input.status !== undefined && {
         status: input.status,
         // Finishing stamps the moment, so the standings have a date.
@@ -659,6 +664,8 @@ type LeagueWithCounts = {
   status: LeagueStatus;
   teamSize: number;
   maxTeams: number | null;
+  qualifyMode: "TOP_N" | "WIN_COUNT" | null;
+  qualifyValue: number | null;
   createdAt: Date;
   host: { username: string };
   _count: { teams: number; fixtures: number };
@@ -685,6 +692,8 @@ function toCard(league: LeagueWithCounts, revealCode: boolean): LeagueCard {
     fixtureCount: league._count.fixtures,
     hostName: league.host.username,
     createdAt: league.createdAt.toISOString(),
+    qualifyMode: league.qualifyMode,
+    qualifyValue: league.qualifyValue,
     joinCode: revealCode ? league.joinCode : null,
   };
 }
