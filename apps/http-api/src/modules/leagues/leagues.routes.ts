@@ -6,12 +6,17 @@ import {
   deleteLeagueRoute,
   deleteTeamMember,
   getLeagueDetail,
+  getLeagueStandings,
   getLeagues,
   getProblemOptions,
   postFixture,
   postLeague,
+  postGenerateRound,
   postLeagueLookup,
   postLegStart,
+  postTiebreak,
+  putFixture,
+  putTeam,
   postTeam,
   postTeamJoin,
   putLeague,
@@ -44,6 +49,12 @@ leagueRoutes.post("/leagues/lookup", asyncHandler(postLeagueLookup));
 // --- reading ---
 leagueRoutes.get("/leagues", asyncHandler(getLeagues));
 leagueRoutes.get("/leagues/:id", asyncHandler(getLeagueDetail));
+// The table and the next-round preview. Open, like the league page itself:
+// a competitor wants to see who is on course to qualify.
+leagueRoutes.get(
+  "/leagues/:id/standings",
+  asyncHandler(getLeagueStandings),
+);
 
 // --- league management ---
 leagueRoutes.post("/leagues", requireAuth, asyncHandler(postLeague));
@@ -61,10 +72,31 @@ leagueRoutes.post(
   requireAuth,
   asyncHandler(postTeamJoin),
 );
+leagueRoutes.put(
+  "/leagues/:id/teams/:teamId",
+  requireAuth,
+  asyncHandler(putTeam),
+);
 leagueRoutes.delete(
   "/leagues/:id/teams/:teamId/members/:userId",
   requireAuth,
   asyncHandler(deleteTeamMember),
+);
+
+// --- knockout progression ---
+// Drawing a round creates matches people turn up for, so it is host-only and
+// the service refuses while qualifying matches are still unplayed.
+leagueRoutes.post(
+  "/leagues/:id/rounds",
+  requireAuth,
+  asyncHandler(postGenerateRound),
+);
+
+// Settle a level qualification cut by playing for it.
+leagueRoutes.post(
+  "/leagues/:id/tiebreak",
+  requireAuth,
+  asyncHandler(postTiebreak),
 );
 
 // --- fixtures ---
@@ -72,6 +104,11 @@ leagueRoutes.post(
   "/leagues/:id/fixtures",
   requireAuth,
   asyncHandler(postFixture),
+);
+leagueRoutes.put(
+  "/leagues/:id/fixtures/:fixtureId",
+  requireAuth,
+  asyncHandler(putFixture),
 );
 leagueRoutes.delete(
   "/leagues/:id/fixtures/:fixtureId",

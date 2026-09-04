@@ -108,6 +108,8 @@ export type LeagueStatus = z.infer<typeof LeagueStatus>;
 /** The stage a fixture belongs to. */
 export const LeagueRound = z.enum([
   "GROUP",
+  /** A play-off between teams left level at the qualification line. */
+  "TIEBREAK",
   "QUARTER_FINAL",
   "SEMI_FINAL",
   "FINAL",
@@ -140,3 +142,12 @@ export const TEAM_SIZE_MODE: Record<number, Mode> = {
 /** Smallest and largest team a league may be configured for. */
 export const MIN_LEAGUE_TEAM_SIZE = 1;
 export const MAX_LEAGUE_TEAM_SIZE = 4;
+
+/**
+ * How a league decides which teams advance. Mirrors the Prisma enum.
+ *
+ * TOP_N takes the best N in the table; WIN_COUNT takes everyone who reached
+ * a number of wins, however many that turns out to be.
+ */
+export const QualificationMode = z.enum(["TOP_N", "WIN_COUNT"]);
+export type QualificationMode = z.infer<typeof QualificationMode>;

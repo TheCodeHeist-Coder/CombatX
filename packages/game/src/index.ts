@@ -7,3 +7,4 @@ export * from "./rating.js";
 export * from "./badges.js";
 export * from "./badgeRules.js";
 export * from "./badgeDefaults.js";
+export * from "./leagueStandings.js";

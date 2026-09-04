@@ -488,6 +488,18 @@ export const BattleHistoryEntry = z.object({
   totalTests: z.number().int().min(0),
   finishedAt: z.string().nullable(),
   createdAt: z.string(),
+  /**
+   * The league this battle was part of, when it was one.
+   *
+   * League matches are ordinary battles, so they already appeared in history
+   * — but indistinguishably from a casual room-code game. Playing a whole
+   * tournament and having your record say nothing about it is the gap this
+   * closes.
+   */
+  leagueId: z.string().nullable().default(null),
+  leagueName: z.string().nullable().default(null),
+  /** "GROUP", "FINAL" and so on, so a final reads as a final. */
+  leagueRound: z.string().nullable().default(null),
 });
 export type BattleHistoryEntry = z.infer<typeof BattleHistoryEntry>;
 

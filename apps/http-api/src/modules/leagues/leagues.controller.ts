@@ -1,10 +1,13 @@
 import type { Request, Response } from "express";
 import {
   CreateFixtureInput,
+  GenerateRoundInput,
   CreateLeagueInput,
   CreateTeamInput,
   JoinLeagueInput,
+  UpdateFixtureInput,
   UpdateLeagueInput,
+  UpdateTeamInput,
 } from "@repo/protocol";
 import type { AuthedRequest } from "../../middleware/auth.js";
 import { verifyBearer } from "../../middleware/auth.js";
@@ -19,13 +22,20 @@ import {
   leaveTeam,
   listLeagues,
   updateLeague,
+  updateTeam,
 } from "./leagues.service.js";
 import {
   cancelFixture,
   createFixture,
   listProblemOptions,
   startLeg,
+  updateFixture,
 } from "./fixtures.service.js";
+import {
+  generateNextRound,
+  getStandings,
+  scheduleTiebreak,
+} from "./standings.service.js";
 
 function firstIssue(error: { issues: { message: string }[] }): string {
   return error.issues[0]?.message ?? "Invalid input";
@@ -202,6 +212,101 @@ export async function postLegStart(
       param(req, "id"),
       param(req, "fixtureId"),
       param(req, "legId"),
+    ),
+  );
+}
+
+/* --- standings and progression -------------------------------------------- */
+
+/**
+ * GET /leagues/:id/standings — the table, and what happens next.
+ *
+ * Open to anyone who can read the league. Seeing who is on course to qualify
+ * is exactly what a competitor wants from a standings page, so the preview is
+ * not hidden from them — only the ability to ACT on it is host-only.
+ */
+export async function getLeagueStandings(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  res.send(await getStandings(param(req, "id")));
+}
+
+/**
+ * POST /leagues/:id/rounds — draw the next knockout round.
+ *
+ * Refuses while any match that could change who qualifies is unplayed; the
+ * service owns that check, so this cannot be bypassed by calling the endpoint
+ * directly.
+ */
+export async function postGenerateRound(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const body = GenerateRoundInput.safeParse(req.body ?? {});
+  if (!body.success) throw badRequest(firstIssue(body.error));
+  res.status(201).send(
+    await generateNextRound(claims.userId, param(req, "id"), {
+      timeLimitSec: body.data.timeLimitSec,
+      difficulty: body.data.difficulty,
+      legs: body.data.legs,
+    }),
+  );
+}
+
+/**
+ * POST /leagues/:id/tiebreak — schedule a decider for a level qualification cut.
+ *
+ * The way out of an unbreakable tie: the tied teams play for the place
+ * instead of the software guessing between them.
+ */
+export async function postTiebreak(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const body = GenerateRoundInput.safeParse(req.body ?? {});
+  if (!body.success) throw badRequest(firstIssue(body.error));
+  res.status(201).send(
+    await scheduleTiebreak(claims.userId, param(req, "id"), {
+      timeLimitSec: body.data.timeLimitSec,
+      difficulty: body.data.difficulty,
+    }),
+  );
+}
+
+/** PUT /leagues/:id/teams/:teamId — rename a team or change its crest. */
+export async function putTeam(req: Request, res: Response): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const parsed = UpdateTeamInput.safeParse(req.body);
+  if (!parsed.success) throw badRequest(firstIssue(parsed.error));
+  res.send(
+    await updateTeam(
+      claims.userId,
+      param(req, "id"),
+      param(req, "teamId"),
+      parsed.data,
+    ),
+  );
+}
+
+/**
+ * PUT /leagues/:id/fixtures/:fixtureId — edit a scheduled match.
+ *
+ * Clock, difficulty and the unplayed problems. Not the teams, and not a leg
+ * that has already been played — see updateFixture for why.
+ */
+export async function putFixture(req: Request, res: Response): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const parsed = UpdateFixtureInput.safeParse(req.body);
+  if (!parsed.success) throw badRequest(firstIssue(parsed.error));
+  res.send(
+    await updateFixture(
+      claims.userId,
+      param(req, "id"),
+      param(req, "fixtureId"),
+      parsed.data,
     ),
   );
 }

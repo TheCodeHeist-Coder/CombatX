@@ -29,6 +29,7 @@ export function FixturesPanel({
   myTeamId,
   onStartLeg,
   onCancel,
+  onEdit,
   working,
 }: {
   detail: LeagueDetailResponse;
@@ -36,6 +37,7 @@ export function FixturesPanel({
   myTeamId: string | null;
   onStartLeg: (fixtureId: string, legId: string) => void | Promise<void>;
   onCancel: (fixtureId: string) => void | Promise<void>;
+  onEdit: (fixture: LeagueFixtureView) => void;
   working: string | null;
 }) {
   const { fixtures } = detail;
@@ -66,6 +68,7 @@ export function FixturesPanel({
           myTeamId={myTeamId}
           onStartLeg={onStartLeg}
           onCancel={onCancel}
+          onEdit={onEdit}
           working={working}
         />
       ))}
@@ -79,6 +82,7 @@ function FixtureCard({
   myTeamId,
   onStartLeg,
   onCancel,
+  onEdit,
   working,
 }: {
   fixture: LeagueFixtureView;
@@ -86,6 +90,7 @@ function FixtureCard({
   myTeamId: string | null;
   onStartLeg: (fixtureId: string, legId: string) => void | Promise<void>;
   onCancel: (fixtureId: string) => void | Promise<void>;
+  onEdit: (fixture: LeagueFixtureView) => void;
   working: string | null;
 }) {
   const mine =
@@ -131,13 +136,30 @@ function FixtureCard({
         </span>
 
         {isHost && fixture.status !== "COMPLETED" && (
-          <button
-            className="ml-auto font-mono text-[0.68rem] underline"
-            style={{ color: "var(--color-ink-ghost)" }}
-            onClick={() => void onCancel(fixture.id)}
-          >
-            Call off
-          </button>
+          <span className="ml-auto flex items-center gap-3">
+            {/*
+              Editing is offered only before anything has been played. Once a
+              leg has a battle, the clock and problems for it are part of a
+              match that happened — the server refuses to rewrite those, and
+              offering the button would promise something it will not do.
+            */}
+            {fixture.status === "SCHEDULED" && (
+              <button
+                className="font-mono text-[0.68rem] underline"
+                style={{ color: "var(--color-ink-ghost)" }}
+                onClick={() => onEdit(fixture)}
+              >
+                Edit
+              </button>
+            )}
+            <button
+              className="font-mono text-[0.68rem] underline"
+              style={{ color: "var(--color-ink-ghost)" }}
+              onClick={() => void onCancel(fixture.id)}
+            >
+              Call off
+            </button>
+          </span>
         )}
       </div>
 
@@ -332,6 +354,7 @@ function LegRow({
 
 const ROUND_LABEL: Record<LeagueFixtureView["round"], string> = {
   GROUP: "group",
+  TIEBREAK: "decider",
   QUARTER_FINAL: "quarter-final",
   SEMI_FINAL: "semi-final",
   FINAL: "final",

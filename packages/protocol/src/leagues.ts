@@ -8,6 +8,7 @@ import {
   LeagueVisibility,
   MAX_LEAGUE_TEAM_SIZE,
   MIN_LEAGUE_TEAM_SIZE,
+  QualificationMode,
 } from "./enums.js";
 
 /**
@@ -42,6 +43,22 @@ const LogoDataUrl = z
     "A logo must be an image",
   );
 
+/**
+ * The rule deciding who advances out of the group stage.
+ *
+ * Null on a league that is just a table of matches — most will be, and
+ * forcing a knockout on them would invent a structure nobody asked for.
+ */
+export const QualificationRuleInput = z.object({
+  mode: QualificationMode,
+  value: z
+    .number()
+    .int()
+    .min(1, "That has to be at least one")
+    .max(64, "That is more than any league will have"),
+});
+export type QualificationRuleInput = z.infer<typeof QualificationRuleInput>;
+
 /** What creating a league needs. */
 export const CreateLeagueInput = z.object({
   name: z
@@ -74,6 +91,8 @@ export const UpdateLeagueInput = z.object({
   visibility: LeagueVisibility.optional(),
   status: LeagueStatus.optional(),
   maxTeams: z.number().int().min(2).max(256).nullable().optional(),
+  /** Null clears the rule, turning a knockout back into a plain table. */
+  qualification: QualificationRuleInput.nullable().optional(),
 });
 export type UpdateLeagueInput = z.infer<typeof UpdateLeagueInput>;
 
@@ -91,6 +110,9 @@ export const LeagueCard = z.object({
   fixtureCount: z.number().int().min(0).default(0),
   hostName: z.string(),
   createdAt: z.string(),
+  /** How teams advance, when the host has set a knockout up. */
+  qualifyMode: QualificationMode.nullable().default(null),
+  qualifyValue: z.number().int().nullable().default(null),
   /**
    * The join code, included ONLY for a league the caller hosts or has joined.
    * Null otherwise — a public listing must not hand out the key to a private
@@ -213,6 +235,20 @@ export const CreateTeamInput = z.object({
 export type CreateTeamInput = z.infer<typeof CreateTeamInput>;
 
 /**
+ * Editing a team.
+ *
+ * Both fields optional so a rename does not require re-sending the logo, and
+ * a logo change does not require re-sending the name. `logoUrl: null` clears
+ * the crest, which is distinct from omitting it entirely.
+ */
+export const UpdateTeamInput = z.object({
+  name: z.string().trim().min(2).max(40).optional(),
+  logoUrl: LogoDataUrl.nullable().optional(),
+});
+export type UpdateTeamInput = z.infer<typeof UpdateTeamInput>;
+
+
+/**
  * One leg as the host schedules it.
  *
  * `problemId` omitted or null means "let the system pick", which is the
@@ -222,6 +258,25 @@ export const FixtureLegInput = z.object({
   problemId: z.string().nullable().optional(),
 });
 export type FixtureLegInput = z.infer<typeof FixtureLegInput>;
+
+/**
+ * Editing a scheduled fixture.
+ *
+ * Only what is safe to change once a match exists. The TEAMS are absent by
+ * design: swapping who is playing after people have been told to turn up is
+ * a different match, and the host should cancel and schedule that instead.
+ */
+export const UpdateFixtureInput = z.object({
+  timeLimitSec: z.number().int().min(60).max(7200).optional(),
+  difficulty: Difficulty.optional(),
+  scheduledAt: z.string().nullable().optional(),
+  /**
+   * Replaces the whole leg list, in order. Legs that have already been played
+   * are preserved by the server — see updateFixture.
+   */
+  legs: z.array(FixtureLegInput).min(1).max(5).optional(),
+});
+export type UpdateFixtureInput = z.infer<typeof UpdateFixtureInput>;
 
 /** Scheduling a tie between two teams. */
 export const CreateFixtureInput = z.object({
@@ -268,3 +323,114 @@ export const LeagueProblemOptionsResponse = z.object({
 export type LeagueProblemOptionsResponse = z.infer<
   typeof LeagueProblemOptionsResponse
 >;
+
+/* -------------------------------------------------------------------------- */
+/* Standings and progression                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** One row of the league table. */
+export const LeagueStandingRow = z.object({
+  teamId: z.string(),
+  teamName: z.string(),
+  logoUrl: z.string().nullable().default(null),
+  rank: z.number().int().min(1),
+  played: z.number().int().min(0),
+  won: z.number().int().min(0),
+  drawn: z.number().int().min(0),
+  lost: z.number().int().min(0),
+  /** Legs won and lost across every match — the tie-break. */
+  legsWon: z.number().int().min(0),
+  legsLost: z.number().int().min(0),
+  legDiff: z.number().int(),
+  points: z.number().int().min(0),
+  /** True when this team would advance under the league's current rule. */
+  qualifies: z.boolean().default(false),
+  /** True once the league is over and this team won it. */
+  isChampion: z.boolean().default(false),
+});
+export type LeagueStandingRow = z.infer<typeof LeagueStandingRow>;
+
+/**
+ * What the host is shown before a round is generated.
+ *
+ * A preview rather than a straight "advance" button, because generating a
+ * round creates fixtures that people will turn up for. The host sees exactly
+ * who goes through and who they would play BEFORE anything is written.
+ */
+export const RoundPreview = z.object({
+  /** The round these pairings would belong to. */
+  round: LeagueRound,
+  /** Teams that qualify, strongest first. */
+  qualified: z.array(
+    z.object({ teamId: z.string(), teamName: z.string(), rank: z.number().int() }),
+  ),
+  /** The matches that would be created. */
+  pairings: z.array(
+    z.object({
+      homeTeamId: z.string(),
+      homeTeamName: z.string(),
+      awayTeamId: z.string(),
+      awayTeamName: z.string(),
+    }),
+  ),
+  /** A team advancing unopposed because the field is odd. */
+  byeTeamId: z.string().nullable().default(null),
+  byeTeamName: z.string().nullable().default(null),
+  /**
+   * Why the round cannot be generated, when it cannot. Null means ready.
+   * Carried as prose because every reason is something the host must fix.
+   */
+  blockedReason: z.string().nullable().default(null),
+  /**
+   * True when the qualification cut falls inside a group of teams that are
+   * level on every tie-break, so more teams qualify than there are places.
+   * The host is asked to settle it rather than the server guessing.
+   */
+  ambiguousCut: z.boolean().default(false),
+  /**
+   * The teams left level at the cut and the places they are playing for.
+   *
+   * Present only when `ambiguousCut` is true, and it is what turns that from
+   * a dead end into an action: the host schedules a decider between exactly
+   * these teams and the winner takes the place.
+   */
+  tiebreak: z
+    .object({
+      teams: z.array(z.object({ teamId: z.string(), teamName: z.string() })),
+      places: z.number().int().min(1),
+      /** True once the decider exists, so it is not offered twice. */
+      scheduled: z.boolean().default(false),
+    })
+    .nullable()
+    .default(null),
+});
+export type RoundPreview = z.infer<typeof RoundPreview>;
+
+/** The whole standings view: the table, plus what happens next. */
+export const LeagueStandingsResponse = z.object({
+  rows: z.array(LeagueStandingRow).default([]),
+  /** Null when the host has not set a qualification rule. */
+  qualifyMode: QualificationMode.nullable().default(null),
+  qualifyValue: z.number().int().nullable().default(null),
+  /** The next round the host could generate. Null when there is nothing to do. */
+  preview: RoundPreview.nullable().default(null),
+  /** The team that won the whole thing, once a final has been decided. */
+  championTeamId: z.string().nullable().default(null),
+  championTeamName: z.string().nullable().default(null),
+});
+export type LeagueStandingsResponse = z.infer<typeof LeagueStandingsResponse>;
+
+/**
+ * Settings for a round the host is about to draw.
+ *
+ * All optional: the point of the draw button is that it works with one
+ * click. These let a host who cares set the clock and format up front rather
+ * than editing every generated fixture afterwards.
+ */
+export const GenerateRoundInput = z.object({
+  timeLimitSec: z.number().int().min(60).max(7200).optional(),
+  difficulty: Difficulty.optional(),
+  /** Problems per tie. Defaults to one. */
+  legs: z.number().int().min(1).max(5).optional(),
+});
+export type GenerateRoundInput = z.infer<typeof GenerateRoundInput>;

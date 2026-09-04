@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   CreateFixtureInput,
   Difficulty,
+  LeagueFixtureView,
   LeagueProblemOption,
   LeagueRound,
   LeagueTeamView,
@@ -28,24 +29,44 @@ export function ScheduleMatch({
   onCreate,
   onCancel,
   busy,
+  editing,
 }: {
   teams: LeagueTeamView[];
   token: string;
   onCreate: (input: CreateFixtureInput) => void | Promise<void>;
   onCancel: () => void;
   busy: boolean;
+  /**
+   * An existing fixture, when the host is editing rather than creating.
+   *
+   * The same form does both because they ask for exactly the same things —
+   * a second near-identical component would be two places to fix every time
+   * the fields change. Only the teams differ: they are fixed on an edit,
+   * because changing who is playing is a different match, not an edit.
+   */
+  editing?: LeagueFixtureView | null;
 }) {
   // Only full teams can be scheduled — the server refuses the rest, and
   // offering them here would just produce a rejection the host has to read.
   const eligible = useMemo(() => teams.filter((t) => t.isFull), [teams]);
 
-  const [homeTeamId, setHome] = useState(eligible[0]?.id ?? "");
-  const [awayTeamId, setAway] = useState(eligible[1]?.id ?? "");
-  const [round, setRound] = useState<LeagueRound>("GROUP");
-  const [minutes, setMinutes] = useState(30);
-  const [difficulty, setDifficulty] = useState<Difficulty>("MEDIUM");
+  const [homeTeamId, setHome] = useState(
+    editing?.homeTeamId ?? eligible[0]?.id ?? "",
+  );
+  const [awayTeamId, setAway] = useState(
+    editing?.awayTeamId ?? eligible[1]?.id ?? "",
+  );
+  const [round, setRound] = useState<LeagueRound>(editing?.round ?? "GROUP");
+  const [minutes, setMinutes] = useState(
+    editing ? Math.round(editing.timeLimitSec / 60) : 30,
+  );
+  const [difficulty, setDifficulty] = useState<Difficulty>(
+    editing?.difficulty ?? "MEDIUM",
+  );
   /** One entry per leg. "" means let the system choose. */
-  const [legs, setLegs] = useState<string[]>([""]);
+  const [legs, setLegs] = useState<string[]>(
+    editing ? editing.legs.map((l) => l.problemId ?? "") : [""],
+  );
 
   const [options, setOptions] = useState<LeagueProblemOption[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -83,7 +104,10 @@ export function ScheduleMatch({
     });
   }
 
-  if (eligible.length < 2) {
+  // Editing an existing fixture is always possible: its teams were already
+  // full when it was created, so the "need two full teams" guard below is
+  // about CREATING one and would wrongly block an edit.
+  if (!editing && eligible.length < 2) {
     return (
       <div className="panel p-5">
         <h3 className="text-[0.95rem] font-bold">Schedule a match</h3>
@@ -104,9 +128,31 @@ export function ScheduleMatch({
 
   return (
     <div className="panel p-5">
-      <h3 className="text-[0.95rem] font-bold">Schedule a match</h3>
+      <h3 className="text-[0.95rem] font-bold">
+        {editing ? "Edit match" : "Schedule a match"}
+      </h3>
 
       {/* --- the pairing --- */}
+      {editing ? (
+        <p
+          className="mt-3 font-mono text-[0.76rem]"
+          style={{ color: "var(--color-ink-dim)" }}
+        >
+          <strong style={{ color: "var(--color-ink)" }}>
+            {editing.homeTeamName}
+          </strong>{" "}
+          vs{" "}
+          <strong style={{ color: "var(--color-ink)" }}>
+            {editing.awayTeamName}
+          </strong>
+          <span
+            className="ml-2"
+            style={{ color: "var(--color-ink-ghost)" }}
+          >
+            — to change who plays, call this match off and schedule a new one
+          </span>
+        </p>
+      ) : (
       <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr]">
         <TeamPicker
           label="Home team"
@@ -129,6 +175,7 @@ export function ScheduleMatch({
           exclude={homeTeamId}
         />
       </div>
+      )}
 
       {/* --- the problems --- */}
       <div className="mt-5">
@@ -267,7 +314,7 @@ export function ScheduleMatch({
           onClick={submit}
           disabled={!valid || busy}
         >
-          {busy ? <Spinner /> : "Schedule match"}
+          {busy ? <Spinner /> : editing ? "Save changes" : "Schedule match"}
         </button>
         <button className="btn btn-ghost" onClick={onCancel}>
           Cancel
