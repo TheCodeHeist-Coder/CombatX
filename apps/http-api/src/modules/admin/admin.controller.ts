@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { AdminLoginRequest, AdminProblemInput } from "@repo/protocol";
 import { badRequest } from "../../http/errors.js";
+import type { AdminRequest } from "../../middleware/adminAuth.js";
+import { approveProblem, rejectProblem } from "./review.service.js";
 import { getOverview } from "./admin.stats.js";
 import {
   adminLogin,
@@ -72,10 +74,17 @@ export async function getAdminBattles(
 
 /** GET /admin/problems — every problem. */
 export async function getAdminProblems(
-  _req: Request,
+  req: Request,
   res: Response,
 ): Promise<void> {
-  res.send(await listProblems());
+  // An unrecognised ?status is ignored rather than rejected: a stale bookmark
+  // should show the whole list, not an error.
+  const raw = req.query.status;
+  const status =
+    raw === "PENDING" || raw === "APPROVED" || raw === "REJECTED" || raw === "DRAFT"
+      ? raw
+      : undefined;
+  res.send(await listProblems(status));
 }
 
 /** GET /admin/problems/:id — one problem in full. */
@@ -113,4 +122,34 @@ export async function deleteAdminProblem(
 ): Promise<void> {
   await deleteProblem(req.params.id);
   res.status(204).end();
+}
+
+/**
+ * POST /admin/problems/:id/approve — accept a submission and publish it.
+ *
+ * Typed as AdminRequest because, unlike every other problem handler, this one
+ * records WHO decided — `reviewedById` is what makes a review auditable.
+ */
+export async function postApproveProblem(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id) throw badRequest("Missing problem id.");
+  const { admin } = req as AdminRequest;
+  res.send(await approveProblem(id, admin.userId));
+}
+
+/** POST /admin/problems/:id/reject — send it back with a reason. */
+export async function postRejectProblem(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id) throw badRequest("Missing problem id.");
+  const { admin } = req as AdminRequest;
+  const note = typeof req.body?.reviewNote === "string" ? req.body.reviewNote : "";
+  res.send(await rejectProblem(id, admin.userId, note));
 }

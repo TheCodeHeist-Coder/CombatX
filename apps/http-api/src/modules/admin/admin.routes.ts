@@ -10,6 +10,8 @@ import {
   getAdminUsers,
   postAdminLogin,
   postAdminProblem,
+  postApproveProblem,
+  postRejectProblem,
   putAdminProblem,
 } from "./admin.controller.js";
 import {
@@ -43,6 +45,16 @@ guardedAdminRoutes.get("/battles", asyncHandler(getAdminBattles));
 
 guardedAdminRoutes.get("/problems", asyncHandler(getAdminProblems));
 guardedAdminRoutes.post("/problems", asyncHandler(postAdminProblem));
+// Review actions. Registered before the bare "/problems/:id" handlers below
+// would match, though a two-segment path could not collide with them anyway.
+guardedAdminRoutes.post(
+  "/problems/:id/approve",
+  asyncHandler(postApproveProblem),
+);
+guardedAdminRoutes.post(
+  "/problems/:id/reject",
+  asyncHandler(postRejectProblem),
+);
 guardedAdminRoutes.get("/problems/:id", asyncHandler(getAdminProblem));
 guardedAdminRoutes.put("/problems/:id", asyncHandler(putAdminProblem));
 guardedAdminRoutes.delete("/problems/:id", asyncHandler(deleteAdminProblem));

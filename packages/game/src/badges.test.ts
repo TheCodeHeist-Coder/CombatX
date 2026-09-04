@@ -27,6 +27,7 @@ const at = (rating: number): RatingState => ({ rating, rd: 45, volatility: 0.06 
 
 function ctx(over: Partial<BadgeContext> = {}): BadgeContext {
   return {
+    approvedProblemsAuthored: 0,
     wins: 0,
     losses: 0,
     xp: 0,

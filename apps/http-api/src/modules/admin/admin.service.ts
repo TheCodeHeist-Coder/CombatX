@@ -155,11 +155,17 @@ export async function listBattles(
 }
 
 /** Every problem, with counts the list view shows. */
-export async function listProblems(): Promise<AdminProblemsResponse> {
+export async function listProblems(
+  status?: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED",
+): Promise<AdminProblemsResponse> {
   const rows = await prisma.problem.findMany({
-    orderBy: { createdAt: "desc" },
+    where: status ? { status } : {},
+    // Pending first regardless of the filter: an unreviewed submission is the
+    // one thing on this page that is waiting on the admin.
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: {
       testCases: { select: { kind: true } },
+      author: { select: { username: true } },
       _count: { select: { battles: true } },
     },
   });
@@ -175,6 +181,9 @@ export async function listProblems(): Promise<AdminProblemsResponse> {
       battleCount: p._count.battles,
       timeLimitDefaultSec: p.timeLimitDefaultSec,
       createdAt: p.createdAt.toISOString(),
+      status: p.status,
+      authorName: p.author?.username ?? null,
+      reviewNote: p.reviewNote,
     })),
   };
 }

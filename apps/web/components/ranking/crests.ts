@@ -568,6 +568,66 @@ export const CRESTS: Record<string, Crest> = {
       "............",
     ],
   },
+
+  // --- Contribution -------------------------------------------------------
+
+  /** Problem Setter — a beaver. Builds the things everyone else uses. */
+  PROBLEM_SETTER: {
+    animal: "Beaver",
+    palette: { a: "#a8794e", b: "#6b4a2c", c: "#f0c86a", d: "#3a2a1a", k: K, w: W },
+    rows: [
+      "....bbbb....",
+      "...baaaab...",
+      "..baaaaaab..",
+      "..bakaakab..",
+      "..baaaaaab..",
+      "...baaaab...",
+      "...bwccwb...",
+      "...bacccb...",
+      "..baaaaaab..",
+      ".baaaaaaaab.",
+      ".bddddddddb.",
+      "..bdbdbdb...",
+    ],
+  },
+  /** Architect — a spider. Builds intricate structures, by design. */
+  ARCHITECT: {
+    animal: "Spider",
+    palette: { a: "#b9a6d8", b: "#6a5590", c: "#f2e9ff", k: K, w: W },
+    rows: [
+      "............",
+      "b..b....b..b",
+      ".b..b..b..b.",
+      "..bb.bb.bb..",
+      "...bbbbbb...",
+      "..baaaaaab..",
+      ".baawaawaab.",
+      ".baaaaaaaab.",
+      "..baaaaaab..",
+      "...bbbbbb...",
+      "..b.b..b.b..",
+      ".b..b..b..b.",
+    ],
+  },
+  /** Loremaster — an owl. Keeper of what the arena knows. */
+  LOREMASTER: {
+    animal: "Owl",
+    palette: { a: "#e8dcc0", b: "#6b5a3e", c: "#f0b429", k: K, w: W },
+    rows: [
+      "..bb....bb..",
+      ".baab..baab.",
+      "baaaabbaaaab",
+      "bawwaaaawwab",
+      "bawkwaawkwab",
+      "baaaacaaaaab",
+      ".baaacaaaab.",
+      "..baaaaaab..",
+      "..babaabab..",
+      "...baaaab...",
+      "...bcccb....",
+      "....b..b....",
+    ],
+  },
 };
 
 /**

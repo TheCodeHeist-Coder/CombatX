@@ -54,7 +54,7 @@ async function load(): Promise<BadgeRule[]> {
       select: {
         key: true, label: true, description: true, category: true,
         rarity: true, artKey: true, glyph: true, conditions: true,
-        progressFrom: true, enabled: true, sortOrder: true,
+        progressFrom: true, repeatEvery: true, enabled: true, sortOrder: true,
       },
     });
 
@@ -73,6 +73,7 @@ async function load(): Promise<BadgeRule[]> {
       glyph: r.glyph,
       conditions: parseConditions(r.conditions),
       progressFrom: r.progressFrom,
+      repeatEvery: r.repeatEvery,
       enabled: r.enabled,
       sortOrder: r.sortOrder,
     }));

@@ -18,6 +18,24 @@ enum Difficulty {
   HARD
 }
 
+/**
+ * Review state of a problem.
+ *
+ * Defaults to APPROVED so problems created by an admin — and every problem
+ * that existed before community submissions — are live without an extra step.
+ * Only a player submission starts life as PENDING.
+ *
+ * REJECTED is not a dead end: the author edits and resubmits, which moves the
+ * row back to PENDING. DRAFT is reserved for a future "save without
+ * submitting" and is never selected for battle.
+ */
+enum ProblemStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Mode {
   ONE_V_ONE
   TWO_V_TWO
@@ -208,6 +226,16 @@ model User {
   distinctProblemsWon Int @default(0)
 
   /**
+   * How many problems this user authored that an admin approved.
+   *
+   * Denormalised rather than counted from `authoredProblems` on read: the
+   * badge evaluator reads plain User columns (see BADGE_STAT_SELECT), and a
+   * relation count would mean a join on every profile, leaderboard row and
+   * battle finish. Incremented in the same transaction as the approval.
+   */
+  approvedProblems Int @default(0)
+
+  /**
    * 1-based signup order, assigned at registration and never changed. The
    * Pioneer badge reads this; deriving it from createdAt would silently
    * re-rank everyone if a row were ever backdated or restored.
@@ -229,6 +257,7 @@ model User {
   memberships   TeamMember[]
   submissions   Submission[]
   badges        UserBadge[]
+  authoredProblems Problem[]   @relation("AuthoredProblems")
   ratingHistory RatingHistory[]
   seasonStandings SeasonStanding[]
   queueEntry    MatchQueueEntry?
@@ -258,6 +287,15 @@ model UserBadge {
   earnedAt DateTime @default(now())
   /** The battle that triggered it, when there was one. */
   battleId String?
+
+  /**
+   * How many times a REPEATABLE badge has been earned, rendered as the "x2"
+   * bubble on the medal. Always 1 for an ordinary badge.
+   *
+   * A column rather than extra rows: [userId, badgeKey] is unique, and that
+   * uniqueness is what makes an award idempotent. A repeat increments.
+   */
+  count    Int      @default(1)
 
   @@unique([userId, badgeKey])
   @@index([userId])
@@ -302,6 +340,11 @@ model BadgeRule {
 
   /** Index of the condition that drives the progress bar; null for none. */
   progressFrom Int?
+  /**
+   * For a REPEATABLE badge: how much of the progress metric earns one more
+   * copy, drawn as the "x2" bubble. Null for an ordinary once-only badge.
+   */
+  repeatEvery  Int?
   /** A disabled rule stays in the table but is never awarded or shown. */
   enabled      Boolean @default(true)
   sortOrder    Int     @default(0)
@@ -431,11 +474,32 @@ model Problem {
   starterCode        Json
   timeLimitDefaultSec Int       @default(600)
   createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt @default(now())
+
+  /**
+   * Review state. APPROVED by default so admin-authored problems (and every
+   * problem seeded before community submissions existed) are immediately
+   * usable. Battle selection filters on this — see ws-server battleRoom.
+   */
+  status       ProblemStatus @default(APPROVED)
+
+  /** Who submitted it. Null for seeded and admin-authored problems. */
+  authorId     String?
+  author       User?         @relation("AuthoredProblems", fields: [authorId], references: [id], onDelete: SetNull)
+
+  /** Why it was rejected, shown to the author so they can fix and resubmit. */
+  reviewNote   String?
+  reviewedAt   DateTime?
+  /** The admin who approved or rejected it. */
+  reviewedById String?
 
   testCases TestCase[]
   battles   Battle[]
 
   @@index([difficulty])
+  // Battle selection filters on both, in this order.
+  @@index([status, difficulty])
+  @@index([authorId, status])
 }
 
 model TestCase {

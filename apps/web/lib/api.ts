@@ -14,6 +14,13 @@ import {
   BattleHistoryResponse,
   UpdateProfileResponse,
   JoinBattleResponse,
+  IntelCatalogueResponse,
+  MyProblemsResponse,
+  MyProblemDetail,
+  DuplicateCheckResponse,
+  SubmitProblemResponse,
+  type CommunityProblemInput,
+  type DuplicateCheckRequest,
   type AvatarChoice,
   type CreateBattleRequest,
   type Difficulty,
@@ -319,4 +326,89 @@ export function getBattleResult(
   return request(`/battles/${battleId}/result`, { method: "GET" }, (d) =>
     BattleResultResponse.parse(d),
   );
+}
+
+// --- Community problems -----------------------------------------------------
+
+/** GET /problems/catalogue — the Intel list. Public; no statements or tests. */
+export function fetchCatalogue(): Promise<IntelCatalogueResponse> {
+  return request("/problems/catalogue", { method: "GET" }, (d) =>
+    IntelCatalogueResponse.parse(d),
+  );
+}
+
+/** GET /problems/mine — the caller's own submissions and their review state. */
+export function fetchMyProblems(token: string): Promise<MyProblemsResponse> {
+  return request("/problems/mine", { headers: auth(token) }, (d) =>
+    MyProblemsResponse.parse(d),
+  );
+}
+
+/** GET /problems/mine/:id — one of the caller's own problems, in full. */
+export function fetchMyProblem(
+  token: string,
+  id: string,
+): Promise<MyProblemDetail> {
+  return request(`/problems/mine/${id}`, { headers: auth(token) }, (d) =>
+    MyProblemDetail.parse(d),
+  );
+}
+
+/**
+ * POST /problems/check-duplicate — "does this already exist?".
+ *
+ * Called as the author types, so the answer arrives before they press submit
+ * rather than as a rejection afterwards.
+ */
+export function checkDuplicate(
+  token: string,
+  body: DuplicateCheckRequest,
+): Promise<DuplicateCheckResponse> {
+  return request(
+    "/problems/check-duplicate",
+    { method: "POST", headers: auth(token), body: JSON.stringify(body) },
+    (d) => DuplicateCheckResponse.parse(d),
+  );
+}
+
+/**
+ * POST /problems/submit — send a problem for review.
+ *
+ * `acknowledgeDuplicate` is the author saying they have seen the near-matches
+ * and theirs is different. Without it a near-match comes back as 409.
+ */
+export function submitProblem(
+  token: string,
+  input: CommunityProblemInput,
+  acknowledgeDuplicate = false,
+): Promise<SubmitProblemResponse> {
+  const q = acknowledgeDuplicate ? "?acknowledgeDuplicate=true" : "";
+  return request(
+    `/problems/submit${q}`,
+    { method: "POST", headers: auth(token), body: JSON.stringify(input) },
+    (d) => SubmitProblemResponse.parse(d),
+  );
+}
+
+/** PUT /problems/mine/:id — edit a pending or rejected submission. */
+export function updateMyProblem(
+  token: string,
+  id: string,
+  input: CommunityProblemInput,
+  acknowledgeDuplicate = false,
+): Promise<{ id: string }> {
+  const q = acknowledgeDuplicate ? "?acknowledgeDuplicate=true" : "";
+  return request(`/problems/mine/${id}${q}`, {
+    method: "PUT",
+    headers: auth(token),
+    body: JSON.stringify(input),
+  });
+}
+
+/** DELETE /problems/mine/:id — withdraw a submission before it goes live. */
+export function withdrawMyProblem(token: string, id: string): Promise<void> {
+  return request(`/problems/mine/${id}`, {
+    method: "DELETE",
+    headers: auth(token),
+  });
 }

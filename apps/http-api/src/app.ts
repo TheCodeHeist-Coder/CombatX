@@ -13,6 +13,7 @@ import { battlesRoutes } from "./modules/battles/battles.routes.js";
 import { profileRoutes } from "./modules/profile/profile.routes.js";
 import { matchmakingRoutes } from "./modules/matchmaking/matchmaking.routes.js";
 import { adminRoutes } from "./modules/admin/admin.routes.js";
+import { problemRoutes } from "./modules/problems/problems.routes.js";
 import { trackRoutes } from "./modules/track/track.routes.js";
 
 /**
@@ -32,6 +33,7 @@ export function createApp(): Express {
   app.use(battlesRoutes);
   app.use(profileRoutes);
   app.use(matchmakingRoutes);
+  app.use(problemRoutes);
   app.use(trackRoutes);
   app.use(adminRoutes);
 

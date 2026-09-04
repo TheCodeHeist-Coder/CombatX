@@ -114,8 +114,12 @@ export function fetchBattles(
 }
 
 /** GET /admin/problems */
-export function fetchProblems(token: string): Promise<AdminProblemsResponse> {
-  return request("/admin/problems", { headers: auth(token) }, (d) =>
+export function fetchProblems(
+  token: string,
+  status?: string,
+): Promise<AdminProblemsResponse> {
+  const q = status && status !== "ALL" ? `?status=${status}` : "";
+  return request(`/admin/problems${q}`, { headers: auth(token) }, (d) =>
     AdminProblemsResponse.parse(d),
   );
 }
@@ -243,4 +247,28 @@ export function recalculateBadges(
     { method: "POST", headers: auth(token) },
     (d) => AdminBadgeRecalcResponse.parse(d),
   );
+}
+
+/** POST /admin/problems/:id/approve — publish a submission. */
+export function approveProblem(
+  token: string,
+  id: string,
+): Promise<{ id: string; status: string; awarded: { key: string; label: string; count: number; isNew: boolean }[] }> {
+  return request(`/admin/problems/${id}/approve`, {
+    method: "POST",
+    headers: auth(token),
+  });
+}
+
+/** POST /admin/problems/:id/reject — send it back with a reason. */
+export function rejectProblem(
+  token: string,
+  id: string,
+  reviewNote: string,
+): Promise<{ id: string; status: string }> {
+  return request(`/admin/problems/${id}/reject`, {
+    method: "POST",
+    headers: { ...auth(token), "content-type": "application/json" },
+    body: JSON.stringify({ reviewNote }),
+  });
 }

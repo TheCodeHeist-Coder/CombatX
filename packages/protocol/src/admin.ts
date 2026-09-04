@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Difficulty, Language, Mode, TestKind } from "./enums.js";
+import { Difficulty, Language, Mode, ProblemStatus, TestKind } from "./enums.js";
 
 /**
  * REST contract for the super-admin panel (`/admin/*` on apps/http-api).
@@ -201,6 +201,12 @@ export const AdminProblemRow = z.object({
   battleCount: z.number().int().min(0),
   timeLimitDefaultSec: z.number().int(),
   createdAt: z.string(),
+  /** Review state. Seeded and admin-authored problems are APPROVED. */
+  status: ProblemStatus.default("APPROVED"),
+  /** Username of the player who submitted it; null for admin-authored. */
+  authorName: z.string().nullable().default(null),
+  /** Why it was rejected, if it was. */
+  reviewNote: z.string().nullable().default(null),
 });
 export type AdminProblemRow = z.infer<typeof AdminProblemRow>;
 
@@ -253,7 +259,7 @@ export const BadgeComparatorEnum = z.enum(["gte", "lte"]);
 export type BadgeComparatorEnum = z.infer<typeof BadgeComparatorEnum>;
 
 export const BadgeCategoryEnum = z.enum([
-  "MILESTONE", "DIFFICULTY", "SKILL", "STREAK", "PIONEER",
+  "MILESTONE", "DIFFICULTY", "SKILL", "STREAK", "PIONEER", "CONTRIBUTION",
 ]);
 export type BadgeCategoryEnum = z.infer<typeof BadgeCategoryEnum>;
 
@@ -290,6 +296,8 @@ export const AdminBadgeInput = z.object({
     .min(1, "A badge needs at least one condition")
     .max(6, "Six conditions is plenty"),
   progressFrom: z.number().int().min(0).max(5).nullable(),
+  /** Repeatable badges award one copy per this much of the progress metric. */
+  repeatEvery: z.number().int().min(1).max(1000).nullable().default(null),
   enabled: z.boolean(),
   sortOrder: z.number().int().min(0).max(100_000),
 });

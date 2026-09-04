@@ -5,6 +5,7 @@ import { Spinner } from "../components/atoms";
 import { AppShell } from "../components/AppShell";
 import { HeroGate } from "../components/landing/HeroGate";
 import { RosterSection } from "../components/landing/RosterSection";
+import { RanksSection } from "../components/landing/RanksSection";
 import { Launcher } from "../components/Launcher";
 import { HeroFighter } from "../components/landing/HeroFighters";
 import { CodePanel } from "../components/landing/CodePanel";
@@ -48,6 +49,7 @@ export default function HomePage() {
       />
       <HowItWorks />
       <RosterSection />
+      <RanksSection />
       <Languages />
       <Inception />
       <DeployPanel loaded={loaded} session={session} />

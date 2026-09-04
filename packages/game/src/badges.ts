@@ -187,7 +187,9 @@ export type BadgeCategory =
   | "DIFFICULTY"
   | "SKILL"
   | "STREAK"
-  | "PIONEER";
+  | "PIONEER"
+  /** Authoring problems the community plays. */
+  | "CONTRIBUTION";
 
 /** Everything the evaluator is allowed to look at. */
 export interface BadgeContext {
@@ -219,6 +221,8 @@ export interface BadgeContext {
   signupOrdinal: number;
   /** Whole days between signup and now. */
   accountAgeDays: number;
+  /** Problems this player authored that an admin approved. */
+  approvedProblemsAuthored: number;
 }
 
 export interface BadgeDef {
@@ -539,6 +543,38 @@ export const BADGES: readonly BadgeDef[] = [
     rarity: "RARE",
     glyph: "Y",
     earned: (c) => c.accountAgeDays >= 365 && c.rankedBattles >= 20,
+  },
+
+  // --- Contribution: authoring problems other people play. ---
+  {
+    key: "PROBLEM_SETTER",
+    label: "Problem Setter",
+    description: "Authored a problem the arena accepted.",
+    category: "CONTRIBUTION",
+    rarity: "UNCOMMON",
+    glyph: "S",
+    earned: (c) => c.approvedProblemsAuthored >= 1,
+    progress: (c) => ratio(c.approvedProblemsAuthored, 1),
+  },
+  {
+    key: "ARCHITECT",
+    label: "Architect",
+    description: "Authored 5 accepted problems.",
+    category: "CONTRIBUTION",
+    rarity: "RARE",
+    glyph: "A",
+    earned: (c) => c.approvedProblemsAuthored >= 5,
+    progress: (c) => ratio(c.approvedProblemsAuthored, 5),
+  },
+  {
+    key: "LOREMASTER",
+    label: "Loremaster",
+    description: "Authored 15 accepted problems.",
+    category: "CONTRIBUTION",
+    rarity: "LEGENDARY",
+    glyph: "L",
+    earned: (c) => c.approvedProblemsAuthored >= 15,
+    progress: (c) => ratio(c.approvedProblemsAuthored, 15),
   },
 ] as const;
 

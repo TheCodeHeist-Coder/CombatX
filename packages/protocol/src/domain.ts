@@ -160,6 +160,11 @@ export const BadgeView = z.object({
   rarity: z.string(),
   glyph: z.string(),
   earnedAt: z.string().nullable().default(null),
+  /**
+   * How many times a repeatable badge has been earned, drawn as the "x2"
+   * bubble. Defaulted so an older server that omits it still parses.
+   */
+  count: z.number().int().min(1).default(1),
 });
 export type BadgeView = z.infer<typeof BadgeView>;
 

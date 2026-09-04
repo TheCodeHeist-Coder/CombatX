@@ -6,6 +6,7 @@ import {
   METRIC_LABELS,
   readMetric,
   ruleMet,
+  ruleLevel,
   ruleProgress,
   type RuleContext,
 } from "./badgeRules.js";
@@ -22,6 +23,7 @@ function ctx(over: Partial<RuleContext> = {}): RuleContext {
     wins: 0, losses: 0, draws: 0, xp: 0, bestStreak: 0, rankedBattles: 0,
     upsetWins: 0, perfectWins: 0, easyWins: 0, mediumWins: 0, hardWins: 0,
     distinctProblemsWon: 0, accountAgeDays: 0, signupOrdinal: 5000,
+    approvedProblemsAuthored: 0,
     rating,
     tierIndex: held ? TIERS.findIndex((t) => t.key === held.key) : -1,
     ...over,
@@ -36,6 +38,7 @@ function asBadgeContext(c: RuleContext): BadgeContext {
     perfectWins: c.perfectWins, easyWins: c.easyWins, mediumWins: c.mediumWins,
     hardWins: c.hardWins, distinctProblemsWon: c.distinctProblemsWon,
     signupOrdinal: c.signupOrdinal, accountAgeDays: c.accountAgeDays,
+    approvedProblemsAuthored: c.approvedProblemsAuthored,
   };
 }
 
@@ -194,4 +197,43 @@ test("default rule keys are unique and sort orders ascend", () => {
   assert.equal(keys.size, DEFAULT_BADGE_RULES.length);
   const orders = DEFAULT_BADGE_RULES.map((r) => r.sortOrder);
   assert.deepEqual(orders, [...orders].sort((a, b) => a - b), "keep the file ordered");
+});
+
+// --- Repeatable rules -------------------------------------------------------
+
+/** The repeatable contribution badge, from the shipped defaults. */
+const setter = DEFAULT_BADGE_RULES.find((r) => r.key === "PROBLEM_SETTER")!;
+
+test("a repeatable rule levels up once per unit of its metric", () => {
+  assert.equal(ruleLevel(setter, ctx({ approvedProblemsAuthored: 0 })), 0);
+  assert.equal(ruleLevel(setter, ctx({ approvedProblemsAuthored: 1 })), 1);
+  assert.equal(ruleLevel(setter, ctx({ approvedProblemsAuthored: 2 })), 2);
+  assert.equal(ruleLevel(setter, ctx({ approvedProblemsAuthored: 7 })), 7);
+});
+
+test("an ordinary rule is only ever held once", () => {
+  const architect = DEFAULT_BADGE_RULES.find((r) => r.key === "ARCHITECT")!;
+  assert.equal(architect.repeatEvery, null);
+  assert.equal(ruleLevel(architect, ctx({ approvedProblemsAuthored: 4 })), 0);
+  assert.equal(ruleLevel(architect, ctx({ approvedProblemsAuthored: 5 })), 1);
+  // Well past the threshold, still one — no accidental multiplier.
+  assert.equal(ruleLevel(architect, ctx({ approvedProblemsAuthored: 99 })), 1);
+});
+
+test("every shipped rule except Problem Setter is non-repeatable", () => {
+  const repeatable = DEFAULT_BADGE_RULES.filter((r) => r.repeatEvery !== null);
+  assert.deepEqual(repeatable.map((r) => r.key), ["PROBLEM_SETTER"]);
+});
+
+test("a disabled repeatable rule never levels", () => {
+  assert.equal(ruleLevel({ ...setter, enabled: false }, ctx({ approvedProblemsAuthored: 9 })), 0);
+});
+
+test("ruleLevel agrees with ruleMet on whether a badge is held at all", () => {
+  for (const rule of DEFAULT_BADGE_RULES) {
+    for (const n of [0, 1, 5, 20]) {
+      const c = ctx({ approvedProblemsAuthored: n, wins: n, rankedBattles: n });
+      assert.equal(ruleLevel(rule, c) > 0, ruleMet(rule, c), `${rule.key} at ${n}`);
+    }
+  }
 });
