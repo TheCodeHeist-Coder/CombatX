@@ -2,6 +2,7 @@ import { prisma } from "@repo/db";
 import {
   TEAM_SIZE_MODE,
   type CreateFixtureInput,
+  type UpdateFixtureInput,
   type LeagueRound,
   type LeagueFixtureView,
   type LeagueLegView,
@@ -11,6 +12,10 @@ import {
 import { badRequest, conflict, notFound } from "../../http/errors.js";
 import { generateRoomCode } from "../../roomCode.js";
 import { requireHost } from "./leagues.service.js";
+import {
+  fixtureParticipants,
+  notify,
+} from "../notifications/notifications.service.js";
 
 /**
  * Fixtures — the host pairing teams, and those pairings becoming real battles.
@@ -134,7 +139,123 @@ export async function createFixture(
     include: FIXTURE_INCLUDE,
   });
 
-  return toFixtureView(fixture);
+  /*
+   * Tell both rosters.
+   *
+   * After the fixture exists, not inside its transaction: a notification that
+   * fails must never roll back the match it is announcing. `notify` swallows
+   * its own errors for the same reason.
+   */
+  const view = toFixtureView(fixture);
+  await notify({
+    userIds: await fixtureParticipants(fixture.id),
+    kind: "LEAGUE_FIXTURE_SCHEDULED",
+    title: `${view.homeTeamName} vs ${view.awayTeamName}`,
+    body: `A match has been scheduled in ${league.name}.`,
+    link: `/leagues/${leagueId}`,
+  });
+
+  return view;
+}
+
+/**
+ * Edit a scheduled fixture.
+ *
+ * WHAT CANNOT BE CHANGED, AND WHY
+ * -------------------------------
+ * The TEAMS. Swapping who is playing after both rosters have been told to
+ * turn up is not an edit, it is a different match — the host cancels and
+ * schedules that instead, so the people affected are told.
+ *
+ * A leg that has already been PLAYED. Its battle is a real match with real
+ * submissions; rewriting which problem it was supposed to be would make the
+ * record disagree with what happened. Played legs are kept exactly as they
+ * are and the edit applies only to the unplayed tail.
+ *
+ * A COMPLETED fixture, at all — the result is settled.
+ */
+export async function updateFixture(
+  userId: string,
+  leagueId: string,
+  fixtureId: string,
+  input: UpdateFixtureInput,
+): Promise<LeagueFixtureView> {
+  await requireHost(userId, leagueId);
+
+  const fixture = await prisma.leagueFixture.findFirst({
+    where: { id: fixtureId, leagueId },
+    include: { legs: { orderBy: { ordinal: "asc" } } },
+  });
+  if (!fixture) throw notFound("Fixture not found.");
+  if (fixture.status === "COMPLETED") {
+    throw conflict("FIXTURE_COMPLETED", "That match is already decided.");
+  }
+  if (fixture.status === "CANCELLED") {
+    throw conflict("FIXTURE_CANCELLED", "That match was called off.");
+  }
+
+  // A pinned problem must still be playable, exactly as at creation.
+  const pinned = (input.legs ?? [])
+    .map((l) => l.problemId)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (pinned.length > 0) {
+    const found = await prisma.problem.count({
+      where: { id: { in: pinned }, status: "APPROVED" },
+    });
+    if (found !== new Set(pinned).size) {
+      throw badRequest("One of those problems is not available.");
+    }
+  }
+
+  const played = fixture.legs.filter((l) => l.battleId !== null);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.leagueFixture.update({
+      where: { id: fixtureId },
+      data: {
+        ...(input.timeLimitSec !== undefined && {
+          timeLimitSec: input.timeLimitSec,
+        }),
+        ...(input.difficulty !== undefined && { difficulty: input.difficulty }),
+        ...(input.scheduledAt !== undefined && {
+          scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+        }),
+      },
+    });
+
+    if (input.legs) {
+      /*
+       * The submitted list must be at least as long as what has been played:
+       * otherwise the host is asking to delete a match that happened.
+       */
+      if (input.legs.length < played.length) {
+        throw conflict(
+          "LEGS_ALREADY_PLAYED",
+          `${played.length} problem${played.length === 1 ? " has" : "s have"} already been played, so the match cannot be shortened below that.`,
+        );
+      }
+
+      // Replace only the unplayed tail; played legs keep their battles.
+      await tx.leagueFixtureLeg.deleteMany({
+        where: { fixtureId, battleId: null },
+      });
+      for (let i = played.length; i < input.legs.length; i++) {
+        await tx.leagueFixtureLeg.create({
+          data: {
+            fixtureId,
+            ordinal: i + 1,
+            problemId: input.legs[i]?.problemId ?? null,
+          },
+        });
+      }
+    }
+  });
+
+  const fresh = await prisma.leagueFixture.findUniqueOrThrow({
+    where: { id: fixtureId },
+    include: FIXTURE_INCLUDE,
+  });
+  return toFixtureView(fresh);
 }
 
 /** Call off a fixture. Legs that already played keep their battles. */
@@ -305,6 +426,19 @@ export async function startLeg(
     return created;
   });
 
+  /*
+   * The most time-critical notification in the product: the room is open NOW
+   * and the clock is about to run. Everyone in the match is told, with a link
+   * straight into the battle rather than to the league page.
+   */
+  await notify({
+    userIds: await fixtureParticipants(fixtureId),
+    kind: "LEAGUE_MATCH_STARTED",
+    title: `${leg.fixture.homeTeam.name} vs ${leg.fixture.awayTeam.name} is live`,
+    body: "Your match has started — join now.",
+    link: `/battle/${battle.id}`,
+  });
+
   return { battleId: battle.id, roomCode: battle.roomCode };
 }
 
@@ -404,6 +538,48 @@ export async function settleFixture(fixtureId: string): Promise<void> {
       });
     }
   });
+
+  /*
+   * Announce the result, but ONLY on the transition into COMPLETED.
+   *
+   * settleFixture is called on every dashboard read and is deliberately
+   * idempotent, so notifying on "this fixture is complete" would re-announce
+   * the same result on every page load forever. The guard is that the status
+   * actually CHANGED in this call.
+   */
+  if (decided && nextStatus === "COMPLETED" && statusChanged) {
+    const teams = await prisma.leagueFixture.findUnique({
+      where: { id: fixtureId },
+      select: {
+        leagueId: true,
+        homeTeam: { select: { id: true, name: true } },
+        awayTeam: { select: { id: true, name: true } },
+      },
+    });
+    if (teams) {
+      const home = fixture.legs.filter(
+        (l) => l.winnerTeamId === fixture.homeTeamId,
+      ).length;
+      const away = fixture.legs.filter(
+        (l) => l.winnerTeamId === fixture.awayTeamId,
+      ).length;
+      const winnerName =
+        winnerTeamId === teams.homeTeam.id
+          ? teams.homeTeam.name
+          : winnerTeamId === teams.awayTeam.id
+            ? teams.awayTeam.name
+            : null;
+      await notify({
+        userIds: await fixtureParticipants(fixtureId),
+        kind: "LEAGUE_FIXTURE_RESULT",
+        title: winnerName
+          ? `${winnerName} won ${home}\u2013${away}`
+          : `${teams.homeTeam.name} ${home}\u2013${away} ${teams.awayTeam.name} \u2014 drawn`,
+        body: `${teams.homeTeam.name} vs ${teams.awayTeam.name} is decided.`,
+        link: `/leagues/${teams.leagueId}`,
+      });
+    }
+  }
 }
 
 /** Settle every fixture in a league. Called when the dashboard is read. */

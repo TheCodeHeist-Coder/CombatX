@@ -266,6 +266,7 @@ model User {
   // are the teams they play in. A user can do both, in different leagues.
   hostedLeagues     League[]         @relation("HostedLeagues")
   leagueMemberships LeagueTeamMember[]
+  notifications     Notification[]
 
   // The ladder's sort key. Postgres cannot index an expression through
   // Prisma, so the leaderboard filters on these and sorts in the query.
@@ -944,4 +945,63 @@ model LeagueFixtureLeg {
 
   @@unique([fixtureId, ordinal])
   @@index([fixtureId])
+}
+
+/**
+ * What a notification is telling someone.
+ *
+ * Deliberately a closed enum rather than free text: the client renders each
+ * kind with its own icon, wording and destination, so an unknown kind would
+ * arrive as an unstyled row nobody knows what to do with. Adding a kind is a
+ * deliberate act that updates both ends.
+ */
+enum NotificationKind {
+  /** A fixture involving your team was scheduled. */
+  LEAGUE_FIXTURE_SCHEDULED
+  /** A leg of your fixture has kicked off — the room is open now. */
+  LEAGUE_MATCH_STARTED
+  /** A tie you were in has been decided. */
+  LEAGUE_FIXTURE_RESULT
+  /** Your team is in a decider for a qualification place. */
+  LEAGUE_TIEBREAK_SCHEDULED
+  /** A knockout round was drawn and your team is in it. */
+  LEAGUE_ROUND_DRAWN
+  /** The league finished and there is a champion. */
+  LEAGUE_FINISHED
+}
+
+/**
+ * One thing a user should know about.
+ *
+ * WHY THIS IS A TABLE AND NOT A PUSH
+ * ----------------------------------
+ * A live socket only reaches someone who happens to have the page open. A
+ * league runs over days, and the whole point of telling someone their match
+ * was scheduled is that they are NOT currently looking. So the notification
+ * is durable first and pushed second: the row is the truth, and a live socket
+ * is an optimisation on top of it.
+ *
+ * `link` is stored rather than derived so a notification keeps working even
+ * if the thing it points at is later restructured — and so the client needs
+ * no switch over kinds just to know where to go.
+ */
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind   NotificationKind
+
+  /** One line, already written for a human. */
+  title String
+  /** Optional second line with the detail. */
+  body  String?
+  /** Where clicking it goes, e.g. "/leagues/abc123". */
+  link  String?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  // The unread badge and the list both filter on user and sort by recency.
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

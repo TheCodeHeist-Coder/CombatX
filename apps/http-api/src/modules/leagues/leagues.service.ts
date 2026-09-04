@@ -11,12 +11,17 @@ import {
   type LeagueMemberView,
   type LeagueStatus,
   type LeagueTeamView,
+  type UpdateTeamInput,
   type LeagueVisibility,
   type UpdateLeagueInput,
 } from "@repo/protocol";
 import { badRequest, conflict, forbidden, notFound } from "../../http/errors.js";
 import { generateRoomCode } from "../../roomCode.js";
 import { settleLeague, toFixtureView } from "./fixtures.service.js";
+import {
+  leagueParticipants,
+  notify,
+} from "../notifications/notifications.service.js";
 
 /**
  * Leagues — creation, membership and team formation.
@@ -160,6 +165,29 @@ export async function updateLeague(
     },
     include: LEAGUE_CARD_INCLUDE,
   });
+
+  /*
+   * Announce the end of the league, once.
+   *
+   * Guarded on the status actually CHANGING to FINISHED — updateLeague is
+   * called for every edit, and re-announcing the ending on each one would be
+   * a notification every time the host fixed a typo in the description.
+   */
+  if (input.status === "FINISHED" && league.status !== "FINISHED") {
+    const champion = await prisma.leagueFixture.findFirst({
+      where: { leagueId: league.id, round: "FINAL", status: "COMPLETED" },
+      select: { winnerTeam: { select: { name: true } } },
+    });
+    await notify({
+      userIds: await leagueParticipants(league.id),
+      kind: "LEAGUE_FINISHED",
+      title: `${updated.name} has finished`,
+      body: champion?.winnerTeam
+        ? `${champion.winnerTeam.name} are the champions.`
+        : "The final standings are in.",
+      link: `/leagues/${league.id}`,
+    });
+  }
 
   return toCard(updated, true);
 }
@@ -469,6 +497,59 @@ export async function joinTeam(
     include: TEAM_INCLUDE,
   });
   return toTeamView(fresh, league.teamSize);
+}
+
+/**
+ * Rename a team, or change its crest.
+ *
+ * Captain or league host only. The name is unique per league, so a clash
+ * comes back as a conflict the user can act on rather than a 500.
+ *
+ * Allowed at ANY point, including mid-league: a team's identity is not a
+ * result. Renaming does not touch fixtures, which reference the team by id,
+ * so a match already scheduled simply displays the new name.
+ */
+export async function updateTeam(
+  actorUserId: string,
+  leagueId: string,
+  teamId: string,
+  input: UpdateTeamInput,
+): Promise<LeagueTeamView> {
+  const league = await prisma.league.findUnique({
+    where: { id: leagueId },
+    select: { id: true, hostUserId: true, teamSize: true },
+  });
+  if (!league) throw notFound("League not found.");
+
+  const team = await prisma.leagueTeam.findFirst({
+    where: { id: teamId, leagueId },
+    select: { id: true, captainUserId: true },
+  });
+  if (!team) throw notFound("That team is not in this league.");
+
+  if (team.captainUserId !== actorUserId && league.hostUserId !== actorUserId) {
+    throw forbidden("Only the captain or the league host can edit this team.");
+  }
+
+  try {
+    const updated = await prisma.leagueTeam.update({
+      where: { id: teamId },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.logoUrl !== undefined && { logoUrl: input.logoUrl }),
+      },
+      include: TEAM_INCLUDE,
+    });
+    return toTeamView(updated, league.teamSize);
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw conflict(
+        "NAME_TAKEN",
+        "A team in this league already has that name.",
+      );
+    }
+    throw err;
+  }
 }
 
 /**

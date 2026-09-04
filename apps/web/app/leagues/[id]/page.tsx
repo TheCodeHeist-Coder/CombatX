@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type {
   CreateFixtureInput,
   LeagueDetailResponse,
+  LeagueFixtureView,
   LeagueStandingsResponse,
 } from "@repo/protocol";
 import { AppShell } from "../../../components/AppShell";
@@ -34,6 +35,8 @@ import {
   generateLeagueRound,
   scheduleLeagueTiebreak,
   startLeagueLeg,
+  updateLeagueFixture,
+  updateLeagueTeam,
   updateLeague,
 } from "../../../lib/api";
 import { useSession } from "../../../lib/useSession";
@@ -68,6 +71,9 @@ export default function LeaguePage({
   const [busy, setBusy] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
+  /** The fixture being edited, when the host is editing one. */
+  const [editingFixture, setEditingFixture] =
+    useState<LeagueFixtureView | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +100,27 @@ export default function LeaguePage({
     if (!loaded) return;
     void load();
   }, [loaded, load]);
+
+  /*
+   * Keep the page live while a match is being played.
+   *
+   * Battles finish in the ws-server, which knows nothing about leagues, so
+   * nothing pushes a league result anywhere. Without this the scoreline is
+   * frozen at whatever it was when the page loaded — everyone watching a
+   * match sees a stale 0-0 until they think to reload.
+   *
+   * Only polls while something is actually LIVE, and never in a hidden tab,
+   * so an idle league page costs nothing.
+   */
+  const hasLiveMatch = detail?.fixtures.some((f) => f.status === "LIVE") ?? false;
+
+  useEffect(() => {
+    if (!hasLiveMatch) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [hasLiveMatch, load]);
 
   /** Run a mutation, surface its error, and refetch. */
   async function act(key: string, fn: () => Promise<unknown>) {
@@ -306,18 +333,37 @@ export default function LeaguePage({
               </div>
             )}
 
-            {scheduling && token && (
+            {(scheduling || editingFixture) && token && (
               <div className="mt-5">
                 <ScheduleMatch
+                  key={editingFixture?.id ?? "new"}
                   teams={detail.teams}
                   token={token}
+                  editing={editingFixture}
                   busy={working === "fixture"}
-                  onCancel={() => setScheduling(false)}
-                  onCreate={async (input: CreateFixtureInput) => {
-                    await act("fixture", () =>
-                      createLeagueFixture(token, id, input),
-                    );
+                  onCancel={() => {
                     setScheduling(false);
+                    setEditingFixture(null);
+                  }}
+                  onCreate={async (input: CreateFixtureInput) => {
+                    if (editingFixture) {
+                      // An edit sends only what an edit may change — the teams
+                      // are absent by design, so the server cannot be asked to
+                      // swap who is playing.
+                      await act("fixture", () =>
+                        updateLeagueFixture(token, id, editingFixture.id, {
+                          timeLimitSec: input.timeLimitSec,
+                          difficulty: input.difficulty,
+                          legs: input.legs,
+                        }),
+                      );
+                      setEditingFixture(null);
+                    } else {
+                      await act("fixture", () =>
+                        createLeagueFixture(token, id, input),
+                      );
+                      setScheduling(false);
+                    }
                   }}
                 />
               </div>
@@ -416,6 +462,10 @@ export default function LeaguePage({
                     cancelLeagueFixture(token!, id, fixtureId),
                   )
                 }
+                onEdit={(fixture) => {
+                  setEditingFixture(fixture);
+                  setScheduling(false);
+                }}
               />
             </div>
 
@@ -425,9 +475,19 @@ export default function LeaguePage({
                 detail={detail}
                 session={session}
                 working={working}
-                onCreate={(name) =>
+                onCreate={(name, logoUrl) =>
                   act("create", () =>
-                    createLeagueTeam(token!, id, { name }),
+                    createLeagueTeam(token!, id, { name, logoUrl }),
+                  )
+                }
+                onRename={(teamId, name, logoUrl) =>
+                  act(teamId, () =>
+                    updateLeagueTeam(token!, id, teamId, {
+                      name,
+                      // Only sent when a crest was actually chosen, so a
+                      // rename does not clear an existing logo.
+                      ...(logoUrl !== undefined && { logoUrl }),
+                    }),
                   )
                 }
                 onJoin={(teamId) =>

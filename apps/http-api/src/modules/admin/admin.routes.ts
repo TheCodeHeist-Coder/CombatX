@@ -2,8 +2,10 @@ import { Router } from "express";
 import { asyncHandler } from "../../http/asyncHandler.js";
 import { requireAdmin } from "../../middleware/adminAuth.js";
 import {
+  deleteAdminLeague,
   deleteAdminProblem,
   getAdminBattles,
+  getAdminLeagues,
   getAdminOverview,
   getAdminProblem,
   getAdminProblems,
@@ -48,6 +50,12 @@ guardedAdminRoutes.use(requireAdmin);
 guardedAdminRoutes.get("/overview", asyncHandler(getAdminOverview));
 guardedAdminRoutes.get("/users", asyncHandler(getAdminUsers));
 guardedAdminRoutes.get("/battles", asyncHandler(getAdminBattles));
+
+// Leagues: read everything (private ones included) and remove an abusive one.
+// Deliberately no scheduling or editing — an admin moderates leagues, it does
+// not co-host them. See leagues.admin.ts.
+guardedAdminRoutes.get("/leagues", asyncHandler(getAdminLeagues));
+guardedAdminRoutes.delete("/leagues/:id", asyncHandler(deleteAdminLeague));
 
 guardedAdminRoutes.get("/problems", asyncHandler(getAdminProblems));
 guardedAdminRoutes.post("/problems", asyncHandler(postAdminProblem));

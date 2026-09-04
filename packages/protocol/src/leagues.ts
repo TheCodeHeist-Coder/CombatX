@@ -235,6 +235,20 @@ export const CreateTeamInput = z.object({
 export type CreateTeamInput = z.infer<typeof CreateTeamInput>;
 
 /**
+ * Editing a team.
+ *
+ * Both fields optional so a rename does not require re-sending the logo, and
+ * a logo change does not require re-sending the name. `logoUrl: null` clears
+ * the crest, which is distinct from omitting it entirely.
+ */
+export const UpdateTeamInput = z.object({
+  name: z.string().trim().min(2).max(40).optional(),
+  logoUrl: LogoDataUrl.nullable().optional(),
+});
+export type UpdateTeamInput = z.infer<typeof UpdateTeamInput>;
+
+
+/**
  * One leg as the host schedules it.
  *
  * `problemId` omitted or null means "let the system pick", which is the
@@ -244,6 +258,25 @@ export const FixtureLegInput = z.object({
   problemId: z.string().nullable().optional(),
 });
 export type FixtureLegInput = z.infer<typeof FixtureLegInput>;
+
+/**
+ * Editing a scheduled fixture.
+ *
+ * Only what is safe to change once a match exists. The TEAMS are absent by
+ * design: swapping who is playing after people have been told to turn up is
+ * a different match, and the host should cancel and schedule that instead.
+ */
+export const UpdateFixtureInput = z.object({
+  timeLimitSec: z.number().int().min(60).max(7200).optional(),
+  difficulty: Difficulty.optional(),
+  scheduledAt: z.string().nullable().optional(),
+  /**
+   * Replaces the whole leg list, in order. Legs that have already been played
+   * are preserved by the server — see updateFixture.
+   */
+  legs: z.array(FixtureLegInput).min(1).max(5).optional(),
+});
+export type UpdateFixtureInput = z.infer<typeof UpdateFixtureInput>;
 
 /** Scheduling a tie between two teams. */
 export const CreateFixtureInput = z.object({

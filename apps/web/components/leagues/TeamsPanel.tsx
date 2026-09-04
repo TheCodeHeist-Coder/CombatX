@@ -6,6 +6,7 @@ import { Spinner } from "../atoms";
 import { UserAvatar } from "../identity/UserIdentity";
 import { LeagueLogo } from "./LeagueBits";
 import type { Session } from "../../lib/session";
+import { fileToAvatarDataUrl, ImageError } from "../../lib/image";
 
 /**
  * The teams in a league: the standings table and the way in.
@@ -23,17 +24,38 @@ export function TeamsPanel({
   onCreate,
   onJoin,
   onLeave,
+  onRename,
   working,
 }: {
   detail: LeagueDetailResponse;
   session: Session | null;
-  onCreate: (name: string) => void | Promise<void>;
+  onCreate: (name: string, logoUrl: string | null) => void | Promise<void>;
   onJoin: (teamId: string) => void | Promise<void>;
   onLeave: (teamId: string, userId: string) => void | Promise<void>;
+  onRename: (
+    teamId: string,
+    name: string,
+    logoUrl?: string | null,
+  ) => void | Promise<void>;
   working: string | null;
 }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+
+  /** Downscale a chosen file the same way a profile photo is handled. */
+  async function pickLogo(file: File | undefined) {
+    if (!file) return;
+    setLogoError(null);
+    try {
+      setLogo(await fileToAvatarDataUrl(file));
+    } catch (e) {
+      setLogoError(
+        e instanceof ImageError ? e.message : "Could not read that image.",
+      );
+    }
+  }
 
   const { league, teams, myTeamId, isHost } = detail;
   const me = session && !session.isGuest ? session.userId : null;
@@ -69,6 +91,18 @@ export function TeamsPanel({
 
       {creating && (
         <div className="panel mb-3 flex flex-wrap items-end gap-3 p-4">
+          {/* A crest, the same way a league gets one. Optional — most teams
+              will never upload anything and the initials fallback is fine. */}
+          <label className="shrink-0 cursor-pointer" title="Add a team crest">
+            <LeagueLogo name={name || "?"} logoUrl={logo} size={44} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => void pickLogo(e.target.files?.[0])}
+            />
+          </label>
+
           <div className="min-w-0 flex-1">
             <label htmlFor="team-name" className="label">
               Team name
@@ -86,7 +120,7 @@ export function TeamsPanel({
           <button
             className="btn btn-primary"
             disabled={name.trim().length < 2 || working === "create"}
-            onClick={() => void onCreate(name.trim())}
+            onClick={() => void onCreate(name.trim(), logo)}
           >
             {working === "create" ? <Spinner /> : "Create"}
           </button>
@@ -95,10 +129,19 @@ export function TeamsPanel({
             onClick={() => {
               setCreating(false);
               setName("");
+              setLogo(null);
             }}
           >
             Cancel
           </button>
+          {logoError && (
+            <p
+              className="w-full font-mono text-[0.68rem]"
+              style={{ color: "var(--color-bad)" }}
+            >
+              {logoError}
+            </p>
+          )}
         </div>
       )}
 
@@ -129,6 +172,7 @@ export function TeamsPanel({
               me={me}
               onJoin={onJoin}
               onLeave={onLeave}
+              onRename={onRename}
               working={working}
             />
           ))}
@@ -147,6 +191,7 @@ function TeamRow({
   me,
   onJoin,
   onLeave,
+  onRename,
   working,
 }: {
   team: LeagueTeamView;
@@ -157,9 +202,16 @@ function TeamRow({
   me: string | null;
   onJoin: (teamId: string) => void | Promise<void>;
   onLeave: (teamId: string, userId: string) => void | Promise<void>;
+  onRename: (
+    teamId: string,
+    name: string,
+    logoUrl?: string | null,
+  ) => void | Promise<void>;
   working: string | null;
 }) {
   const busy = working === team.id;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(team.name);
 
   return (
     <article
@@ -175,8 +227,81 @@ function TeamRow({
       }
     >
       <div className="flex flex-wrap items-center gap-3">
-        <LeagueLogo name={team.name} logoUrl={team.logoUrl} size={36} />
-        <h3 className="text-[0.92rem] font-bold">{team.name}</h3>
+        {/* The crest doubles as the upload control for anyone who can edit —
+            no separate button for something most teams never touch. */}
+        {canManage ? (
+          <label className="shrink-0 cursor-pointer" title="Change the crest">
+            <LeagueLogo name={team.name} logoUrl={team.logoUrl} size={36} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const url = await fileToAvatarDataUrl(file);
+                  await onRename(team.id, team.name, url);
+                } catch {
+                  // The page surfaces the failure; nothing useful to add here.
+                }
+              }}
+            />
+          </label>
+        ) : (
+          <LeagueLogo name={team.name} logoUrl={team.logoUrl} size={36} />
+        )}
+
+        {editing ? (
+          <span className="flex items-center gap-2">
+            <input
+              className="field py-1! text-[0.85rem]!"
+              value={draft}
+              maxLength={40}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setEditing(false);
+                  setDraft(team.name);
+                }
+              }}
+            />
+            <button
+              className="btn btn-primary px-3! py-1! text-[0.66rem]!"
+              disabled={draft.trim().length < 2 || busy}
+              onClick={async () => {
+                await onRename(team.id, draft.trim());
+                setEditing(false);
+              }}
+            >
+              Save
+            </button>
+            <button
+              className="btn btn-ghost px-3! py-1! text-[0.66rem]!"
+              onClick={() => {
+                setEditing(false);
+                setDraft(team.name);
+              }}
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <h3 className="text-[0.92rem] font-bold">
+            {team.name}
+            {canManage && (
+              <button
+                className="ml-2 font-mono text-[0.66rem] font-normal underline"
+                style={{ color: "var(--color-ink-ghost)" }}
+                onClick={() => setEditing(true)}
+                title="Rename this team"
+              >
+                edit
+              </button>
+            )}
+          </h3>
+        )}
 
         {isMine && (
           <span

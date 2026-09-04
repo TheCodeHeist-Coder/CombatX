@@ -105,10 +105,35 @@ function HistoryRow({ entry }: { entry: BattleHistoryEntry }) {
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">
-          {entry.problemTitle ?? "Problem not assigned"}
+        <span className="flex items-center gap-2">
+          <span className="min-w-0 truncate font-semibold">
+            {entry.problemTitle ?? "Problem not assigned"}
+          </span>
+          {/*
+            A league match is an ordinary battle, so without this it sat in
+            the archive indistinguishable from a casual room-code game —
+            someone could play a whole tournament and their record would say
+            nothing about it.
+          */}
+          {entry.leagueName && (
+            <Link
+              href={`/leagues/${entry.leagueId}`}
+              className="chip shrink-0 font-mono"
+              style={{
+                borderColor: "var(--color-amber)",
+                color: "var(--color-amber)",
+                fontSize: "0.6rem",
+              }}
+              title={`Part of ${entry.leagueName}`}
+            >
+              {entry.leagueRound && entry.leagueRound !== "GROUP"
+                ? ROUND_SHORT[entry.leagueRound] ?? "league"
+                : "league"}
+            </Link>
+          )}
         </span>
         <span className="label mt-0.5 block">
+          {entry.leagueName ? `${entry.leagueName} · ` : ""}
           {modeLabel(entry.mode)} · {titleCase(entry.difficulty)} · Room{" "}
           {entry.roomCode}
           {entry.mySide && ` · Team ${entry.mySide}`}
@@ -128,3 +153,18 @@ function HistoryRow({ entry }: { entry: BattleHistoryEntry }) {
     </li>
   );
 }
+
+/**
+ * Short labels for a knockout round, so a final reads as a final.
+ *
+ * A plain record rather than an exhaustive Record<LeagueRound, string>: the
+ * round arrives as a string on the history entry (it is context, not a typed
+ * discriminator), and an unrecognised value falls back to "league" rather
+ * than failing to render.
+ */
+const ROUND_SHORT: Record<string, string> = {
+  TIEBREAK: "decider",
+  QUARTER_FINAL: "quarter-final",
+  SEMI_FINAL: "semi-final",
+  FINAL: "final",
+};

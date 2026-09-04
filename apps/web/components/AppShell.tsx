@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import type { ProfileResponse } from "@repo/protocol";
 import { Logo } from "./Logo";
 import { UserAvatar } from "./identity/UserIdentity";
+import { NotificationBell } from "./NotificationBell";
 import type { Session } from "../lib/session";
 
 /**
@@ -86,6 +87,10 @@ function CommandBar({
 
         <div className="ml-auto flex items-center gap-2.5">
           {right}
+          {/* Guests have nothing to be notified about — no league, no team. */}
+          {session && !session.isGuest && (
+            <NotificationBell session={session} />
+          )}
           {session && <IdentityChip session={session} profile={profile} />}
           {/*
             The hero card only offers a room-code join, so this is the only

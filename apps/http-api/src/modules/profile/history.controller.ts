@@ -78,6 +78,17 @@ export async function getMyBattles(
         select: { title: true, _count: { select: { testCases: true } } },
       },
       result: { select: { standings: true, createdAt: true } },
+      // The league this battle belonged to, when it was a fixture leg.
+      leagueLeg: {
+        select: {
+          fixture: {
+            select: {
+              round: true,
+              league: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -111,6 +122,9 @@ export async function getMyBattles(
       totalTests: total || b.problem?._count.testCases || 0,
       finishedAt: (b.result?.createdAt ?? b.serverEndAt)?.toISOString() ?? null,
       createdAt: b.createdAt.toISOString(),
+      leagueId: b.leagueLeg?.fixture.league.id ?? null,
+      leagueName: b.leagueLeg?.fixture.league.name ?? null,
+      leagueRound: b.leagueLeg?.fixture.round ?? null,
     };
   });
 

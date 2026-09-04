@@ -14,6 +14,10 @@ import {
   listUsers,
   updateProblem,
 } from "./admin.service.js";
+import {
+  deleteLeagueAsAdmin,
+  listLeaguesForAdmin,
+} from "./leagues.admin.js";
 
 function firstIssue(error: { issues: { message: string }[] }): string {
   return error.issues[0]?.message ?? "Invalid input";
@@ -152,4 +156,31 @@ export async function postRejectProblem(
   const { admin } = req as AdminRequest;
   const note = typeof req.body?.reviewNote === "string" ? req.body.reviewNote : "";
   res.send(await rejectProblem(id, admin.userId, note));
+}
+
+/* --- leagues --------------------------------------------------------------- */
+
+/** GET /admin/leagues — every league, private ones included. */
+export async function getAdminLeagues(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  res.send(await listLeaguesForAdmin(intParam(req.query.limit, 100, 500)));
+}
+
+/**
+ * DELETE /admin/leagues/:id — remove a league.
+ *
+ * Moderation, not co-hosting: an admin can take an abusive league down but
+ * cannot run somebody else's. See leagues.admin.ts for why.
+ */
+export async function deleteAdminLeague(
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> {
+  const raw = req.params.id;
+  const id = Array.isArray(raw) ? raw[0] : raw;
+  if (!id) throw badRequest("Missing league id.");
+  await deleteLeagueAsAdmin(id);
+  res.status(204).end();
 }

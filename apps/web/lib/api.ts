@@ -28,6 +28,9 @@ import {
   StartLegResponse,
   LeagueStandingsResponse,
   type GenerateRoundInput,
+  NotificationsResponse,
+  type UpdateFixtureInput,
+  type UpdateTeamInput,
   type CreateFixtureInput,
   type CreateLeagueInput,
   type CreateTeamInput,
@@ -650,4 +653,59 @@ export function scheduleLeagueTiebreak(
     headers: auth(token),
     body: JSON.stringify(input),
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notifications                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** GET /me/notifications — the caller's notifications and unread count. */
+export function fetchNotifications(
+  token: string,
+): Promise<NotificationsResponse> {
+  return request(
+    "/me/notifications",
+    { headers: auth(token) },
+    (d) => NotificationsResponse.parse(d),
+  );
+}
+
+/** POST /me/notifications/read — omit ids to mark everything read. */
+export function markNotificationsRead(
+  token: string,
+  ids?: string[],
+): Promise<{ unread: number }> {
+  return request("/me/notifications/read", {
+    method: "POST",
+    headers: auth(token),
+    body: JSON.stringify(ids ? { ids } : {}),
+  });
+}
+
+/** PUT /leagues/:id/teams/:teamId — rename a team or change its crest. */
+export function updateLeagueTeam(
+  token: string,
+  leagueId: string,
+  teamId: string,
+  input: UpdateTeamInput,
+): Promise<LeagueTeamView> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/teams/${encodeURIComponent(teamId)}`,
+    { method: "PUT", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueTeamView.parse(d),
+  );
+}
+
+/** PUT /leagues/:id/fixtures/:fixtureId — edit a scheduled match. */
+export function updateLeagueFixture(
+  token: string,
+  leagueId: string,
+  fixtureId: string,
+  input: UpdateFixtureInput,
+): Promise<LeagueFixtureView> {
+  return request(
+    `/leagues/${encodeURIComponent(leagueId)}/fixtures/${encodeURIComponent(fixtureId)}`,
+    { method: "PUT", headers: auth(token), body: JSON.stringify(input) },
+    (d) => LeagueFixtureView.parse(d),
+  );
 }

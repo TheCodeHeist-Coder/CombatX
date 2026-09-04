@@ -19,6 +19,10 @@ import {
 import { conflict, notFound } from "../../http/errors.js";
 import { requireHost } from "./leagues.service.js";
 import { settleLeague } from "./fixtures.service.js";
+import {
+  notify,
+  teamMembers,
+} from "../notifications/notifications.service.js";
 
 /**
  * Standings, qualification and round progression.
@@ -389,6 +393,30 @@ export async function generateNextRound(
     }
   });
 
+  // Everyone drawn into the round, plus anyone advancing on a bye — a bye is
+  // easy to miss precisely because there is no match to look at.
+  const drawnIds: string[] = [];
+  for (const p of preview.pairings) {
+    drawnIds.push(...(await teamMembers(p.homeTeamId)));
+    drawnIds.push(...(await teamMembers(p.awayTeamId)));
+  }
+  await notify({
+    userIds: drawnIds,
+    kind: "LEAGUE_ROUND_DRAWN",
+    title: `The ${ROUND_LABEL[preview.round]} has been drawn`,
+    body: `Your team is through in ${league.name}.`,
+    link: `/leagues/${leagueId}`,
+  });
+  if (preview.byeTeamId) {
+    await notify({
+      userIds: await teamMembers(preview.byeTeamId),
+      kind: "LEAGUE_ROUND_DRAWN",
+      title: `You advance to the ${ROUND_LABEL[preview.round]}`,
+      body: "The field is an odd number, so your team has a bye this round.",
+      link: `/leagues/${leagueId}`,
+    });
+  }
+
   return {
     round: preview.round,
     created: preview.pairings.length,
@@ -588,6 +616,16 @@ export async function scheduleTiebreak(
         },
       });
     }
+  });
+
+  await notify({
+    userIds: (
+      await Promise.all(ids.map((id) => teamMembers(id)))
+    ).flat(),
+    kind: "LEAGUE_TIEBREAK_SCHEDULED",
+    title: "You are in a decider",
+    body: `Your team finished level at the qualification line in ${league.name}. Win the decider to go through.`,
+    link: `/leagues/${leagueId}`,
   });
 
   return { created: pairs.length };

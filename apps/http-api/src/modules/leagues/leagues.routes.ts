@@ -15,6 +15,8 @@ import {
   postLeagueLookup,
   postLegStart,
   postTiebreak,
+  putFixture,
+  putTeam,
   postTeam,
   postTeamJoin,
   putLeague,
@@ -70,6 +72,11 @@ leagueRoutes.post(
   requireAuth,
   asyncHandler(postTeamJoin),
 );
+leagueRoutes.put(
+  "/leagues/:id/teams/:teamId",
+  requireAuth,
+  asyncHandler(putTeam),
+);
 leagueRoutes.delete(
   "/leagues/:id/teams/:teamId/members/:userId",
   requireAuth,
@@ -97,6 +104,11 @@ leagueRoutes.post(
   "/leagues/:id/fixtures",
   requireAuth,
   asyncHandler(postFixture),
+);
+leagueRoutes.put(
+  "/leagues/:id/fixtures/:fixtureId",
+  requireAuth,
+  asyncHandler(putFixture),
 );
 leagueRoutes.delete(
   "/leagues/:id/fixtures/:fixtureId",

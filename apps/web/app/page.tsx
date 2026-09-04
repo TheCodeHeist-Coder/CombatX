@@ -7,6 +7,7 @@ import { HeroGate } from "../components/landing/HeroGate";
 import { RosterSection } from "../components/landing/RosterSection";
 import { RanksSection } from "../components/landing/RanksSection";
 import { Launcher } from "../components/Launcher";
+import { MyLeagueCallout } from "../components/leagues/MyLeagueCallout";
 import { HeroFighter } from "../components/landing/HeroFighters";
 import { CodePanel } from "../components/landing/CodePanel";
 import { JS_LINES, GO_LINES } from "../components/landing/demoCode";
@@ -128,6 +129,12 @@ function Hero({
                 <HeroGate onReady={onEnterBattle} />
               )}
             </div>
+
+            {/* League matches the player has coming. Renders nothing when
+                there are none, which is most of the time. */}
+            {session && !session.isGuest && (
+              <MyLeagueCallout session={session} />
+            )}
           </div>
 
           {/* Right: the rival */}

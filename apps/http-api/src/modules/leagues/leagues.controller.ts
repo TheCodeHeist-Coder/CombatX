@@ -5,7 +5,9 @@ import {
   CreateLeagueInput,
   CreateTeamInput,
   JoinLeagueInput,
+  UpdateFixtureInput,
   UpdateLeagueInput,
+  UpdateTeamInput,
 } from "@repo/protocol";
 import type { AuthedRequest } from "../../middleware/auth.js";
 import { verifyBearer } from "../../middleware/auth.js";
@@ -20,12 +22,14 @@ import {
   leaveTeam,
   listLeagues,
   updateLeague,
+  updateTeam,
 } from "./leagues.service.js";
 import {
   cancelFixture,
   createFixture,
   listProblemOptions,
   startLeg,
+  updateFixture,
 } from "./fixtures.service.js";
 import {
   generateNextRound,
@@ -269,5 +273,40 @@ export async function postTiebreak(
       timeLimitSec: body.data.timeLimitSec,
       difficulty: body.data.difficulty,
     }),
+  );
+}
+
+/** PUT /leagues/:id/teams/:teamId — rename a team or change its crest. */
+export async function putTeam(req: Request, res: Response): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const parsed = UpdateTeamInput.safeParse(req.body);
+  if (!parsed.success) throw badRequest(firstIssue(parsed.error));
+  res.send(
+    await updateTeam(
+      claims.userId,
+      param(req, "id"),
+      param(req, "teamId"),
+      parsed.data,
+    ),
+  );
+}
+
+/**
+ * PUT /leagues/:id/fixtures/:fixtureId — edit a scheduled match.
+ *
+ * Clock, difficulty and the unplayed problems. Not the teams, and not a leg
+ * that has already been played — see updateFixture for why.
+ */
+export async function putFixture(req: Request, res: Response): Promise<void> {
+  const { claims } = req as AuthedRequest;
+  const parsed = UpdateFixtureInput.safeParse(req.body);
+  if (!parsed.success) throw badRequest(firstIssue(parsed.error));
+  res.send(
+    await updateFixture(
+      claims.userId,
+      param(req, "id"),
+      param(req, "fixtureId"),
+      parsed.data,
+    ),
   );
 }

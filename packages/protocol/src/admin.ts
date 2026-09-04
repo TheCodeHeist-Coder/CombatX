@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { Difficulty, Language, Mode, ProblemStatus, TestKind } from "./enums.js";
+import {
+  Difficulty,
+  Language,
+  LeagueStatus,
+  LeagueVisibility,
+  Mode,
+  ProblemStatus,
+  TestKind,
+} from "./enums.js";
 
 /**
  * REST contract for the super-admin panel (`/admin/*` on apps/http-api).
@@ -426,3 +434,33 @@ export const AdminSeasonRolloverResponse = z.object({
 export type AdminSeasonRolloverResponse = z.infer<
   typeof AdminSeasonRolloverResponse
 >;
+
+/* -------------------------------------------------------------------------- */
+/* Leagues                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One league as the admin panel lists it.
+ *
+ * Carries the join code, which the public listing deliberately withholds: an
+ * admin moderating a reported private league needs to be able to open it.
+ */
+export const AdminLeagueRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: LeagueStatus,
+  visibility: LeagueVisibility,
+  teamSize: z.number().int(),
+  teamCount: z.number().int().min(0),
+  fixtureCount: z.number().int().min(0),
+  hostName: z.string(),
+  joinCode: z.string(),
+  createdAt: z.string(),
+});
+export type AdminLeagueRow = z.infer<typeof AdminLeagueRow>;
+
+export const AdminLeaguesResponse = z.object({
+  items: z.array(AdminLeagueRow).default([]),
+  total: z.number().int().min(0).default(0),
+});
+export type AdminLeaguesResponse = z.infer<typeof AdminLeaguesResponse>;
