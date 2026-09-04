@@ -35,6 +35,26 @@ const HEX = "50,3 93,26 93,74 50,97 7,74 7,26";
 /** The same hexagon inset slightly, for the face beneath the rim. */
 const HEX_INNER = "50,10 87,30 87,70 50,90 13,70 13,30";
 
+/**
+ * Leaf positions along one laurel branch, mirrored for the other side.
+ *
+ * A table rather than a generated arc: the leaves have to sit ON the stem
+ * path, and hand-placing eleven of them is both shorter and more controllable
+ * than solving for points along a bezier at render time.
+ */
+const LAUREL_LEAVES = [
+  { x: 40, y: 101, r: 24 },
+  { x: 30, y: 97, r: 38 },
+  { x: 21, y: 90, r: 52 },
+  { x: 14, y: 81, r: 64 },
+  { x: 9, y: 70, r: 76 },
+  { x: 6, y: 58, r: 86 },
+  { x: 6, y: 46, r: 98 },
+  { x: 8, y: 35, r: 110 },
+  { x: 12, y: 24, r: 122 },
+  { x: 16, y: 19, r: 128 },
+] as const;
+
 export interface MedalTone {
   /** The face colour — carries rarity or tier. */
   base: string;
@@ -50,6 +70,7 @@ export function Medal({
   size = 64,
   muted = false,
   tier,
+  ornate = false,
   title,
   uid,
 }: {
@@ -60,6 +81,16 @@ export function Medal({
   muted?: boolean;
   /** Optional tier multiplier bubble, e.g. 2 renders as "x2". */
   tier?: number;
+  /**
+   * Draw the honours treatment: a gold laurel wreath, an outer glow and a
+   * jewelled rim.
+   *
+   * Reserved for CONTRIBUTION badges. Everything else on a profile is won by
+   * FIGHTING; these are the only ones given for building something other
+   * players use, and a wreath is the oldest visual language there is for that
+   * distinction. Using it for an ordinary badge would spend the difference.
+   */
+  ornate?: boolean;
   title?: string;
   /** Unique suffix for this instance's gradient ids. */
   uid: string;
@@ -74,7 +105,9 @@ export function Medal({
          extend beyond the hexagon's own bounds, and with a viewBox of exactly
          0 0 100 100 they get clipped wherever an ancestor sets overflow
          hidden — as a table row does. */
-      viewBox="-4 -4 108 108"
+      /* Ornate medals carry a laurel wreath outside the hexagon, so they need
+         more room than the rim stroke alone. */
+      viewBox={ornate ? "-20 -14 140 132" : "-4 -4 108 108"}
       role="img"
       aria-label={title ?? `${crest.animal} medal`}
       style={{
@@ -97,15 +130,33 @@ export function Medal({
         </linearGradient>
 
         {/* The face, lit from the upper left. */}
+        {/*
+          The face, lit from the upper left.
+
+          An ornate medal gets a DARK, warm-tinted well instead of a tinted
+          one. Measured: at the same opacities the gold washed out the pixel
+          art and the spider and owl stopped reading at all. The gold belongs
+          on the rim and the wreath, where nothing has to be legible through it.
+        */}
         <radialGradient id={g("face")} cx="35%" cy="26%" r="82%">
-          <stop offset="0%" stopColor={tone.base} stopOpacity="0.62" />
-          <stop offset="58%" stopColor={tone.base} stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#0b0d12" stopOpacity="0.96" />
+          {ornate ? (
+            <>
+              <stop offset="0%" stopColor="#2a2417" />
+              <stop offset="58%" stopColor="#1a1710" />
+              <stop offset="100%" stopColor="#0b0d12" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor={tone.base} stopOpacity="0.62" />
+              <stop offset="58%" stopColor={tone.base} stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#0b0d12" stopOpacity="0.96" />
+            </>
+          )}
         </radialGradient>
 
         {/* The gloss across the top third. */}
         <linearGradient id={g("gloss")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.26" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={ornate ? 0.14 : 0.26} />
           <stop offset="45%" stopColor="#ffffff" stopOpacity="0.06" />
           <stop offset="60%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
@@ -115,7 +166,32 @@ export function Medal({
         <clipPath id={g("clip")}>
           <polygon points={HEX_INNER} />
         </clipPath>
+
+        {ornate && (
+          <>
+            {/* Laurel gold, shaded so the wreath reads as metal rather than
+                a flat yellow outline. */}
+            <linearGradient id={g("laurel")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffe9a8" />
+              <stop offset="45%" stopColor="#e8b54a" />
+              <stop offset="100%" stopColor="#a0741f" />
+            </linearGradient>
+
+            {/* A soft halo. Kept low-opacity: it should suggest importance,
+                not look like the medal is on fire. */}
+            <radialGradient id={g("halo")} cx="50%" cy="50%" r="50%">
+              <stop offset="55%" stopColor="#f0c05a" stopOpacity="0.32" />
+              <stop offset="80%" stopColor="#f0c05a" stopOpacity="0.10" />
+              <stop offset="100%" stopColor="#f0c05a" stopOpacity="0" />
+            </radialGradient>
+          </>
+        )}
       </defs>
+
+      {/* 0. The halo, behind everything. */}
+      {ornate && !muted && (
+        <circle cx="50" cy="50" r="66" fill={`url(#${g("halo")})`} pointerEvents="none" />
+      )}
 
       {/* 1. Rim */}
       <polygon
@@ -182,9 +258,57 @@ export function Medal({
         pointerEvents="none"
       />
 
+
+      {/* The laurel wreath: two mirrored branches meeting at a ribbon knot.
+          Drawn after the medal so the leaves overlap its rim, which is what
+          makes it read as a wreath AROUND the medal rather than a border. */}
+      {ornate && (
+        <g pointerEvents="none">
+          {[-1, 1].map((side) => (
+            <g key={side} transform={side === -1 ? "" : "translate(100 0) scale(-1 1)"}>
+              {/* The branch: a stem sweeping from the knot up around the side. */}
+              <path
+                d="M50 105 C26 102 8 86 4 60 C2 42 8 27 17 16"
+                fill="none"
+                stroke={`url(#${g("laurel")})`}
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                opacity={muted ? 0.5 : 1}
+              />
+              {/* Leaves, spaced along the stem and rotated to follow it. */}
+              {LAUREL_LEAVES.map((leaf, i) => (
+                <ellipse
+                  key={i}
+                  cx={leaf.x}
+                  cy={leaf.y}
+                  rx="7.4"
+                  ry="3.5"
+                  fill={`url(#${g("laurel")})`}
+                  transform={`rotate(${leaf.r} ${leaf.x} ${leaf.y})`}
+                  opacity={muted ? 0.5 : 0.96}
+                />
+              ))}
+            </g>
+          ))}
+
+          {/* The knot where the two branches meet. */}
+          <circle
+            cx="50"
+            cy="104"
+            r="5"
+            fill={`url(#${g("laurel")})`}
+            stroke="#7a5613"
+            strokeWidth="0.8"
+            opacity={muted ? 0.5 : 1}
+          />
+        </g>
+      )}
+
       {/* The tier multiplier bubble, as on GitHub's repeatable achievements. */}
       {tier && tier > 1 && (
-        <g>
+        /* On a wreathed medal the laurel fills the lower corners, so the
+           bubble moves to the upper right where nothing is competing. */
+        <g transform={ornate ? "translate(14 -26)" : undefined}>
           <circle
             cx="82"
             cy="82"
@@ -218,6 +342,7 @@ export function BadgeMedal(props: {
   size?: number;
   muted?: boolean;
   tier?: number;
+  ornate?: boolean;
   title?: string;
 }) {
   const crest = CRESTS[props.badgeKey];

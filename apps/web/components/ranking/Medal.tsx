@@ -52,8 +52,7 @@ const LAUREL_LEAVES = [
   { x: 6, y: 46, r: 98 },
   { x: 8, y: 35, r: 110 },
   { x: 12, y: 24, r: 122 },
-  { x: 18, y: 15, r: 134 },
-  { x: 25, y: 8, r: 146 },
+  { x: 16, y: 19, r: 128 },
 ] as const;
 
 export interface MedalTone {
@@ -131,15 +130,33 @@ export function Medal({
         </linearGradient>
 
         {/* The face, lit from the upper left. */}
+        {/*
+          The face, lit from the upper left.
+
+          An ornate medal gets a DARK, warm-tinted well instead of a tinted
+          one. Measured: at the same opacities the gold washed out the pixel
+          art and the spider and owl stopped reading at all. The gold belongs
+          on the rim and the wreath, where nothing has to be legible through it.
+        */}
         <radialGradient id={g("face")} cx="35%" cy="26%" r="82%">
-          <stop offset="0%" stopColor={tone.base} stopOpacity="0.62" />
-          <stop offset="58%" stopColor={tone.base} stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#0b0d12" stopOpacity="0.96" />
+          {ornate ? (
+            <>
+              <stop offset="0%" stopColor="#2a2417" />
+              <stop offset="58%" stopColor="#1a1710" />
+              <stop offset="100%" stopColor="#0b0d12" />
+            </>
+          ) : (
+            <>
+              <stop offset="0%" stopColor={tone.base} stopOpacity="0.62" />
+              <stop offset="58%" stopColor={tone.base} stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#0b0d12" stopOpacity="0.96" />
+            </>
+          )}
         </radialGradient>
 
         {/* The gloss across the top third. */}
         <linearGradient id={g("gloss")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.26" />
+          <stop offset="0%" stopColor="#ffffff" stopOpacity={ornate ? 0.14 : 0.26} />
           <stop offset="45%" stopColor="#ffffff" stopOpacity="0.06" />
           <stop offset="60%" stopColor="#ffffff" stopOpacity="0" />
         </linearGradient>
@@ -251,7 +268,7 @@ export function Medal({
             <g key={side} transform={side === -1 ? "" : "translate(100 0) scale(-1 1)"}>
               {/* The branch: a stem sweeping from the knot up around the side. */}
               <path
-                d="M50 103 C24 100 6 84 3 58 C1 38 8 20 18 9"
+                d="M50 105 C26 102 8 86 4 60 C2 42 8 27 17 16"
                 fill="none"
                 stroke={`url(#${g("laurel")})`}
                 strokeWidth="3.2"
@@ -289,7 +306,9 @@ export function Medal({
 
       {/* The tier multiplier bubble, as on GitHub's repeatable achievements. */}
       {tier && tier > 1 && (
-        <g>
+        /* On a wreathed medal the laurel fills the lower corners, so the
+           bubble moves to the upper right where nothing is competing. */
+        <g transform={ornate ? "translate(14 -26)" : undefined}>
           <circle
             cx="82"
             cy="82"
