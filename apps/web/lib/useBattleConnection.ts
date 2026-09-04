@@ -40,6 +40,8 @@ export interface BattleConnection {
   start: () => Promise<void>;
   submit: (language: Language, source: string) => Promise<string>;
   leave: () => Promise<void>;
+  /** Offer, accept or decline a rematch once the battle has finished. */
+  rematch: (action: "OFFER" | "ACCEPT" | "DECLINE") => Promise<void>;
 }
 
 let reqCounter = 0;
@@ -245,6 +247,29 @@ export function useBattleConnection(
     }
   }, [requestWithAck]);
 
+  /**
+   * Ask for, agree to, or refuse a rematch.
+   *
+   * The result arrives as a broadcast `battle:rematch-state`, not as this
+   * promise's value: every player in the room needs the same view of the
+   * negotiation, and one client's ack cannot deliver that.
+   */
+  const rematch = useCallback(
+    async (action: "OFFER" | "ACCEPT" | "DECLINE") => {
+      try {
+        await requestWithAck((reqId) => ({
+          t: "battle:rematch",
+          reqId,
+          action,
+        }));
+      } catch {
+        // The broadcast is the source of truth; a failed ack just means the
+        // button does nothing, which the state already reflects.
+      }
+    },
+    [requestWithAck],
+  );
+
   return {
     state,
     status,
@@ -254,5 +279,6 @@ export function useBattleConnection(
     start,
     submit,
     leave,
+    rematch,
   };
 }

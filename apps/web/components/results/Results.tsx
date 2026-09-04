@@ -13,6 +13,7 @@ import { Centered, Spinner } from "../atoms";
 import { AppShell } from "../AppShell";
 import { getBattleResult } from "../../lib/api";
 import { SolutionsPanel } from "./SolutionsPanel";
+import { RematchPanel } from "./RematchPanel";
 import { BadgeRow } from "../ranking/Badges";
 import { selectMe } from "../../lib/battleState";
 import { titleCase } from "../../lib/format";
@@ -245,7 +246,11 @@ export function Results({
               />
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Only someone who actually fought can ask for a rematch. */}
+              {mySide != null && (
+                <RematchPanel conn={conn} myUserId={session.userId} />
+              )}
               <button
                 className="btn btn-primary"
                 onClick={() => router.push("/")}

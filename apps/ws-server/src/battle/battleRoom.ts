@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import type { WebSocket } from "ws";
 import { prisma } from "@repo/db";
 import {
@@ -46,6 +47,40 @@ const REPEAT_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
  * game needs to make decisions lives here; Postgres is written through as the
  * durable record. Wall-clock time is the server's — client timers are cosmetic.
  */
+
+/**
+ * A room code for a rematch battle.
+ *
+ * Duplicated from http-api's roomCode.ts rather than shared: the two services
+ * have no common package, and this is twelve lines with no logic worth
+ * coordinating. The alphabet excludes 0/O/1/I so a code stays unambiguous when
+ * read aloud, matching the other generator exactly.
+ */
+const ROOM_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function randomRoomCode(length = 6): string {
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    code += ROOM_ALPHABET[randomInt(ROOM_ALPHABET.length)];
+  }
+  return code;
+}
+
+/** A code no live battle is using. Collisions are vanishingly rare but fatal. */
+async function uniqueRematchCode(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = randomRoomCode();
+    const taken = await prisma.battle.findUnique({
+      where: { roomCode: code },
+      select: { id: true },
+    });
+    if (!taken) return code;
+  }
+  // Five collisions against a 31^6 space means something is very wrong; a
+  // longer code is still better than throwing away the rematch.
+  return randomRoomCode(8);
+}
+
 export class BattleRoom {
   readonly battleId: string;
   readonly roomCode: string;
@@ -56,6 +91,19 @@ export class BattleRoom {
   private status: BattleStatus;
   /** userId -> seat (roster). A user has a seat even before picking a side. */
   private readonly seats = new Map<string, LobbySeat>();
+
+  /**
+   * Rematch negotiation, valid only once the battle is FINISHED.
+   *
+   * Held in memory rather than the database on purpose: an offer is only
+   * meaningful while both players are still on the results screen, and the
+   * room is evicted the moment they both leave. Persisting it would create
+   * offers that outlive the people who made them.
+   */
+  private rematchOffers = new Set<string>();
+  private rematchDeclines = new Set<string>();
+  /** The battle created once everyone agreed, so a late ACCEPT is idempotent. */
+  private rematchBattleId: string | null = null;
   /** Owns live sockets + all outbound framing (reconnect tolerant). */
   private readonly wire = new Broadcaster();
   /** submissionId -> tracked submission (for progress + win resolution). */
@@ -795,6 +843,116 @@ export class BattleRoom {
     this.countdownTimer = null;
     this.tickTimer = null;
     this.endTimer = null;
+  }
+
+
+  // --- Rematch --------------------------------------------------------------
+
+  /**
+   * Handle a rematch offer, acceptance or decline.
+   *
+   * OFFER and ACCEPT are the same operation — "I want to play again" — because
+   * from the server's side there is no difference between proposing and
+   * agreeing. Whoever clicks first simply appears in the set first, and the
+   * battle is created when everyone who fought is in it.
+   *
+   * A DECLINE ends the negotiation for everyone rather than just removing one
+   * player. With two players there is nothing left to negotiate, and leaving
+   * the other side hopeful would be worse than telling them plainly.
+   */
+  async rematch(
+    userId: string,
+    action: "OFFER" | "ACCEPT" | "DECLINE",
+  ): Promise<string | null> {
+    if (this.status !== "FINISHED") {
+      return "The battle is not over yet.";
+    }
+    const seat = this.seats.get(userId);
+    if (!seat) return "Only players who fought can ask for a rematch.";
+
+    // Already settled: hand back the battle rather than starting a second one.
+    if (this.rematchBattleId) {
+      this.broadcastRematch();
+      return null;
+    }
+
+    if (action === "DECLINE") {
+      this.rematchDeclines.add(userId);
+      this.rematchOffers.clear();
+      this.broadcastRematch();
+      return null;
+    }
+
+    // Someone already said no; a later offer cannot revive it.
+    if (this.rematchDeclines.size > 0) {
+      this.broadcastRematch();
+      return null;
+    }
+
+    this.rematchOffers.add(userId);
+
+    const seated = [...this.seats.values()].filter((s) => s.side !== null);
+    const everyone =
+      seated.length >= 2 && seated.every((s) => this.rematchOffers.has(s.userId));
+
+    if (everyone) {
+      try {
+        this.rematchBattleId = await this.createRematchBattle();
+      } catch (err) {
+        console.error("[rematch] could not create the battle", err);
+        this.rematchOffers.clear();
+        this.broadcastRematch();
+        return "Could not set up the rematch.";
+      }
+    }
+
+    this.broadcastRematch();
+    return null;
+  }
+
+  /**
+   * Create the battle a rematch will be played in.
+   *
+   * UNRANKED, deliberately, and for exactly the reason room-code battles are:
+   * the players chose each other. Two accounts that can rematch on demand
+   * could trade wins back and forth, and a rating that can be farmed is worth
+   * nothing. The rematch is for the fun of it — the ladder stays honest.
+   *
+   * Same mode, difficulty and time limit, so it is a rematch and not a
+   * differently-shaped battle. The PROBLEM is not carried over: both players
+   * have just read each other's solutions, so replaying the same question
+   * would be a typing race. beginBattle picks a fresh one, and the existing
+   * two-day repeat cooldown keeps it genuinely fresh.
+   */
+  private async createRematchBattle(): Promise<string> {
+    const roomCode = await uniqueRematchCode();
+    const created = await prisma.battle.create({
+      data: {
+        roomCode,
+        mode: this.config.mode,
+        difficulty: this.config.difficulty,
+        timeLimitSec: this.config.timeLimitSec,
+        seed: `${roomCode}-${Date.now()}`,
+        hostUserId: this.hostUserId,
+        status: "LOBBY",
+        isRanked: false,
+        teams: { create: [{ side: "A" }, { side: "B" }] },
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  /** Push the whole negotiation state to everyone in the room. */
+  private broadcastRematch(): void {
+    const seated = [...this.seats.values()].filter((s) => s.side !== null);
+    this.broadcast({
+      t: "battle:rematch-state",
+      offeredBy: [...this.rematchOffers],
+      declinedBy: [...this.rematchDeclines],
+      needed: seated.length,
+      battleId: this.rematchBattleId,
+    });
   }
 
   /** Tear down (server shutdown / eviction). */
