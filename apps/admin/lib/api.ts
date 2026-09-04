@@ -12,6 +12,10 @@ import {
   AdminProblemsResponse,
   AdminUsersResponse,
   type AdminProblemInput,
+  AdminSeasonsResponse,
+  AdminSeasonStandingsResponse,
+  AdminSeasonRolloverResponse,
+  type AdminSeasonRow,
 } from "@repo/protocol";
 import { API_URL } from "./config";
 import { clearAdminSession } from "./session";
@@ -271,4 +275,56 @@ export function rejectProblem(
     headers: { ...auth(token), "content-type": "application/json" },
     body: JSON.stringify({ reviewNote }),
   });
+}
+
+// --- Seasons ----------------------------------------------------------------
+
+/** GET /admin/seasons — every season plus whichever is running. */
+export function fetchSeasons(token: string): Promise<AdminSeasonsResponse> {
+  return request("/admin/seasons", { headers: auth(token) }, (d) =>
+    AdminSeasonsResponse.parse(d),
+  );
+}
+
+/** POST /admin/seasons — open a new season. */
+export function startSeason(
+  token: string,
+  name: string,
+): Promise<AdminSeasonRow> {
+  return request("/admin/seasons", {
+    method: "POST",
+    headers: { ...auth(token), "content-type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+/**
+ * POST /admin/seasons/:id/end — close a season and soften the ladder.
+ *
+ * Irreversible. The page asks the admin to type the season name first.
+ */
+export function endSeason(
+  token: string,
+  id: string,
+  nextName?: string,
+): Promise<AdminSeasonRolloverResponse> {
+  return request(
+    `/admin/seasons/${id}/end`,
+    {
+      method: "POST",
+      headers: { ...auth(token), "content-type": "application/json" },
+      body: JSON.stringify(nextName ? { nextName } : {}),
+    },
+    (d) => AdminSeasonRolloverResponse.parse(d),
+  );
+}
+
+/** GET /admin/seasons/:id/standings — the final table for a closed season. */
+export function fetchSeasonStandings(
+  token: string,
+  id: string,
+): Promise<AdminSeasonStandingsResponse> {
+  return request(`/admin/seasons/${id}/standings`, { headers: auth(token) }, (d) =>
+    AdminSeasonStandingsResponse.parse(d),
+  );
 }

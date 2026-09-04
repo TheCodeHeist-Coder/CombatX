@@ -6,7 +6,14 @@ import type { ReactNode } from "react";
 import { clearAdminSession } from "../lib/session";
 import { useAdminSession } from "../lib/useAdminSession";
 import { AdminLogin } from "./AdminLogin";
-import { IconAward, IconDoc, IconPulse, IconSwords, IconUsers } from "./atoms";
+import {
+  IconAward,
+  IconDoc,
+  IconPulse,
+  IconSeason,
+  IconSwords,
+  IconUsers,
+} from "./atoms";
 
 const NAV: { label: string; href: string; icon: ReactNode }[] = [
   { label: "Overview", href: "/", icon: <IconPulse /> },
@@ -14,6 +21,7 @@ const NAV: { label: string; href: string; icon: ReactNode }[] = [
   { label: "Battles", href: "/battles", icon: <IconSwords /> },
   { label: "Problems", href: "/problems", icon: <IconDoc /> },
   { label: "Badges", href: "/badges", icon: <IconAward /> },
+  { label: "Seasons", href: "/seasons", icon: <IconSeason /> },
 ];
 
 /**

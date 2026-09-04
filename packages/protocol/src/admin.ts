@@ -358,3 +358,71 @@ export const AdminBadgePreviewResponse = z.object({
   summary: z.string(),
 });
 export type AdminBadgePreviewResponse = z.infer<typeof AdminBadgePreviewResponse>;
+
+// --- Seasons ----------------------------------------------------------------
+
+export const AdminSeasonRow = z.object({
+  id: z.string(),
+  name: z.string(),
+  startedAt: z.string(),
+  endedAt: z.string().nullable().default(null),
+  isActive: z.boolean(),
+  /** Players recorded in the final standings; 0 while the season runs. */
+  standings: z.number().int().min(0).default(0),
+});
+export type AdminSeasonRow = z.infer<typeof AdminSeasonRow>;
+
+export const AdminSeasonsResponse = z.object({
+  rows: z.array(AdminSeasonRow),
+  active: AdminSeasonRow.nullable().default(null),
+});
+export type AdminSeasonsResponse = z.infer<typeof AdminSeasonsResponse>;
+
+export const AdminSeasonStartInput = z.object({
+  name: z.string().min(2, "Give the season a name").max(60),
+});
+export type AdminSeasonStartInput = z.infer<typeof AdminSeasonStartInput>;
+
+/** Ending a season may immediately open the next one. */
+export const AdminSeasonEndInput = z.object({
+  nextName: z.string().max(60).optional(),
+});
+export type AdminSeasonEndInput = z.infer<typeof AdminSeasonEndInput>;
+
+export const AdminSeasonStanding = z.object({
+  rank: z.number().int().min(1),
+  userId: z.string(),
+  username: z.string(),
+  rating: z.number(),
+  tier: z.string(),
+  wins: z.number().int(),
+  losses: z.number().int(),
+  rankedBattles: z.number().int(),
+});
+export type AdminSeasonStanding = z.infer<typeof AdminSeasonStanding>;
+
+export const AdminSeasonStandingsResponse = z.object({
+  rows: z.array(AdminSeasonStanding),
+});
+export type AdminSeasonStandingsResponse = z.infer<
+  typeof AdminSeasonStandingsResponse
+>;
+
+/** What a rollover did, for the admin's confirmation. */
+export const AdminSeasonRolloverResponse = z.object({
+  closed: AdminSeasonRow,
+  opened: AdminSeasonRow.nullable().default(null),
+  ranked: z.number().int().min(0),
+  softened: z.number().int().min(0),
+  podium: z.array(
+    z.object({
+      rank: z.number().int(),
+      username: z.string(),
+      rating: z.number(),
+      tier: z.string(),
+    }),
+  ).default([]),
+});
+export type AdminSeasonRolloverResponse = z.infer<
+  typeof AdminSeasonRolloverResponse
+>;
