@@ -7,6 +7,17 @@ import type { ProfileResponse } from "@repo/protocol";
 import { Logo } from "./Logo";
 import { UserAvatar } from "./identity/UserIdentity";
 import type { Session } from "../lib/session";
+import {
+  IconMapPin,
+  IconGitHub,
+  IconX,
+  IconLinkedIn,
+  IconMail,
+  IconQuestion,
+  IconUsers,
+  IconRoadmap,
+  IconPhone,
+} from "./icons";
 
 /**
  * The persistent application chrome: a top command bar, with screens rendered
@@ -251,22 +262,386 @@ function IdentityChip({
 function SiteFooter() {
   return (
     <footer
-      className="mt-auto border-t"
+      className="mt-auto"
       style={{
-        borderColor: "var(--color-line)",
-        background: "var(--color-surface)",
+        background: "var(--color-void)",
       }}
     >
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-7">
-        <Logo size="sm" />
-        <span className="label" style={{ color: "var(--color-ink-ghost)" }}>
-          Server-authoritative · Sandboxed execution
-        </span>
+      <div className="mx-auto w-full max-w-[1440px] px-5 py-6 sm:px-8">
+
+        {/* MAIN FOOTER */}
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.15fr_1fr]">
+
+          {/* LEFT */}
+          <div>
+            <div className="flex items-center gap-2">
+              <Logo size="sm" />
+
+              <span
+                className="font-mono text-[1.25rem] font-black uppercase tracking-[0.12em]"
+                style={{ color: "#f5f7fb" }}
+              >
+                COMBATX
+              </span>
+            </div>
+
+            <p
+              className="mt-3 text-[1rem] font-semibold"
+              style={{ color: "#f5f7fb" }}
+            >
+              Made by Raj{" "}
+              <span style={{ color: "#ff8a3d" }}>♥</span>
+            </p>
+
+            <p
+              className="mt-2 max-w-[20rem] text-[0.78rem] leading-relaxed"
+              style={{ color: "rgba(255,255,255,0.58)" }}
+            >
+              A modern multiplayer gaming experience crafted with passion.
+              Built for players, driven by community.
+            </p>
+
+            {/* small orange line */}
+            <div
+              className="mt-4 h-px w-20"
+              style={{ background: "rgba(255,138,61,0.7)" }}
+            />
+
+            <div
+              className="mt-3 flex items-center gap-2 text-[0.78rem]"
+              style={{ color: "rgba(255,255,255,0.65)" }}
+            >
+              <span style={{ color: "#ff8a3d" }}>
+                <IconMapPin/>
+              </span>
+
+              <span>Knit Sultanpur, UP, India</span>
+            </div>
+
+            {/* SOCIAL BUTTONS */}
+            <div className="mt-4 flex items-center gap-3">
+
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="GitHub"
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-1"
+                style={{
+                  color: "#f5f7fb",
+                  background: "rgba(255,255,255,0.04)",
+                  boxShadow: "0 0 14px rgba(255,138,61,0.08)",
+                }}
+              >
+                <IconGitHub />
+              </a>
+
+              <a
+                href="https://x.com"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Twitter"
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-1"
+                style={{
+                  color: "#f5f7fb",
+                  background: "rgba(255,255,255,0.04)",
+                  boxShadow: "0 0 14px rgba(255,138,61,0.08)",
+                }}
+              >
+                <IconX />
+              </a>
+
+              <a
+                href="https://linkedin.com"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="LinkedIn"
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-1"
+                style={{
+                  color: "#f5f7fb",
+                  background: "rgba(255,255,255,0.04)",
+                  boxShadow: "0 0 14px rgba(255,138,61,0.08)",
+                }}
+              >
+                <IconLinkedIn />
+              </a>
+
+              <a
+                href="mailto:raj@combatx.dev"
+                aria-label="Email"
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:-translate-y-1"
+                style={{
+                  color: "#f5f7fb",
+                  background: "rgba(255,255,255,0.04)",
+                  boxShadow: "0 0 14px rgba(255,138,61,0.08)",
+                }}
+              >
+                <IconMail />
+              </a>
+
+            </div>
+          </div>
+
+
+          {/* CENTER */}
+          <div>
+
+            <div className="flex items-center gap-3 text-[0.68rem] font-medium uppercase tracking-[0.2em]">
+              <span style={{ color: "#ff8a3d" }}>
+                Explore
+              </span>
+
+              <span
+                className="h-px flex-1"
+                style={{ background: "rgba(255,138,61,0.45)" }}
+              />
+
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{
+                  background: "#ff8a3d",
+                  boxShadow: "0 0 8px rgba(255,138,61,0.8)",
+                }}
+              />
+            </div>
+
+
+            <div className="mt-4 space-y-2.5">
+
+              {/* HELP */}
+              <button
+                type="button"
+                className="group flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,138,61,0.16), rgba(255,138,61,0.05))",
+                  boxShadow:
+                    "0 8px 22px rgba(255,138,61,0.08)",
+                }}
+              >
+                <span className="flex items-center gap-3">
+
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                    style={{
+                      color: "#ff8a3d",
+                      background: "rgba(255,138,61,0.10)",
+                    }}
+                  >
+                    <IconQuestion />
+                  </span>
+
+                  <span
+                    className="text-[0.9rem] font-medium"
+                    style={{ color: "#f5f7fb" }}
+                  >
+                    Help Center
+                  </span>
+
+                </span>
+
+                <span
+                  className="text-[1.25rem] transition-transform duration-200 group-hover:translate-x-1"
+                  style={{ color: "#ff8a3d" }}
+                >
+                  →
+                </span>
+              </button>
+
+
+              {/* TEAM */}
+              <button
+                type="button"
+                className="group flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,138,61,0.16), rgba(255,138,61,0.05))",
+                  boxShadow:
+                    "0 8px 22px rgba(255,138,61,0.08)",
+                }}
+              >
+                <span className="flex items-center gap-3">
+
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                    style={{
+                      color: "#ff8a3d",
+                      background: "rgba(255,138,61,0.10)",
+                    }}
+                  >
+                    <IconUsers />
+                  </span>
+
+                  <span
+                    className="text-[0.9rem] font-medium"
+                    style={{ color: "#f5f7fb" }}
+                  >
+                    Team Section
+                  </span>
+
+                </span>
+
+                <span
+                  className="text-[1.25rem] transition-transform duration-200 group-hover:translate-x-1"
+                  style={{ color: "#ff8a3d" }}
+                >
+                  →
+                </span>
+              </button>
+
+
+              {/* ROADMAP */}
+              <button
+                type="button"
+                className="group flex w-full items-center justify-between rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  background: "rgba(255,255,255,0.025)",
+                }}
+              >
+                <span className="flex items-center gap-3">
+
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-full"
+                    style={{
+                      color: "#ff8a3d",
+                      background: "rgba(255,138,61,0.06)",
+                    }}
+                  >
+                    <IconRoadmap />
+                  </span>
+
+                  <span
+                    className="text-[0.9rem] font-medium"
+                    style={{ color: "#f5f7fb" }}
+                  >
+                    Roadmap
+                  </span>
+
+                </span>
+
+                <span
+                  className="text-[1.25rem] transition-transform duration-200 group-hover:translate-x-1"
+                  style={{ color: "#ff8a3d" }}
+                >
+                  →
+                </span>
+              </button>
+
+            </div>
+          </div>
+
+
+          {/* RIGHT */}
+          <div>
+
+            <div className="flex items-center gap-3 text-[0.68rem] font-medium uppercase tracking-[0.2em]">
+              <span style={{ color: "#ff8a3d" }}>
+                Connect
+              </span>
+
+              <span
+                className="h-px flex-1"
+                style={{ background: "rgba(255,138,61,0.45)" }}
+              />
+
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{
+                  background: "#ff8a3d",
+                  boxShadow: "0 0 8px rgba(255,138,61,0.8)",
+                }}
+              />
+            </div>
+
+
+            <p
+              className="mt-4 text-[0.78rem]"
+              style={{ color: "rgba(255,255,255,0.58)" }}
+            >
+              For work, collaborations, or just to connect.
+            </p>
+
+
+            <div className="mt-5 space-y-3">
+
+              <div
+                className="flex items-center gap-3 text-[0.8rem]"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
+                <span style={{ color: "#ff8a3d" }}>
+                  <IconPhone />
+                </span>
+
+                <span>+91 98765 43210</span>
+              </div>
+
+
+              <div
+                className="flex items-center gap-3 text-[0.8rem]"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
+                <span style={{ color: "#ff8a3d" }}>
+                  <IconMail />
+                </span>
+
+                <span>raj@combatx.dev</span>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* BOTTOM */}
+        <div
+          className="mt-6 flex flex-col items-center justify-between gap-3 pt-4 text-[0.68rem] sm:flex-row"
+          style={{ color: "rgba(255,255,255,0.5)" }}
+        >
+
+          <div>
+            © 2024{" "}
+            <span style={{ color: "#ff8a3d" }}>
+              COMBATX
+            </span>
+            . All rights reserved.
+          </div>
+
+
+          <div
+            className="flex items-center gap-2 uppercase tracking-[0.18em]"
+            style={{ color: "rgba(255,255,255,0.65)" }}
+          >
+            <span style={{ color: "#ff8a3d" }}>✦</span>
+
+            <span>THANK YOU, PLAYER.</span>
+
+            <span style={{ color: "#ff8a3d" }}>✦</span>
+          </div>
+
+
+          <div className="flex items-center gap-1.5">
+            <span>Made with</span>
+
+            <span style={{ color: "#ff8a3d" }}>
+              ♥
+            </span>
+
+            <span>
+              by{" "}
+              <span style={{ color: "#ff8a3d" }}>
+                Raj
+              </span>
+            </span>
+          </div>
+
+        </div>
+
       </div>
     </footer>
   );
 }
-
 /* --- icons: 16px, currentColor, no dependency ---------------------------- */
 
 function IconMenu() {
