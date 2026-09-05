@@ -138,6 +138,8 @@ export async function status(userId: string): Promise<QueueStatusResponse> {
       queueSize,
       matchedBattleId: null,
       matchedRoomCode: null,
+      opponentName: null,
+      opponentRating: null,
     };
   }
 
@@ -151,6 +153,8 @@ export async function status(userId: string): Promise<QueueStatusResponse> {
     queueSize,
     matchedBattleId: null,
     matchedRoomCode: null,
+    opponentName: null,
+    opponentRating: null,
   };
 }
 
@@ -242,6 +246,13 @@ async function tryPair(userId: string): Promise<QueueStatusResponse | null> {
 
     if (!result) return null;
 
+    // Name the opponent on the response that actually announces the match,
+    // so the queue can introduce them rather than just navigating away.
+    const opponent = await prisma.user.findUnique({
+      where: { id: best.userId },
+      select: { username: true, rating: true },
+    });
+
     return {
       queued: false,
       waitingSec: waitedSec,
@@ -249,6 +260,8 @@ async function tryPair(userId: string): Promise<QueueStatusResponse | null> {
       queueSize: await prisma.matchQueueEntry.count(),
       matchedBattleId: result.id,
       matchedRoomCode: result.roomCode,
+      opponentName: opponent?.username ?? null,
+      opponentRating: opponent ? Math.round(opponent.rating) : null,
     };
   } catch {
     // A unique-constraint race on the room code, or the opponent vanishing
@@ -265,9 +278,12 @@ async function tryPair(userId: string): Promise<QueueStatusResponse | null> {
  * battle they are seated in answers that without a second "pending match"
  * table to keep in sync.
  */
-export async function findAssignedBattle(
-  userId: string,
-): Promise<{ battleId: string; roomCode: string } | null> {
+export async function findAssignedBattle(userId: string): Promise<{
+  battleId: string;
+  roomCode: string;
+  opponentName: string | null;
+  opponentRating: number | null;
+} | null> {
   const battle = await prisma.battle.findFirst({
     where: {
       isRanked: true,
@@ -275,9 +291,35 @@ export async function findAssignedBattle(
       teams: { some: { members: { some: { userId } } } },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, roomCode: true },
+    select: {
+      id: true,
+      roomCode: true,
+      // The opponent, so the queue can name them before it navigates rather
+      // than the screen changing underneath the player.
+      teams: {
+        select: {
+          members: {
+            select: {
+              userId: true,
+              user: { select: { username: true, rating: true } },
+            },
+          },
+        },
+      },
+    },
   });
-  return battle ? { battleId: battle.id, roomCode: battle.roomCode } : null;
+  if (!battle) return null;
+
+  const opponent = battle.teams
+    .flatMap((t) => t.members)
+    .find((m) => m.userId !== userId);
+
+  return {
+    battleId: battle.id,
+    roomCode: battle.roomCode,
+    opponentName: opponent?.user.username ?? null,
+    opponentRating: opponent ? Math.round(opponent.user.rating) : null,
+  };
 }
 
 /** Drop entries whose client stopped polling, so they stop matching people. */

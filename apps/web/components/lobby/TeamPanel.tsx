@@ -16,6 +16,7 @@ export function TeamPanel({
   myUserId,
   onTake,
   disabled,
+  hideReady = false,
 }: {
   side: Side;
   players: PlayerView[];
@@ -23,6 +24,8 @@ export function TeamPanel({
   myUserId: string | null;
   onTake: (slot: number) => void;
   disabled: boolean;
+  /** True in a ranked pairing, which has no ready control to describe. */
+  hideReady?: boolean;
 }) {
   const color = side === "A" ? "var(--color-side-a)" : "var(--color-side-b)";
   const seats: Seat[] = Array.from({ length: teamSize }, (_, slot) => ({
@@ -57,6 +60,7 @@ export function TeamPanel({
             isMe={player?.userId === myUserId}
             onTake={() => onTake(slot)}
             disabled={disabled}
+            hideReady={hideReady}
           />
         ))}
       </div>
@@ -71,6 +75,7 @@ function SeatRow({
   isMe,
   onTake,
   disabled,
+  hideReady,
 }: {
   slot: number;
   player: PlayerView | null;
@@ -78,6 +83,7 @@ function SeatRow({
   isMe: boolean;
   onTake: () => void;
   disabled: boolean;
+  hideReady: boolean;
 }) {
   if (!player) {
     return (
@@ -93,7 +99,12 @@ function SeatRow({
           } as React.CSSProperties
         }
       >
-        + Take seat {slot + 1}
+        {/*
+          In a ranked pairing the seats were assigned by the matchmaker, so
+          "Take seat" describes an action nobody can perform — the opponent is
+          simply not connected yet.
+        */}
+        {hideReady ? "Opponent connecting…" : `+ Take seat ${slot + 1}`}
       </button>
     );
   }
@@ -140,20 +151,29 @@ function SeatRow({
         </div>
       </ProfileLink>
 
-      <span
-        className="chip shrink-0"
-        style={
-          player.ready
-            ? {
-                color: "var(--color-good)",
-                borderColor: "color-mix(in srgb, var(--color-good) 35%, transparent)",
-                background: "color-mix(in srgb, var(--color-good) 10%, transparent)",
-              }
-            : undefined
-        }
-      >
-        {player.ready ? "Ready" : "Not ready"}
-      </span>
+      {/*
+        The ready badge belongs to a lobby you can act in.
+
+        A ranked pairing has no ready control at all — the server starts it
+        the moment both players connect — so "Not ready" there described a
+        state nobody could change and looked like something was wrong.
+      */}
+      {!hideReady && (
+        <span
+          className="chip shrink-0"
+          style={
+            player.ready
+              ? {
+                  color: "var(--color-good)",
+                  borderColor: "color-mix(in srgb, var(--color-good) 35%, transparent)",
+                  background: "color-mix(in srgb, var(--color-good) 10%, transparent)",
+                }
+              : undefined
+          }
+        >
+          {player.ready ? "Ready" : "Not ready"}
+        </span>
+      )}
     </div>
   );
 }

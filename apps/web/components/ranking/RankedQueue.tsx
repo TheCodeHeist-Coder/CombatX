@@ -24,6 +24,9 @@ import {
  */
 const POLL_MS = 2000;
 
+/** How long the "match found" reveal is held before the battle opens. */
+const MATCH_REVEAL_MS = 1600;
+
 const DIFFICULTIES: { key: Difficulty; label: string }[] = [
   { key: "EASY", label: "Easy" },
   { key: "MEDIUM", label: "Medium" },
@@ -39,12 +42,28 @@ export function RankedQueue({ token }: { token: string }) {
 
   // Guards the navigation so a slow route change cannot fire it twice.
   const navigated = useRef(false);
+  /** Set the moment a pairing lands, so the reveal can render. */
+  const [matched, setMatched] = useState<QueueStatusResponse | null>(null);
 
+  /*
+   * Announce the match before navigating to it.
+   *
+   * Going straight to the battle meant the screen simply changed underneath
+   * the player: no confirmation that a match was found, no idea who they were
+   * about to play, and — since a ranked battle now starts itself — the very
+   * next thing they saw was a three-second countdown. A brief, deliberate
+   * beat turns that into "matched, you are playing shadow, here we go".
+   *
+   * MATCH_REVEAL_MS is short on purpose. This is a pause for comprehension,
+   * not a loading screen, and anything longer starts feeling like the product
+   * is wasting the player's time.
+   */
   const goToMatch = useCallback(
     (s: QueueStatusResponse) => {
       if (!s.matchedBattleId || navigated.current) return false;
       navigated.current = true;
-      router.push(`/battle/${s.matchedBattleId}`);
+      setMatched(s);
+      setTimeout(() => router.push(`/battle/${s.matchedBattleId}`), MATCH_REVEAL_MS);
       return true;
     },
     [router],
@@ -102,6 +121,65 @@ export function RankedQueue({ token }: { token: string }) {
   }
 
   const queued = status?.queued === true;
+
+  /*
+   * The reveal takes over the whole card.
+   *
+   * Rendered instead of the queue rather than beside it: at this point the
+   * search is over, and leaving "Searching — 8s" and a Cancel button on
+   * screen next to "Match found" would be contradictory and invite a click
+   * that can no longer do anything.
+   */
+  if (matched) {
+    return (
+      <div
+        className="panel p-5"
+        style={{
+          borderColor: "var(--color-good)",
+          background:
+            "color-mix(in srgb, var(--color-good) 7%, var(--color-surface))",
+        }}
+      >
+        <p
+          className="font-mono text-[0.62rem] uppercase tracking-[0.18em]"
+          style={{ color: "var(--color-good)" }}
+        >
+          Match found
+        </p>
+        <p className="mt-2 text-[1.25rem] font-bold leading-tight">
+          {matched.opponentName ? (
+            <>
+              You&rsquo;re playing{" "}
+              <span style={{ color: "var(--color-accent)" }}>
+                {matched.opponentName}
+              </span>
+            </>
+          ) : (
+            "Opponent found"
+          )}
+        </p>
+        {matched.opponentRating !== null && (
+          <p
+            className="mt-1 font-mono text-[0.72rem]"
+            style={{ color: "var(--color-ink-dim)" }}
+          >
+            Rating {matched.opponentRating}
+          </p>
+        )}
+        <p
+          className="mt-3 flex items-center gap-2 font-mono text-[0.72rem]"
+          style={{ color: "var(--color-ink-faint)" }}
+        >
+          <span
+            className="h-1.5 w-1.5 animate-pulse rounded-full"
+            style={{ background: "var(--color-good)" }}
+            aria-hidden
+          />
+          Opening the arena…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="panel p-5">

@@ -6,7 +6,9 @@ import {
   type CreateBattleRequest,
   type CreateBattleResponse,
   type JoinBattleResponse,
+  type Difficulty,
   type Language,
+  type PublicProblem,
   type SolutionEntry,
   type StandingRow,
 } from "@repo/protocol";
@@ -25,6 +27,46 @@ async function uniqueRoomCode(): Promise<string> {
     roomCode = generateRoomCode();
   }
   return roomCode; // extremely unlikely; last generated code wins
+}
+
+/**
+ * The client-safe projection of a problem.
+ *
+ * Mirrors ws-server's `toPublicProblem` rather than importing it: the two
+ * services share no package, and this is a field mapping with one rule worth
+ * coordinating — HIDDEN tests are stripped entirely and only the total count
+ * is exposed, so a client can render "x / total" without seeing the cases.
+ */
+function toPublicProblem(
+  problem: {
+    id: string;
+    title: string;
+    statementMarkdown: string;
+    constraints: string;
+    difficulty: Difficulty;
+    allowedLanguages: string[];
+    starterCode: unknown;
+  },
+  tests: { kind: string; input: string; expectedOutput: string; ordinal: number }[],
+): PublicProblem {
+  return {
+    id: problem.id,
+    title: problem.title,
+    statementMarkdown: problem.statementMarkdown,
+    constraints: problem.constraints,
+    difficulty: problem.difficulty,
+    allowedLanguages: problem.allowedLanguages as Language[],
+    starterCode: problem.starterCode as Record<Language, string>,
+    sampleTests: tests
+      .filter((t) => t.kind === "SAMPLE")
+      .sort((a, b) => a.ordinal - b.ordinal)
+      .map((t) => ({
+        ordinal: t.ordinal,
+        input: t.input,
+        expectedOutput: t.expectedOutput,
+      })),
+    totalTests: tests.length,
+  };
 }
 
 /** Create a new battleground hosted by `hostUserId`. */
@@ -77,7 +119,19 @@ export async function getBattleResult(
 ): Promise<BattleResultResponse> {
   const battle = await prisma.battle.findUnique({
     where: { id: battleId },
-    include: { result: true },
+    // The problem rides along so a debrief opened from a link or a reload can
+    // show the question. Only revealed once the battle is over — see below.
+    include: {
+      result: true,
+      problem: { include: { testCases: true } },
+      // The roster, so the debrief can name each side by who played it.
+      teams: {
+        select: {
+          side: true,
+          members: { select: { user: { select: { username: true } } } },
+        },
+      },
+    },
   });
   if (!battle) {
     throw notFound("Battle not found");
@@ -97,6 +151,21 @@ export async function getBattleResult(
     reason: battle.finishReason ?? null,
     standings,
     decidingSubmissionId: battle.result?.decidingSubmissionId ?? null,
+    /*
+     * The problem, but ONLY on a battle that has finished.
+     *
+     * A live battle's row is readable here too (the lobby polls it), and
+     * handing back the statement then would let anyone with the battle id
+     * read the question without being seated in the room.
+     */
+    problem:
+      battle.status === "FINISHED" && battle.problem
+        ? toPublicProblem(battle.problem, battle.problem.testCases)
+        : null,
+    rosters: battle.teams.map((t) => ({
+      side: t.side,
+      usernames: t.members.map((m) => m.user.username),
+    })),
   };
 }
 

@@ -64,7 +64,11 @@ export function Lobby({
       session={session}
       right={
         <div className="flex items-center gap-2.5">
-          <span className="chip">Code: {snap.roomCode}</span>
+          {/* Same rule as the panel below: a ranked pairing has nobody to
+              invite, so its code is noise in the header too. */}
+          {!snap.config.isRanked && (
+            <span className="chip">Code: {snap.roomCode}</span>
+          )}
           <ConnBadge status={status} />
         </div>
       }
@@ -73,8 +77,8 @@ export function Lobby({
         {/* Header row: config + room code */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="font-mono text-xl font-bold uppercase tracking-tight">
-              Mission_lobby
+            <h1 className="text-xl font-bold">
+              {snap.config.isRanked ? "Ranked match" : "Battle lobby"}
             </h1>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className="chip">{modeLabel(snap.config.mode)}</span>
@@ -84,7 +88,10 @@ export function Lobby({
               </span>
             </div>
           </div>
-          <RoomCode code={snap.roomCode} />
+          {/* Only a room-code battle has a code worth showing: a ranked
+              pairing was made by the matchmaker, so there is nobody to
+              invite and the code is noise. */}
+          {!snap.config.isRanked && <RoomCode code={snap.roomCode} />}
         </div>
 
         {/* Teams */}
@@ -95,7 +102,8 @@ export function Lobby({
             teamSize={size}
             myUserId={state.myUserId}
             onTake={(slot) => takeSeat("A", slot)}
-            disabled={busy || counting}
+            disabled={busy || counting || snap.config.isRanked}
+            hideReady={snap.config.isRanked}
           />
           <div className="flex items-center justify-center sm:flex-col sm:px-1">
             <span
@@ -130,19 +138,35 @@ export function Lobby({
             teamSize={size}
             myUserId={state.myUserId}
             onTake={(slot) => takeSeat("B", slot)}
-            disabled={busy || counting}
+            disabled={busy || counting || snap.config.isRanked}
+            hideReady={snap.config.isRanked}
           />
         </div>
 
         {error && <ErrorBanner message={error} />}
 
-        {/* Action bar */}
+        {/*
+          Action bar.
+
+          A RANKED battle has none of these controls. The matchmaker already
+          chose the opponent and seated both players, so there is nothing to
+          arrange — the server starts it the moment both are connected. See
+          BattleRoom.maybeAutoStart for why ready/deploy is friction there
+          rather than a safeguard.
+        */}
         <div className="panel flex flex-wrap items-center justify-between gap-4 p-5">
           {counting ? (
             <div className="flex items-center gap-3">
               <Spinner />
+              <span className="text-sm font-medium">Starting…</span>
+            </div>
+          ) : snap.config.isRanked ? (
+            <div className="flex items-center gap-3">
+              <Spinner />
               <span className="text-sm font-medium">
-                Deployment imminent — stand by…
+                {startable
+                  ? "Both players in — starting…"
+                  : "Waiting for your opponent to connect…"}
               </span>
             </div>
           ) : (
@@ -153,7 +177,7 @@ export function Lobby({
                   disabled={!seated || busy}
                   onClick={() => withBusy(() => setReady(!me?.ready))}
                 >
-                  {me?.ready ? "Stand_down" : "Ready_up"}
+                  {me?.ready ? "Stand down" : "Ready up"}
                 </button>
                 <span
                   className="font-mono text-[0.72rem]"
@@ -172,14 +196,14 @@ export function Lobby({
                   onClick={() => withBusy(start)}
                   title={blockedReason ?? undefined}
                 >
-                  {busy ? <Spinner /> : "Deploy"}
+                  {busy ? <Spinner /> : "Start battle"}
                 </button>
               )}
             </>
           )}
         </div>
 
-        {!me?.isHost && !counting && (
+        {!me?.isHost && !counting && !snap.config.isRanked && (
           <p
             className="text-center font-mono text-[0.7rem] uppercase tracking-wider"
             style={{ color: "var(--color-ink-faint)" }}
