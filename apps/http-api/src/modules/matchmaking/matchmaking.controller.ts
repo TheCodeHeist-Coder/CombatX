@@ -53,6 +53,8 @@ export async function getQueueStatus(
       queued: false,
       matchedBattleId: assigned.battleId,
       matchedRoomCode: assigned.roomCode,
+      opponentName: assigned.opponentName,
+      opponentRating: assigned.opponentRating,
     });
     return;
   }

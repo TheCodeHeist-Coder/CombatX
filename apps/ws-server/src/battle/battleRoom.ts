@@ -206,6 +206,56 @@ export class BattleRoom {
 
     this.broadcastLobby();
     this.broadcastPresence(conn.userId, "ONLINE");
+
+    // A ranked pairing starts itself — see maybeAutoStart.
+    void this.maybeAutoStart();
+  }
+
+  /**
+   * Begin a matchmade battle as soon as both players are present.
+   *
+   * WHY RANKED BATTLES SKIP READY AND DEPLOY
+   * ----------------------------------------
+   * Those controls exist for a room-code lobby, where a host invites people,
+   * players pick sides, and somebody decides when the group is complete.
+   * NONE of that applies to a random pairing: the matchmaker already chose
+   * the opponent and wrote both seats, so there is nothing to arrange. Asking
+   * two strangers to each press "ready" and then one of them to press
+   * "deploy" is a coordination problem the product invented for itself —
+   * and if the nominal host wanders off, the other player waits forever.
+   *
+   * So the server starts it, on the same countdown a manual start uses.
+   *
+   * Deliberately server-side. The client could not be trusted to decide when
+   * a battle begins, and two clients racing to start the same room is exactly
+   * the bug this avoids — `start()` is idempotent on status, so the second
+   * call is a no-op.
+   */
+  private async maybeAutoStart(): Promise<void> {
+    if (!this.config.isRanked) return; // room-code lobbies keep their controls
+    if (this.status !== "LOBBY") return;
+
+    // Every seat the matchmaker assigned must actually be connected. A player
+    // who queued and closed the tab must not burn their opponent's clock.
+    const expected = this.assignedSeats?.size ?? 0;
+    if (expected === 0) return;
+
+    const present = [...this.seats.values()].filter(
+      (seat) => seat.presence === "ONLINE" && seat.side !== null,
+    ).length;
+    if (present < expected) return;
+
+    /*
+     * Ready up on everyone's behalf.
+     *
+     * `canStart` requires it, and it is the honest representation of what a
+     * ranked pairing means: you readied when you joined the queue.
+     */
+    for (const seat of this.seats.values()) {
+      if (seat.side !== null) seat.ready = true;
+    }
+
+    await this.start(this.hostUserId);
   }
 
   /** Detach one socket. Marks the user disconnected when their last one closes. */

@@ -4,6 +4,7 @@ import {
   BadgeProgressView,
   BadgeView,
   BattleConfig,
+  PublicProblem,
   RatingView,
   StandingRow,
 } from "./domain.js";
@@ -469,6 +470,15 @@ export const QueueStatusResponse = z.object({
    */
   matchedBattleId: z.string().nullable().default(null),
   matchedRoomCode: z.string().nullable().default(null),
+  /**
+   * Who you were paired with.
+   *
+   * Lets the queue say "Matched — you're playing shadow" before it navigates,
+   * instead of the screen simply changing underneath the player. Null while
+   * still searching.
+   */
+  opponentName: z.string().nullable().default(null),
+  opponentRating: z.number().int().nullable().default(null),
 });
 export type QueueStatusResponse = z.infer<typeof QueueStatusResponse>;
 
@@ -500,6 +510,16 @@ export const BattleHistoryEntry = z.object({
   leagueName: z.string().nullable().default(null),
   /** "GROUP", "FINAL" and so on, so a final reads as a final. */
   leagueRound: z.string().nullable().default(null),
+  /**
+   * Who the caller played against, and alongside.
+   *
+   * "Team A" is meaningless to a player looking back at a random 1v1 — the
+   * fact they want is the opponent's name. Empty when the seats were never
+   * persisted (a battle abandoned in the lobby), so callers fall back rather
+   * than rendering a dangling separator.
+   */
+  opponentNames: z.array(z.string()).default([]),
+  teammateNames: z.array(z.string()).default([]),
 });
 export type BattleHistoryEntry = z.infer<typeof BattleHistoryEntry>;
 
@@ -542,6 +562,26 @@ export const BattleResultResponse = z.object({
   reason: FinishReason.nullable(),
   standings: z.array(StandingRow),
   decidingSubmissionId: z.string().nullable(),
+  /**
+   * The problem that was played.
+   *
+   * Safe here and only here: the service fills it in only for a FINISHED
+   * battle, so this cannot leak a question that is still being fought over.
+   * It is what makes the debrief readable from a shared link or a reload,
+   * where there is no live socket to have carried the statement.
+   */
+  problem: PublicProblem.nullable().default(null),
+  /**
+   * Who played, by side.
+   *
+   * The roster, not the submissions — a player who never submitted still
+   * played, and naming their side "Team Alpha" while the other side shows a
+   * username is the inconsistency this removes. Empty for a battle whose
+   * seats were never persisted.
+   */
+  rosters: z
+    .array(z.object({ side: Side, usernames: z.array(z.string()) }))
+    .default([]),
 });
 export type BattleResultResponse = z.infer<typeof BattleResultResponse>;
 

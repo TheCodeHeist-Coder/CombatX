@@ -78,6 +78,25 @@ export async function getMyBattles(
         select: { title: true, _count: { select: { testCases: true } } },
       },
       result: { select: { standings: true, createdAt: true } },
+      /*
+       * Who was in it.
+       *
+       * The archive used to say "Team A", which tells a player nothing — in a
+       * random 1v1 the interesting fact is WHO they played. Seats are written
+       * to Team/TeamMember when a battle starts, so this is the durable
+       * record of the roster.
+       */
+      teams: {
+        select: {
+          side: true,
+          members: {
+            select: {
+              userId: true,
+              user: { select: { username: true } },
+            },
+          },
+        },
+      },
       // The league this battle belonged to, when it was a fixture leg.
       leagueLeg: {
         select: {
@@ -125,6 +144,25 @@ export async function getMyBattles(
       leagueId: b.leagueLeg?.fixture.league.id ?? null,
       leagueName: b.leagueLeg?.fixture.league.name ?? null,
       leagueRound: b.leagueLeg?.fixture.round ?? null,
+      /*
+       * The other side's names, joined for display.
+       *
+       * Empty when the seats were never persisted — a battle abandoned in the
+       * lobby has no Team rows — and the client falls back to the side letter
+       * rather than showing an empty separator.
+       */
+      opponentNames: b.teams
+        .filter((t) => t.side !== m.side)
+        .flatMap((t) => t.members.map((mem) => mem.user.username)),
+      // Teammates means OTHER people on your side — listing the caller as
+      // their own teammate produced "with hololo" on hololo's own history.
+      teammateNames: b.teams
+        .filter((t) => t.side === m.side)
+        .flatMap((t) =>
+          t.members
+            .filter((mem) => mem.userId !== userId)
+            .map((mem) => mem.user.username),
+        ),
     };
   });
 

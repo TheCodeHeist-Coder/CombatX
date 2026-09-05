@@ -133,10 +133,24 @@ function HistoryRow({ entry }: { entry: BattleHistoryEntry }) {
           )}
         </span>
         <span className="label mt-0.5 block">
+          {/*
+            Who you played, not which side you sat on.
+
+            "Team A" is an implementation detail of the arena; looking back at
+            a match weeks later, the thing that identifies it is the opponent.
+            Falls back to the side letter only when the seats were never
+            persisted, which is the one case where no name exists.
+          */}
+          {entry.opponentNames.length > 0
+            ? `vs ${entry.opponentNames.join(", ")}`
+            : entry.mySide
+              ? `Team ${entry.mySide}`
+              : "No opponent"}
+          {entry.teammateNames.length > 0 &&
+            ` · with ${entry.teammateNames.join(", ")}`}
+          {" · "}
           {entry.leagueName ? `${entry.leagueName} · ` : ""}
-          {modeLabel(entry.mode)} · {titleCase(entry.difficulty)} · Room{" "}
-          {entry.roomCode}
-          {entry.mySide && ` · Team ${entry.mySide}`}
+          {modeLabel(entry.mode)} · {titleCase(entry.difficulty)}
         </span>
       </span>
 
